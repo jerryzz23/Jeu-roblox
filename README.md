@@ -7,18 +7,19 @@ procédurale, chacune avec son **icône UI** (UICorner + UIGradient + ViewportFr
 | 3/4 | Profil | Icône |
 | --- | --- | --- |
 | ![Rat des Cavernes 3/4](docs/previews/rat-des-cavernes-34.png) | ![Rat des Cavernes profil](docs/previews/rat-des-cavernes-profil.png) | ![Icône](docs/previews/rat-des-cavernes-icone.png) |
+| ![Lézard Mousseux 3/4](docs/previews/lezard-mousseux-34.png) | ![Lézard Mousseux profil](docs/previews/lezard-mousseux-profil.png) | ![Icône](docs/previews/lezard-mousseux-icone.png) |
 
 > Aperçus rendus hors de Studio par `tools/preview/viewer.html` (approximation : dans Roblox,
 > l'éclairage, les textures Fabric/Slate et les particules rendent différemment).
 
-## Progression (1 / 21)
+## Progression (2 / 21)
 
 > Répartition des raretés provisoire pour les groupes « Rares & Épiques » et « Légendaires & Mythiques ».
 
 | # | Créature | Rareté | État |
 | --- | --- | --- | --- |
 | 1 | Le Rat des Cavernes | Commun | ✅ `src/shared/Creatures/RatDesCavernes.luau` |
-| 2 | Le Lézard Mousseux | Commun | ⏳ |
+| 2 | Le Lézard Mousseux | Commun | ✅ `src/shared/Creatures/LezardMousseux.luau` |
 | 3 | Le Corbeau des Brumes | Commun | ⏳ |
 | 4 | Le Pousse-Pierre | Commun | ⏳ |
 | 5 | Le Lapin Solaire | Commun | ⏳ |
@@ -55,19 +56,37 @@ Petit rongeur agile aux yeux lumineux, corps sombre texturé et petites oreilles
 - **Animation procédurale** : respiration, reniflements, regard, frémissement d'oreilles,
   queue ondulante (Idle) ; trot diagonal + rebond (Move) ; pose figée (Still).
 
+## Le Lézard Mousseux (Commun)
+
+Reptile rampant recouvert de plaques écailleuses vertes et de mousse, avec de petites dorures sur le dos.
+
+- **402 pièces**, ~1,2 × 2,6 × 7,1 studs à `scale = 1` (bas sur pattes, longue queue).
+- **Matériaux** : Pebble (peau grumeleuse), Slate (3 rangées de plaques imbriquées, bord libre
+  relevé vers l'arrière), Grass (touffes de mousse), SmoothPlastic (ventre, yeux, langue), Metal (dorures).
+- **Ornements** : rivets dorés sur l'échine, liserés dorés sur trois plaques, losange doré au front,
+  touffes de mousse avec jeunes pousses (dos, tête, base de la queue), barbe de mousse sous le menton,
+  yeux dorés à pupille fendue, arcades osseuses, joues biseautées, queue annelée à plaques, griffes sombres.
+- **Effets** : pollen qui s'échappe de la mousse, reflets dorés le long de l'échine, poussière au sol.
+- **Squelette** : `Root > Body > Chest > Head > Jaw / Tongue`, `Body > Tail1…Tail7`, pattes
+  avant sur `Chest`, arrière sur `Body` (16 Motor6D).
+- **Animation** (démarche `Sprawler`) : le corps ondule en S, les pattes écartées balaient à
+  l'horizontale et se soulèvent au retour ; au repos, double coup de langue fourchue avec
+  mâchoire entrouverte.
+
 ## Utilisation dans Roblox Studio
 
 ### Option 1 — Command Bar (le plus rapide)
 
-1. Ouvrez `dist/RatDesCavernes.commandbar.luau`, copiez **tout** le contenu.
+1. Ouvrez `dist/<Créature>.commandbar.luau` (ex. `dist/LezardMousseux.commandbar.luau`),
+   copiez **tout** le contenu.
 2. Studio : *View › Command Bar*, collez, **Entrée**.
-3. Le rat apparaît devant la caméra (sélectionné, annulable avec Ctrl+Z) et son icône
-   s'affiche dans `StarterGui › CreatureForgeIcons`.
+3. La créature apparaît devant la caméra (sélectionnée, annulable avec Ctrl+Z) et son icône
+   s'ajoute dans `StarterGui › CreatureForgeIcons`.
 
 ### Option 2 — Fichiers modèle
 
-- Glissez `dist/RatDesCavernes.rbxmx` dans la fenêtre 3D de Studio → le modèle.
-- Glissez `dist/RatDesCavernes_Icon.rbxmx` sur `StarterGui` → la carte d'icône.
+- Glissez `dist/<Créature>.rbxmx` dans la fenêtre 3D de Studio → le modèle.
+- Glissez `dist/<Créature>_Icon.rbxmx` sur `StarterGui` → la carte d'icône.
 
 ### Option 3 — Projet complet avec Rojo (recommandé pour le jeu)
 
@@ -99,7 +118,7 @@ CreatureForge.buildIcon("RatDesCavernes", someFrame) -- carte carrée qui rempli
 ```
 src/shared/
   init.luau        registre + spawn/buildIcon/setAnimState
-  Kit.luau         rig (os Motor6D), pièces soudées, primitives low-poly :
+  Kit.luau         rig (os Motor6D, chaînes d'os), pièces soudées, primitives low-poly :
                    prism (octogone chanfreiné), wedgeTri, spike, thorn, ring, shard, cylinder, strut
   Fx.luau          particules / lumières (textures moteur rbxasset://, aucun asset à téléverser)
   Icon.luau        carte d'icône : UICorner, UIGradient, UIStroke, ViewportFrame cadré automatiquement

@@ -96,7 +96,7 @@ function material(p) {
   const opts = { color, transparent: p.t > 0, opacity: 1 - p.t, side: THREE.DoubleSide };
   if (p.m === "Neon") return new THREE.MeshBasicMaterial({ ...opts, color: color.clone().multiplyScalar(1.25) });
   const std = { ...opts, flatShading: true, roughness: 0.85, metalness: 0 };
-  if (p.m === "Metal" || p.m === "DiamondPlate" || p.m === "Foil") Object.assign(std, { roughness: 0.35, metalness: 0.65 });
+  if (p.m === "Metal" || p.m === "DiamondPlate" || p.m === "Foil") Object.assign(std, { roughness: 0.45, metalness: 0.3 });
   if (p.m === "Glass") Object.assign(std, { roughness: 0.1, transparent: true, opacity: Math.min(1 - p.t, 0.6) });
   if (p.m === "Fabric" || p.m === "Slate") std.roughness = 1;
   return new THREE.MeshStandardMaterial(std);

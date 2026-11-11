@@ -9,8 +9,11 @@ local Kit = require(script.Parent.Kit)
 
 --- Paramètres de l'animation procédurale (voir CreatureAnimator).
 export type AnimProfile = {
-	gait: "Quadruped" | "Biped" | "Flyer" | "Serpent" | "Hover",
+	-- Quadruped : pattes sous le corps (trot) ; Sprawler : pattes écartées + ondulation (reptiles)
+	gait: "Quadruped" | "Sprawler" | "Biped" | "Flyer" | "Serpent" | "Hover",
 	breathe: number?, -- amplitude de respiration (studs)
+	sway: number?, -- ondulation latérale du corps en marche (degrés, Sprawler)
+	tongueFlick: boolean?, -- coups de langue (os "Tongue") avec ouverture de mâchoire (os "Jaw")
 	bob: number?, -- rebond du corps en marche (studs)
 	stride: number?, -- amplitude des pattes (degrés)
 	strideRate: number?, -- cadence des pattes (rad/s)

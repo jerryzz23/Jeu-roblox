@@ -6,8 +6,10 @@
 	présentes dans Workspace, en pilotant Motor6D.Transform (non répliqué : zéro trafic réseau).
 
 	L'état est lu dans l'attribut "AnimState" du modèle (posé par le serveur) :
-	  "Idle"  : respiration, reniflements, regard, oreilles qui frémissent, queue qui ondule
-	  "Move"  : trot diagonal des pattes, rebond du corps, queue plus vive
+	  "Idle"  : respiration, reniflements, regard, oreilles qui frémissent, queue qui ondule,
+	            coups de langue (reptiles)
+	  "Move"  : Quadruped -> trot diagonal + rebond du corps
+	            Sprawler  -> pattes écartées qui balaient + ondulation du corps (lézards)
 	  "Still" : pose figée (vitrines, captures d'écran)
 
 	Les paramètres viennent de CreatureDef.Animation (voir Types.AnimProfile).
@@ -21,10 +23,22 @@ local RunService = game:GetService("RunService")
 local CreatureForge = require(ReplicatedStorage:WaitForChild("CreatureForge"))
 
 local MAX_DISTANCE = 150
+local FLICK_TIME = 0.6
 local TAG = CreatureForge.TAG
 
+-- Côté de chaque patte (+1 = droite / +X, -1 = gauche) et phase du pas (paires diagonales)
+local LEGS = {
+	{ name = "Leg_FR", side = 1, phase = 0 },
+	{ name = "Leg_BL", side = -1, phase = 0 },
+	{ name = "Leg_FL", side = -1, phase = math.pi },
+	{ name = "Leg_BR", side = 1, phase = math.pi },
+}
+
 type Profile = {
+	gait: string,
 	breathe: number,
+	sway: number,
+	tongueFlick: boolean,
 	bob: number,
 	stride: number,
 	strideRate: number,
@@ -48,6 +62,7 @@ type State = {
 	earTimer: number,
 	earSide: number,
 	sniffTimer: number,
+	tongueTimer: number,
 	frozen: boolean,
 	connections: { RBXScriptConnection },
 }
@@ -58,7 +73,10 @@ local function readProfile(id: string?): Profile
 	local a = if id and CreatureForge.has(id) then CreatureForge.get(id).Animation else nil
 	local p: { [string]: any } = (a or {}) :: any
 	return {
+		gait = p.gait or "Quadruped",
 		breathe = p.breathe or 0.03,
+		sway = p.sway or 8,
+		tongueFlick = p.tongueFlick == true,
 		bob = p.bob or 0.08,
 		stride = p.stride or 30,
 		strideRate = p.strideRate or 10,
@@ -122,6 +140,7 @@ local function track(inst: Instance)
 		earTimer = 1,
 		earSide = 1,
 		sniffTimer = 2,
+		tongueTimer = 1.5,
 		frozen = false,
 		connections = {},
 	}
@@ -164,19 +183,31 @@ local function step(st: State, dt: number)
 	local sc = st.scale
 	local rad = math.rad
 
-	-- Corps : respiration au repos, rebond au trot
 	local gait = t * p.strideRate
 	local breathe = math.sin(t * 2.4) * p.breathe * idle
-	local bob = math.abs(math.sin(gait)) * p.bob * mv
-	set(st, "Body", CFrame.new(0, (breathe + bob) * sc, 0) * CFrame.Angles(math.sin(gait * 2) * 0.035 * mv, 0, 0))
-
-	-- Pattes : trot diagonal (avant-droite avec arrière-gauche)
 	local swing = rad(p.stride) * mv
-	local a, b = math.sin(gait) * swing, math.sin(gait + math.pi) * swing
-	set(st, "Leg_FR", CFrame.Angles(a, 0, 0))
-	set(st, "Leg_BL", CFrame.Angles(a, 0, 0))
-	set(st, "Leg_FL", CFrame.Angles(b, 0, 0))
-	set(st, "Leg_BR", CFrame.Angles(b, 0, 0))
+	local headYaw = 0
+
+	if p.gait == "Sprawler" then
+		-- Reptile : le corps ondule en S, les pattes écartées balaient à l'horizontale
+		-- et se soulèvent pendant le retour vers l'avant.
+		local sway = math.sin(gait) * rad(p.sway) * mv + math.sin(t * 0.7) * rad(2) * idle
+		set(st, "Body", CFrame.new(0, breathe * sc, 0) * CFrame.Angles(0, sway, 0))
+		set(st, "Chest", CFrame.Angles(0, -sway * 1.6, 0))
+		headYaw = sway * 0.6
+		for _, leg in LEGS do
+			local ph = gait + leg.phase
+			local lift = math.max(0, math.cos(ph)) * rad(22) * mv
+			set(st, leg.name, CFrame.Angles(0, leg.side * math.sin(ph) * swing, leg.side * lift))
+		end
+	else
+		-- Quadrupède : rebond au trot, pattes en balancier (avant-droite avec arrière-gauche)
+		local bob = math.abs(math.sin(gait)) * p.bob * mv
+		set(st, "Body", CFrame.new(0, (breathe + bob) * sc, 0) * CFrame.Angles(math.sin(gait * 2) * 0.035 * mv, 0, 0))
+		for _, leg in LEGS do
+			set(st, leg.name, CFrame.Angles(math.sin(gait + leg.phase) * swing, 0, 0))
+		end
+	end
 
 	-- Tête : regard lent + reniflements par salves
 	st.sniffTimer -= dt
@@ -186,7 +217,23 @@ local function step(st: State, dt: number)
 	local sniff = if p.sniff and st.sniffTimer < 0 then math.sin(t * 38) * rad(2.5) else 0
 	local look = math.sin(t * 0.55) * math.sin(t * 0.23 + 1) * rad(p.headLook) * idle
 	local nod = math.sin(gait * 2) * rad(3) * mv
-	set(st, "Head", CFrame.Angles(sniff + nod - math.sin(t * 2.4) * rad(1.5) * idle, look, 0))
+	set(st, "Head", CFrame.Angles(sniff + nod - math.sin(t * 2.4) * rad(1.5) * idle, look + headYaw, 0))
+
+	-- Langue fourchue : double coup de langue occasionnel, mâchoire entrouverte
+	if p.tongueFlick then
+		st.tongueTimer -= dt
+		if st.tongueTimer < -FLICK_TIME then
+			st.tongueTimer = st.rng:NextNumber(1.8, 4.5)
+		end
+		local out, open = 0, 0
+		if st.tongueTimer < 0 then
+			local u = -st.tongueTimer / FLICK_TIME
+			out = math.sin(u * math.pi * 2) ^ 2
+			open = math.sin(u * math.pi)
+		end
+		set(st, "Tongue", CFrame.new(0, 0, -0.4 * out * sc))
+		set(st, "Jaw", CFrame.Angles(-rad(9) * open, 0, 0))
+	end
 
 	-- Oreilles : frémissement occasionnel d'un côté
 	if p.earTwitch then

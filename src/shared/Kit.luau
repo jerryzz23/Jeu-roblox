@@ -219,6 +219,19 @@ function Rig.bone(self: Rig, name: string, parentName: string, cf: CFrame): Base
 	return b
 end
 
+--- Chaîne d'os le long d'une polyligne (queues, cous, corps de serpent) :
+--- crée `prefix1` … `prefix(#points - 1)`, chacun pivotant sur points[i] et orienté
+--- (-Z) vers points[i + 1]. Le premier est attaché à `parentName`. Renvoie les noms.
+function Rig.boneChain(self: Rig, prefix: string, parentName: string, points: { Vector3 }): { string }
+	local names = {}
+	for i = 1, #points - 1 do
+		local name = prefix .. i
+		self:bone(name, if i == 1 then parentName else names[i - 1], Kit.lookAlong(points[i], points[i + 1] - points[i]))
+		names[i] = name
+	end
+	return names
+end
+
 --- Crée une pièce soudée à l'os `boneName`. `cf`/`size` en espace modèle.
 function Rig.part(
 	self: Rig,

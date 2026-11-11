@@ -108,10 +108,7 @@ local function build(opts: Kit.BuildOptions?): Model
 		rig:bone("Leg_F" .. s, "Body", cf(side * 0.45, 0.88, -0.62))
 		rig:bone("Leg_B" .. s, "Body", cf(side * 0.6, 1.0, 0.75))
 	end)
-	for i = 1, #TAIL - 1 do
-		local parentName = if i == 1 then "Body" else "Tail" .. (i - 1)
-		rig:bone("Tail" .. i, parentName, Kit.lookAlong(TAIL[i], TAIL[i + 1] - TAIL[i]))
-	end
+	rig:boneChain("Tail", "Body", TAIL)
 
 	-- ===================================================================
 	-- Corps
