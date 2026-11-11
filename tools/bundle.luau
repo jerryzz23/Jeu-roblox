@@ -89,8 +89,14 @@ local function bundle(id: string): string
 -- Entrée
 -- ============================================================================
 do
+	-- Réglages : mutation éventuelle ("Gold", "Diamond", "Toxic", "Infernal", "Void", "Rainbow")
+	-- et échelle (nil = taille par défaut de la créature).
+	local MUTATION = nil
+	local SCALE = nil
+
 	local def = __require("%s")
 	local Icon = __require("Icon")
+	local Mutations = __require("Mutations")
 
 	-- Position : 14 studs devant la caméra, posée au sol, tournée vers la caméra
 	local look = Vector3.new(0, 0, -1)
@@ -105,7 +111,11 @@ do
 	end
 	local hit = workspace:Raycast(pos + Vector3.new(0, 50, 0), Vector3.new(0, -300, 0))
 	local ground = if hit then hit.Position else Vector3.new(pos.X, 0, pos.Z)
-	local model = def.build({ cframe = CFrame.lookAt(ground, ground - look), parent = workspace })
+	local model = def.build({ cframe = CFrame.lookAt(ground, ground - look), scale = SCALE or def.Scale })
+	if MUTATION then
+		Mutations.apply(model, MUTATION)
+	end
+	model.Parent = workspace
 
 	-- Icône UI (visible dans l'éditeur via StarterGui)
 	local StarterGui = game:GetService("StarterGui")
@@ -135,7 +145,7 @@ do
 	if old then
 		old:Destroy()
 	end
-	Icon.build(def, tray)
+	Icon.build(def, tray, { mutation = MUTATION })
 
 	pcall(function()
 		game:GetService("Selection"):Set({ model })

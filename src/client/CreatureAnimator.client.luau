@@ -6,13 +6,15 @@
 	présentes dans Workspace, en pilotant Motor6D.Transform (non répliqué : zéro trafic réseau).
 
 	L'état est lu dans l'attribut "AnimState" du modèle (posé par le serveur) :
-	  "Idle"  : respiration, reniflements, regard, oreilles qui frémissent, queue qui ondule,
-	            coups de langue (reptiles)
-	  "Move"  : Quadruped -> trot diagonal + rebond du corps
-	            Sprawler  -> pattes écartées qui balaient + ondulation du corps (lézards)
+	  "Idle"  : respiration, regard, oreilles, queue, langue, orbites qui tournent
+	  "Move"  : déplacement selon la démarche (Types.AnimProfile.gait) :
+	            Quadruped -> trot diagonal + rebond          Sprawler -> pattes écartées + ondulation
+	            Flyer     -> battements d'ailes rapides      Serpent  -> ondulation de tout le corps
+	            Hover     -> lévitation inclinée vers l'avant
 	  "Still" : pose figée (vitrines, captures d'écran)
 
-	Les paramètres viennent de CreatureDef.Animation (voir Types.AnimProfile).
+	Conventions de nommage des os (Motor6D) : Body, Chest, Head, Jaw, Tongue, Ear_R/L,
+	Leg_FR/FL/BR/BL, Leg_R/L (oiseaux), Wing_R/L, Tail1..n, Seg1..n (serpents), Aura1..n (orbites).
 	Les créatures à plus de MAX_DISTANCE studs de la caméra ne sont pas animées.
 ]]
 
@@ -22,7 +24,7 @@ local RunService = game:GetService("RunService")
 
 local CreatureForge = require(ReplicatedStorage:WaitForChild("CreatureForge"))
 
-local MAX_DISTANCE = 150
+local MAX_DISTANCE = 160
 local FLICK_TIME = 0.6
 local TAG = CreatureForge.TAG
 
@@ -47,6 +49,10 @@ type Profile = {
 	headLook: number,
 	sniff: boolean,
 	earTwitch: boolean,
+	flap: number,
+	flapRate: number,
+	hover: number,
+	auraSpeed: number,
 }
 
 type State = {
@@ -56,6 +62,8 @@ type State = {
 	scale: number,
 	motors: { [string]: Motor6D },
 	tail: { Motor6D },
+	segs: { Motor6D },
+	auras: { Motor6D },
 	t: number,
 	move: number,
 	rng: Random,
@@ -85,7 +93,21 @@ local function readProfile(id: string?): Profile
 		headLook = p.headLook or 15,
 		sniff = p.sniff == true,
 		earTwitch = p.earTwitch == true,
+		flap = p.flap or 35,
+		flapRate = p.flapRate or 6,
+		hover = p.hover or 0.15,
+		auraSpeed = p.auraSpeed or 0.6,
 	}
+end
+
+local function chain(motors: { [string]: Motor6D }, prefix: string): { Motor6D }
+	local out = {}
+	local i = 1
+	while motors[prefix .. i] do
+		table.insert(out, motors[prefix .. i])
+		i += 1
+	end
+	return out
 end
 
 local function untrack(model: Model)
@@ -118,12 +140,6 @@ local function track(inst: Instance)
 			motors[d.Name] = d
 		end
 	end
-	local tail = {}
-	local i = 1
-	while motors["Tail" .. i] do
-		table.insert(tail, motors["Tail" .. i])
-		i += 1
-	end
 
 	local id = model:GetAttribute("CreatureId")
 	local seed = math.floor((root.Position.X * 73 + root.Position.Z * 19) % 100000)
@@ -133,7 +149,9 @@ local function track(inst: Instance)
 		profile = readProfile(if typeof(id) == "string" then id else nil),
 		scale = (model:GetAttribute("Scale") :: number?) or 1,
 		motors = motors,
-		tail = tail,
+		tail = chain(motors, "Tail"),
+		segs = chain(motors, "Seg"),
+		auras = chain(motors, "Aura"),
 		t = seed % 100,
 		move = 0,
 		rng = Random.new(seed),
@@ -155,10 +173,10 @@ local function track(inst: Instance)
 	states[model] = st
 end
 
-local function set(st: State, name: string, cf: CFrame)
+local function set(st: State, name: string, c: CFrame)
 	local m = st.motors[name]
 	if m then
-		m.Transform = cf
+		m.Transform = c
 	end
 end
 
@@ -190,7 +208,6 @@ local function step(st: State, dt: number)
 
 	if p.gait == "Sprawler" then
 		-- Reptile : le corps ondule en S, les pattes écartées balaient à l'horizontale
-		-- et se soulèvent pendant le retour vers l'avant.
 		local sway = math.sin(gait) * rad(p.sway) * mv + math.sin(t * 0.7) * rad(2) * idle
 		set(st, "Body", CFrame.new(0, breathe * sc, 0) * CFrame.Angles(0, sway, 0))
 		set(st, "Chest", CFrame.Angles(0, -sway * 1.6, 0))
@@ -200,6 +217,33 @@ local function step(st: State, dt: number)
 			local lift = math.max(0, math.cos(ph)) * rad(22) * mv
 			set(st, leg.name, CFrame.Angles(0, leg.side * math.sin(ph) * swing, leg.side * lift))
 		end
+	elseif p.gait == "Flyer" then
+		-- Oiseau en vol stationnaire : battements d'ailes, corps qui monte et descend
+		local rate = p.flapRate * (1 + mv * 0.6)
+		local beat = math.sin(t * rate)
+		local flap = beat * rad(p.flap) * (0.7 + mv * 0.4)
+		set(st, "Body", CFrame.new(0, (-beat * p.hover + breathe) * sc, 0) * CFrame.Angles(-rad(14) * mv, 0, 0))
+		set(st, "Wing_R", CFrame.Angles(0, 0, flap))
+		set(st, "Wing_L", CFrame.Angles(0, 0, -flap))
+		set(st, "WingTip_R", CFrame.Angles(0, 0, math.sin(t * rate - 0.8) * rad(p.flap) * 0.5))
+		set(st, "WingTip_L", CFrame.Angles(0, 0, -math.sin(t * rate - 0.8) * rad(p.flap) * 0.5))
+		set(st, "Leg_R", CFrame.Angles(rad(25) * mv + math.sin(t * 1.3) * rad(4), 0, 0))
+		set(st, "Leg_L", CFrame.Angles(rad(25) * mv + math.sin(t * 1.3 + 1) * rad(4), 0, 0))
+	elseif p.gait == "Serpent" then
+		-- Serpent : une onde parcourt les segments de la tête vers la queue
+		local amp = rad(p.sway) * (0.5 + mv)
+		local rate = p.tailRate * (1 + mv * 1.5)
+		set(st, "Body", CFrame.new(0, breathe * sc, 0))
+		for i, m in st.segs do
+			local k = i / math.max(#st.segs, 1)
+			m.Transform = CFrame.Angles(math.sin(t * rate * 0.6 - i * 0.4) * rad(2), math.sin(t * rate - i * 0.55) * amp * (0.3 + k), 0)
+		end
+	elseif p.gait == "Hover" then
+		-- Lévitation : flottement lent, légère inclinaison en mouvement
+		local float = math.sin(t * 1.3) * p.hover
+		set(st, "Body", CFrame.new(0, float * sc, 0) * CFrame.Angles(-rad(10) * mv + math.sin(t * 0.9) * rad(2), math.sin(t * 0.5) * rad(4), 0))
+		set(st, "Arm_R", CFrame.Angles(math.sin(t * 1.1) * rad(8), 0, math.sin(t * 0.8) * rad(6)))
+		set(st, "Arm_L", CFrame.Angles(math.sin(t * 1.1 + 1.4) * rad(8), 0, -math.sin(t * 0.8 + 1) * rad(6)))
 	else
 		-- Quadrupède : rebond au trot, pattes en balancier (avant-droite avec arrière-gauche)
 		local bob = math.abs(math.sin(gait)) * p.bob * mv
@@ -207,6 +251,9 @@ local function step(st: State, dt: number)
 		for _, leg in LEGS do
 			set(st, leg.name, CFrame.Angles(math.sin(gait + leg.phase) * swing, 0, 0))
 		end
+		-- Ailes repliées éventuelles (ex. créatures ailées terrestres)
+		set(st, "Wing_R", CFrame.Angles(0, 0, math.sin(t * 1.6) * rad(6)))
+		set(st, "Wing_L", CFrame.Angles(0, 0, -math.sin(t * 1.6) * rad(6)))
 	end
 
 	-- Tête : regard lent + reniflements par salves
@@ -233,6 +280,9 @@ local function step(st: State, dt: number)
 		end
 		set(st, "Tongue", CFrame.new(0, 0, -0.4 * out * sc))
 		set(st, "Jaw", CFrame.Angles(-rad(9) * open, 0, 0))
+	elseif st.motors.Jaw then
+		-- Mâchoire qui respire légèrement
+		set(st, "Jaw", CFrame.Angles(-rad(3) * (0.5 + 0.5 * math.sin(t * 1.7)), 0, 0))
 	end
 
 	-- Oreilles : frémissement occasionnel d'un côté
@@ -253,6 +303,12 @@ local function step(st: State, dt: number)
 	for i, m in st.tail do
 		local k = i / #st.tail
 		m.Transform = CFrame.Angles(math.sin(t * rate * 0.7 - i * 0.5) * rad(3), math.sin(t * rate - i * 0.6) * amp * (0.4 + k), 0)
+	end
+
+	-- Orbites : chaque anneau tourne (sens alterné) et ondule doucement
+	for i, m in st.auras do
+		local dir = if i % 2 == 0 then -1 else 1
+		m.Transform = CFrame.new(0, math.sin(t * 1.1 + i) * 0.08 * sc, 0) * CFrame.Angles(0, t * p.auraSpeed * dir * (1 + i * 0.25), 0)
 	end
 end
 

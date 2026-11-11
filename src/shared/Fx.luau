@@ -99,6 +99,84 @@ function Fx.particles(parent: Instance, def: ParticleDef, scale: number?): Parti
 	return e
 end
 
+-- Préréglages ---------------------------------------------------------------
+
+function Fx.sparkles(name: string, colors: { Color3 }, rate: number, size: number, rise: number?): ParticleDef
+	return {
+		name = name,
+		texture = Fx.TEXTURES.sparkle,
+		colors = colors,
+		sizes = { size, size * 0.6, 0 },
+		transparencies = { 0.1, 0.2, 1 },
+		lifetime = NumberRange.new(1, 2),
+		rate = rate,
+		speed = NumberRange.new(0.1, 0.4),
+		spread = Vector2.new(180, 180),
+		acceleration = Vector3.new(0, rise or 0.3, 0),
+		drag = 1,
+		lightEmission = 1,
+		rotation = NumberRange.new(0, 360),
+		rotSpeed = NumberRange.new(-60, 60),
+		volume = true,
+	}
+end
+
+function Fx.embers(name: string, colors: { Color3 }, rate: number, size: number): ParticleDef
+	return {
+		name = name,
+		texture = Fx.TEXTURES.spark,
+		colors = colors,
+		sizes = { size, size * 0.5, 0 },
+		lifetime = NumberRange.new(0.8, 1.6),
+		rate = rate,
+		speed = NumberRange.new(0.5, 1.5),
+		spread = Vector2.new(30, 30),
+		acceleration = Vector3.new(0, 1.2, 0),
+		lightEmission = 1,
+		rotation = NumberRange.new(0, 360),
+		volume = true,
+	}
+end
+
+function Fx.mist(name: string, colors: { Color3 }, rate: number, size: number, lightEmission: number?): ParticleDef
+	return {
+		name = name,
+		texture = Fx.TEXTURES.smoke,
+		colors = colors,
+		sizes = { size * 0.5, size },
+		transparencies = { 1, 0.55, 1 },
+		lifetime = NumberRange.new(1.5, 3),
+		rate = rate,
+		speed = NumberRange.new(0.1, 0.4),
+		spread = Vector2.new(180, 180),
+		acceleration = Vector3.new(0, 0.1, 0),
+		drag = 1,
+		lightEmission = lightEmission or 0,
+		rotation = NumberRange.new(0, 360),
+		rotSpeed = NumberRange.new(-20, 20),
+		volume = true,
+	}
+end
+
+function Fx.fire(name: string, colors: { Color3 }, rate: number, size: number): ParticleDef
+	return {
+		name = name,
+		texture = Fx.TEXTURES.fire,
+		colors = colors,
+		sizes = { size, size * 0.7, 0 },
+		transparencies = { 0.2, 0.4, 1 },
+		lifetime = NumberRange.new(0.5, 1),
+		rate = rate,
+		speed = NumberRange.new(0.6, 1.4),
+		spread = Vector2.new(15, 15),
+		acceleration = Vector3.new(0, 1.5, 0),
+		lightEmission = 1,
+		rotation = NumberRange.new(0, 360),
+		rotSpeed = NumberRange.new(-60, 60),
+		volume = true,
+	}
+end
+
 function Fx.light(parent: Instance, def: LightDef, scale: number?): PointLight
 	local l = Instance.new("PointLight")
 	l.Color = def.color

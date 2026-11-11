@@ -17,6 +17,8 @@ local Kit = require(script.Kit)
 local Fx = require(script.Fx)
 local Rarity = require(script.Rarity)
 local Icon = require(script.Icon)
+local Anatomy = require(script.Anatomy)
+local Mutations = require(script.Mutations)
 local Types = require(script.Types)
 
 export type CreatureDef = Types.CreatureDef
@@ -27,6 +29,8 @@ local CreatureForge = {
 	Fx = Fx,
 	Rarity = Rarity,
 	Icon = Icon,
+	Anatomy = Anatomy,
+	Mutations = Mutations,
 	TAG = Kit.TAG,
 }
 
@@ -67,13 +71,31 @@ function CreatureForge.list(): { Types.CreatureDef }
 end
 
 --- Construit la créature `id` au pivot `cframe` (au sol) et la parente à Workspace par défaut.
+--- opts.scale (défaut : def.Scale), opts.mutation (ex. "Gold"), voir Kit.BuildOptions.
 function CreatureForge.spawn(id: string, cframe: CFrame?, opts: Kit.BuildOptions?): Model
+	local def = CreatureForge.get(id)
 	local o: Kit.BuildOptions = if opts then table.clone(opts) else {}
 	o.cframe = cframe or o.cframe
-	if o.parent == nil then
-		o.parent = workspace
+	o.scale = o.scale or def.Scale
+	local parent = if o.parent == nil then workspace else o.parent
+	o.parent = nil
+	local model = def.build(o)
+	if o.mutation then
+		Mutations.apply(model, o.mutation)
 	end
-	return CreatureForge.get(id).build(o)
+	model.Parent = parent
+	return model
+end
+
+--- Créatures d'une zone de la carte (voir Rarity.Zones).
+function CreatureForge.inZone(zone: string): { Types.CreatureDef }
+	local out = {}
+	for _, def in CreatureForge.list() do
+		if def.Zone == zone then
+			table.insert(out, def)
+		end
+	end
+	return out
 end
 
 --- Construit la carte d'icône UI de la créature `id`.

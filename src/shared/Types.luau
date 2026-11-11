@@ -22,7 +22,14 @@ export type AnimProfile = {
 	headLook: number?, -- regard gauche/droite au repos (degrés)
 	sniff: boolean?, -- petits reniflements rapides
 	earTwitch: boolean?, -- frémissement des oreilles
+	flap: number?, -- amplitude des battements d'ailes (degrés, Flyer)
+	flapRate: number?, -- vitesse des battements (rad/s)
+	hover: number?, -- amplitude du flottement (studs, Flyer / Hover)
+	auraSpeed: number?, -- vitesse de rotation des objets en orbite (rad/s)
 }
+
+--- Zones de la carte (du haut du canyon vers le fond).
+export type Zone = "Surface" | "PenteBrumeuse" | "GrottesCristal" | "Abysse"
 
 --- Habillage de l'icône d'inventaire.
 export type IconTheme = {
@@ -39,6 +46,8 @@ export type CreatureDef = {
 	Id: string,
 	DisplayName: string,
 	Rarity: string,
+	Zone: Zone, -- zone de la carte où la créature apparaît
+	Scale: number?, -- échelle par défaut à l'apparition (taille en jeu)
 	Category: string,
 	Description: string,
 	Icon: IconTheme,

@@ -21,6 +21,27 @@ local workspaceStub = roblox.Instance.new("Model")
 workspaceStub.Name = "Workspace"
 Sandbox.workspace = workspaceStub
 
+-- Remplaçant déterministe de Random (absent de @lune/roblox)
+local RandomShim = {}
+RandomShim.__index = RandomShim
+function RandomShim.new(seed: number?)
+	local s = math.floor((seed or os.clock() * 1e6) * 1000) % 2147483647
+	if s <= 0 then
+		s += 2147483646
+	end
+	return setmetatable({ s = s }, RandomShim)
+end
+function RandomShim:NextNumber(min: number?, max: number?): number
+	self.s = (self.s * 48271) % 2147483647
+	local f = self.s / 2147483647
+	local lo, hi = min or 0, max or 1
+	return lo + (hi - lo) * f
+end
+function RandomShim:NextInteger(min: number, max: number): number
+	return math.floor(self:NextNumber(min, max + 1))
+end
+Sandbox.Random = RandomShim
+
 local cache: { [string]: any } = {}
 
 local nodeMeta = {}
@@ -95,6 +116,7 @@ local function makeEnv(scriptNode)
 			print("[warn]", ...)
 		end,
 		task = require("@lune/task"),
+		Random = RandomShim,
 	}
 	for _, name in GLOBAL_NAMES do
 		env[name] = (roblox :: any)[name]

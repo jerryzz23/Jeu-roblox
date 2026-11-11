@@ -5,14 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CreatureForge Preview</title>
 <style>
-  :root { --bg: #e9eaee; --ink: #1d1d24; --muted: #6b6d78; --chip: #ffffff; --chip-on: #1d1d24; }
-  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 13px/1.4 system-ui, sans-serif; }
+  :root { --bg: #eef0f4; --ink: #1d1d24; --muted: #6b6d78; --chip: #ffffff; --chip-on: #1d1d24; }
+  html, body { margin: 0; height: 100%; background: radial-gradient(circle at 50% 45%, #ffffff 0%, var(--bg) 70%); color: var(--ink); font: 13px/1.4 system-ui, sans-serif; overflow: hidden; }
   #bar { position: fixed; top: 0; left: 0; right: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 10px 16px; z-index: 2; }
   #bar button { border: 1px solid #c9cad2; background: var(--chip); color: var(--ink); border-radius: 6px; padding: 4px 10px; cursor: pointer; font: inherit; }
   #bar button.on { background: var(--chip-on); color: #fff; border-color: var(--chip-on); }
+  #bar select { border: 1px solid #c9cad2; border-radius: 6px; padding: 4px 8px; font: inherit; background: #fff; }
+  #bar .sep { width: 10px; }
   #info { margin-left: 8px; color: var(--muted); }
   #info b { color: var(--ink); }
   canvas { display: block; }
+  #caption { display: none; position: fixed; left: 0; right: 0; bottom: 14px; text-align: center; font: 700 20px system-ui; color: var(--ink); z-index: 2; }
+  #caption span { display: block; font: 600 13px system-ui; color: var(--muted); letter-spacing: .08em; }
+  body.clean #bar { display: none; }
+  body.clean #caption { display: block; }
   #icon { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; }
   #card { position: relative; width: min(80vw, 80vh); aspect-ratio: 1; border-radius: 16%; overflow: hidden; box-shadow: 0 0 0 4px #b0b8c4 inset; }
   #card canvas { position: absolute; inset: 0; width: 100% !important; height: 100% !important; }
@@ -29,8 +35,14 @@
   <button data-view="back">Arrière</button>
   <button data-view="top">Dessus</button>
   <button data-view="icon">Icône</button>
-  <span id="info">Glissez un fichier .json exporté par <code>lune run tools/export</code> ou ouvrez <code>?id=RatDesCavernes</code></span>
+  <span class="sep"></span>
+  <button id="outline" class="on">Contours</button>
+  <select id="mut"><option value="">Normal</option></select>
+  <button id="glb">GLB</button>
+  <button id="obj">OBJ</button>
+  <span id="info">Glissez un .json exporté par <code>lune run tools/export</code> ou ouvrez <code>?id=RatDesCavernes</code></span>
 </div>
+<div id="caption"></div>
 <div id="icon"><div id="card"><div id="pill">COMMUN</div><div id="plate"></div></div></div>
 <script type="importmap">
 { "imports": {
@@ -41,13 +53,18 @@
 <script type="module">
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
+import { OBJExporter } from "three/addons/exporters/OBJExporter.js";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
 const params = new URLSearchParams(location.search);
+if (params.get("ui") === "0") document.body.classList.add("clean");
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.setClearColor(0x000000, 0);
 document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -55,27 +72,36 @@ const camera = new THREE.PerspectiveCamera(30, 1, 0.05, 500);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 
-scene.add(new THREE.HemisphereLight(0xf4f6ff, 0x5a5560, 1.4));
-const sun = new THREE.DirectionalLight(0xfff6e8, 2.2);
-sun.position.set(4, 9, -6);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8494, 1.5));
+const sun = new THREE.DirectionalLight(0xffffff, 2.0);
+sun.position.set(5, 10, -7);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.bias = -0.0005;
 scene.add(sun, sun.target);
-const ground = new THREE.Mesh(new THREE.CircleGeometry(30, 64), new THREE.ShadowMaterial({ opacity: 0.18 }));
+const ground = new THREE.Mesh(new THREE.CircleGeometry(40, 64), new THREE.ShadowMaterial({ opacity: 0.16 }));
 ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
+// Ombrage cartoon en 3 tons
+const toonRamp = new THREE.DataTexture(new Uint8Array([120, 120, 120, 255, 200, 200, 200, 255, 255, 255, 255, 255]), 3, 1);
+toonRamp.minFilter = toonRamp.magFilter = THREE.NearestFilter;
+toonRamp.needsUpdate = true;
+
 const creature = new THREE.Group();
-scene.add(creature);
+const outlines = new THREE.Group();
+scene.add(creature, outlines);
+const OUTLINE_MAT = new THREE.MeshBasicMaterial({ color: 0x15131a, side: THREE.BackSide });
 let data = null;
+let parts = [];
 let bounds = new THREE.Box3();
 let view = params.get("view") || "34";
+outlines.visible = params.get("outline") !== "0";
+document.getElementById("outline").classList.toggle("on", outlines.visible);
 
 function wedgeGeometry() {
-  const v = [
-    [-0.5, -0.5, -0.5], [0.5, -0.5, -0.5], [0.5, -0.5, 0.5], [-0.5, -0.5, 0.5], [-0.5, 0.5, 0.5], [0.5, 0.5, 0.5],
-  ];
+  const v = [[-0.5, -0.5, -0.5], [0.5, -0.5, -0.5], [0.5, -0.5, 0.5], [-0.5, -0.5, 0.5], [-0.5, 0.5, 0.5], [0.5, 0.5, 0.5]];
   const tris = [[0, 2, 1], [0, 3, 2], [3, 5, 4], [3, 2, 5], [0, 4, 5], [0, 5, 1], [0, 3, 4], [1, 5, 2]];
   const pos = [];
   for (const t of tris) for (const i of t) pos.push(...v[i]);
@@ -87,51 +113,110 @@ function wedgeGeometry() {
 const GEO = {
   Block: new THREE.BoxGeometry(1, 1, 1),
   Wedge: wedgeGeometry(),
-  Ball: new THREE.SphereGeometry(0.5, 20, 14),
-  Cylinder: new THREE.CylinderGeometry(0.5, 0.5, 1, 20).rotateZ(-Math.PI / 2),
+  Ball: new THREE.IcosahedronGeometry(0.5, 1),
+  Cylinder: new THREE.CylinderGeometry(0.5, 0.5, 1, 12).rotateZ(-Math.PI / 2),
 };
 
+const srgb = a => new THREE.Color().setRGB(a[0] / 255, a[1] / 255, a[2] / 255, THREE.SRGBColorSpace);
+
 function material(p) {
-  const color = new THREE.Color().setRGB(p.col[0] / 255, p.col[1] / 255, p.col[2] / 255, THREE.SRGBColorSpace);
-  const opts = { color, transparent: p.t > 0, opacity: 1 - p.t, side: THREE.DoubleSide };
-  if (p.m === "Neon") return new THREE.MeshBasicMaterial({ ...opts, color: color.clone().multiplyScalar(1.25) });
-  const std = { ...opts, flatShading: true, roughness: 0.85, metalness: 0 };
-  if (p.m === "Metal" || p.m === "DiamondPlate" || p.m === "Foil") Object.assign(std, { roughness: 0.45, metalness: 0.3 });
-  if (p.m === "Glass") Object.assign(std, { roughness: 0.1, transparent: true, opacity: Math.min(1 - p.t, 0.6) });
-  if (p.m === "Fabric" || p.m === "Slate") std.roughness = 1;
-  return new THREE.MeshStandardMaterial(std);
+  const color = srgb(p.col);
+  const opts = { color, transparent: p.t > 0, opacity: 1 - p.t };
+  if (p.m === "Neon") return new THREE.MeshBasicMaterial({ ...opts, color: color.clone().multiplyScalar(1.3) });
+  if (p.m === "Glass") return new THREE.MeshToonMaterial({ ...opts, gradientMap: toonRamp, transparent: true, opacity: Math.min(1 - p.t, 0.65) });
+  return new THREE.MeshToonMaterial({ ...opts, gradientMap: toonRamp });
 }
+
+function partMatrix(p, grow = 0) {
+  const c = p.c;
+  const m = new THREE.Matrix4().set(c[3], c[4], c[5], c[0], c[6], c[7], c[8], c[1], c[9], c[10], c[11], c[2], 0, 0, 0, 1);
+  let s = p.s;
+  if (p.k === "Ball") { const d = Math.min(...s); s = [d, d, d]; }
+  if (p.k === "Cylinder") { const d = Math.min(s[1], s[2]); s = [s[0], d, d]; }
+  return m.multiply(new THREE.Matrix4().makeScale(s[0] + grow, s[1] + grow, s[2] + grow));
+}
+
+// ---- Mutations (même algorithme que src/shared/Mutations.luau) ----
+let mutations = [];
+let mutation = params.get("mut") || "";
+function hsv(h, s, v) {
+  const i = Math.floor(h * 6), f = h * 6 - i, p = v * (1 - s), q = v * (1 - f * s), t = v * (1 - (1 - f) * s);
+  return [[v, t, p], [q, v, p], [p, v, t], [p, q, v], [t, p, v], [v, p, q]][i % 6];
+}
+function mutate(p, along) {
+  const m = mutations.find(x => x.id === mutation);
+  if (!m) return p;
+  const [r, g, b] = p.col.map(x => x / 255);
+  const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+  const neon = p.m === "Neon";
+  let col, mat = p.m, t = p.t;
+  if (m.rainbow) col = hsv((along * 0.85 + lum * 0.15) % 1, neon ? 0.45 : 0.78, 0.45 + 0.55 * Math.sqrt(lum)).map(x => x * 255);
+  else if (neon) col = m.glow;
+  else {
+    const x = Math.pow(lum, 0.85) * (m.ramp.length - 1), i = Math.min(Math.floor(x), m.ramp.length - 2), f = x - i;
+    col = m.ramp[i].map((c, k) => c + (m.ramp[i + 1][k] - c) * f);
+  }
+  if (m.material && !neon) {
+    mat = m.material;
+    const l2 = (0.299 * col[0] + 0.587 * col[1] + 0.114 * col[2]) / 255;
+    if (m.transparency && l2 > 0.55) t = Math.max(t, m.transparency);
+  }
+  return { ...p, col, m: mat, t };
+}
+const mutSelect = document.getElementById("mut");
+fetch("mutations.json").then(r => r.json()).then(list => {
+  mutations = list;
+  for (const m of list) {
+    const o = document.createElement("option");
+    o.value = m.id;
+    o.textContent = `${m.label} x${m.multiplier}`;
+    mutSelect.appendChild(o);
+  }
+  mutSelect.value = mutation;
+}).catch(() => {});
+mutSelect.onchange = () => { mutation = mutSelect.value; if (data) load(data); };
 
 function load(json) {
   data = json;
+  const zs = json.parts.map(p => p.c[2]);
+  const zMin = Math.min(...zs), zMax = Math.max(...zs);
   creature.clear();
-  for (const p of json.parts) {
-    const mesh = new THREE.Mesh(GEO[p.k] || GEO.Block, material(p));
-    const c = p.c;
-    const m = new THREE.Matrix4().set(c[3], c[4], c[5], c[0], c[6], c[7], c[8], c[1], c[9], c[10], c[11], c[2], 0, 0, 0, 1);
-    let s = p.s;
-    if (p.k === "Ball") { const d = Math.min(...s); s = [d, d, d]; }
-    if (p.k === "Cylinder") { const d = Math.min(s[1], s[2]); s = [s[0], d, d]; }
-    m.multiply(new THREE.Matrix4().makeScale(s[0], s[1], s[2]));
+  outlines.clear();
+  parts = [];
+  for (const p0 of json.parts) {
+    const p = mutate(p0, (p0.c[2] - zMin) / Math.max(zMax - zMin, 0.01));
+    const geo = GEO[p.k] || GEO.Block;
+    const mesh = new THREE.Mesh(geo, material(p));
     mesh.matrixAutoUpdate = false;
-    mesh.matrix.copy(m);
+    mesh.matrix.copy(partMatrix(p));
     mesh.castShadow = p.m !== "Neon";
     mesh.receiveShadow = true;
     creature.add(mesh);
+    parts.push({ p, mesh });
+    if (p.t < 0.5) {
+      const w = Math.min(0.03, 0.2 * Math.min(...p.s));
+      const hull = new THREE.Mesh(geo, OUTLINE_MAT);
+      hull.matrixAutoUpdate = false;
+      hull.matrix.copy(partMatrix(p, w));
+      outlines.add(hull);
+    }
   }
   creature.updateMatrixWorld(true);
   bounds = new THREE.Box3().setFromObject(creature);
+  const tris = json.parts.reduce((n, p) => n + ({ Block: 12, Wedge: 8, Ball: 80, Cylinder: 48 }[p.k] || 12), 0);
   document.getElementById("info").innerHTML =
-    `<b>${json.name}</b> · ${json.rarity} · ${json.parts.length} pièces · ` +
-    `${(bounds.max.y - bounds.min.y).toFixed(2)} st de haut · ${(bounds.max.z - bounds.min.z).toFixed(2)} st de long`;
+    `<b>${json.name}</b> · ${json.rarity} · ${json.parts.length} pièces · ${tris} tris · ` +
+    `${(bounds.max.y - bounds.min.y).toFixed(1)} st de haut · ${(bounds.max.z - bounds.min.z).toFixed(1)} st de long`;
   document.getElementById("plate").textContent = json.name;
+  const mut = mutations.find(x => x.id === mutation);
+  document.getElementById("caption").innerHTML = `${json.name}<span>${mut ? mut.label + " x" + mut.multiplier : json.rarity.toUpperCase()}</span>`;
   setView(view);
 }
 
 function fit(dir) {
   const center = bounds.getCenter(new THREE.Vector3());
   const radius = bounds.getSize(new THREE.Vector3()).length() / 2;
-  const dist = radius / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2)) * 0.82;
+  const dist = radius / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2)) * 0.8;
   camera.position.copy(center).add(dir.clone().normalize().multiplyScalar(dist));
   controls.target.copy(center);
   camera.lookAt(center);
@@ -139,13 +224,12 @@ function fit(dir) {
 
 function setView(v) {
   view = v;
-  document.querySelectorAll("#bar button").forEach(b => b.classList.toggle("on", b.dataset.view === v));
+  document.querySelectorAll("#bar button[data-view]").forEach(b => b.classList.toggle("on", b.dataset.view === v));
   const iconMode = v === "icon";
   document.getElementById("icon").style.display = iconMode ? "flex" : "none";
   ground.visible = !iconMode;
   if (iconMode) {
     document.getElementById("card").appendChild(renderer.domElement);
-    renderer.setClearColor(0x000000, 0);
     const ic = data.icon;
     const card = document.getElementById("card");
     const rgb = a => `rgb(${a[0]},${a[1]},${a[2]})`;
@@ -160,20 +244,18 @@ function setView(v) {
     const c = ic.camera;
     const m = new THREE.Matrix4().set(c[3], c[4], c[5], c[0], c[6], c[7], c[8], c[1], c[9], c[10], c[11], c[2], 0, 0, 0, 1);
     camera.fov = ic.fov;
-    camera.matrixAutoUpdate = true;
     m.decompose(camera.position, camera.quaternion, camera.scale);
     controls.enabled = false;
   } else {
     document.body.appendChild(renderer.domElement);
-    renderer.setClearColor(0xe9eaee, 1);
     camera.fov = 30;
     controls.enabled = true;
     const dirs = {
-      "34": new THREE.Vector3(0.75, 0.42, -1),
-      front: new THREE.Vector3(0, 0.15, -1),
-      side: new THREE.Vector3(1, 0.12, 0),
-      back: new THREE.Vector3(-0.7, 0.45, 1),
-      top: new THREE.Vector3(0.0001, 1, -0.2),
+      "34": new THREE.Vector3(0.75, 0.45, -1),
+      front: new THREE.Vector3(0, 0.18, -1),
+      side: new THREE.Vector3(1, 0.15, 0),
+      back: new THREE.Vector3(-0.7, 0.5, 1),
+      top: new THREE.Vector3(0.0001, 1, -0.05),
     };
     fit(dirs[v] || dirs["34"]);
   }
@@ -188,7 +270,48 @@ function resize() {
   camera.updateProjectionMatrix();
 }
 addEventListener("resize", resize);
-document.querySelectorAll("#bar button").forEach(b => b.onclick = () => setView(b.dataset.view));
+document.querySelectorAll("#bar button[data-view]").forEach(b => b.onclick = () => setView(b.dataset.view));
+document.getElementById("outline").onclick = e => {
+  outlines.visible = !outlines.visible;
+  e.target.classList.toggle("on", outlines.visible);
+};
+
+// ---- Export : un maillage par matériau Roblox, couleurs par sommet ----
+function exportScene() {
+  const groups = new Map();
+  for (const { p, mesh } of parts) {
+    let g = (mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone());
+    g.deleteAttribute("uv");
+    g.applyMatrix4(mesh.matrix);
+    const col = srgb(p.col);
+    const n = g.attributes.position.count;
+    const arr = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) arr.set([col.r, col.g, col.b], i * 3);
+    g.setAttribute("color", new THREE.BufferAttribute(arr, 3));
+    if (!groups.has(p.m)) groups.set(p.m, []);
+    groups.get(p.m).push(g);
+  }
+  const out = new THREE.Scene();
+  for (const [mat, list] of groups) {
+    const mesh = new THREE.Mesh(mergeGeometries(list), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, name: mat }));
+    mesh.name = `${data.id}_${mat}`;
+    out.add(mesh);
+  }
+  return out;
+}
+function download(blob, name) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+document.getElementById("glb").onclick = () => {
+  new GLTFExporter().parse(exportScene(), r => download(new Blob([r], { type: "model/gltf-binary" }), `${data.id}.glb`), console.error, { binary: true });
+};
+document.getElementById("obj").onclick = () => {
+  download(new Blob([new OBJExporter().parse(exportScene())], { type: "text/plain" }), `${data.id}.obj`);
+};
 
 addEventListener("dragover", e => e.preventDefault());
 addEventListener("drop", async e => {
@@ -203,7 +326,8 @@ renderer.setAnimationLoop(() => {
 });
 
 const id = params.get("id");
-if (id) fetch(`${id}.json`).then(r => r.json()).then(load).then(() => (window.__ready = true));
+if (id) fetch("mutations.json").then(r => r.json()).catch(() => []).then(list => { mutations = list; })
+  .then(() => fetch(`${id}.json`)).then(r => r.json()).then(load).then(() => (window.__ready = true));
 </script>
 </body>
 </html>

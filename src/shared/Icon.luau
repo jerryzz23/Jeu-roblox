@@ -14,6 +14,7 @@
 
 local Kit = require(script.Parent.Kit)
 local Rarity = require(script.Parent.Rarity)
+local Mutations = require(script.Parent.Mutations)
 local Types = require(script.Parent.Types)
 
 local Icon = {}
@@ -25,6 +26,8 @@ export type IconOptions = {
 	layoutOrder: number?,
 	showName: boolean?, -- défaut : true
 	showRarity: boolean?, -- défaut : true
+	mutation: string?, -- affiche la variante mutée + sa pastille
+	detail: number?, -- densité du modèle 3D (défaut : 0.55, plus léger)
 }
 
 local WHITE = Color3.new(1, 1, 1)
@@ -171,7 +174,16 @@ function Icon.build(def: Types.CreatureDef, parent: Instance?, opts: IconOptions
 	cam.FieldOfView = 28
 	cam.Parent = vf
 	vf.CurrentCamera = cam
-	local model = def.build({ effects = false, outline = false, animated = false })
+	local model = def.build({ effects = false, outline = false, animated = false, detail = o.detail or 0.55 })
+	local mutation = if o.mutation then Mutations.get(o.mutation) else nil
+	if mutation then
+		Mutations.apply(model, mutation.id)
+		for _, d in model:GetDescendants() do
+			if d:IsA("ParticleEmitter") or d:IsA("Light") then
+				d:Destroy()
+			end
+		end
+	end
 	model.Parent = vf
 	Icon.frameCamera(model, cam, theme)
 
@@ -193,6 +205,17 @@ function Icon.build(def: Types.CreatureDef, parent: Instance?, opts: IconOptions
 		gem.Rotation = 45
 		gradient(gem, { tier.light, tier.color, tier.dark }, 45)
 		stroke(gem, BLACK, 1.5, 0.3)
+	end
+
+	-- Pastille de mutation (sous la rareté)
+	if mutation then
+		local tag = frame("Mutation", card, UDim2.fromScale(0.5, 0.11), UDim2.fromScale(0.3, 0.22), WHITE, 0, 5)
+		corner(tag, 0.5)
+		gradient(tag, mutation.badge, 0)
+		stroke(tag, BLACK, 1.5, 0.2)
+		local t = label("Label", tag, `{mutation.label} x{mutation.multiplier}`, WHITE, 14)
+		t.Size = UDim2.fromScale(0.9, 0.72)
+		stroke(t, BLACK, 1.2)
 	end
 
 	-- Plaque de nom

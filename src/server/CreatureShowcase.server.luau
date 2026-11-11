@@ -2,8 +2,10 @@
 --[[
 	CreatureShowcase (ServerScriptService)
 	--------------------------------------
-	Démo : fait apparaître chaque créature enregistrée devant le point d'apparition
-	et la fait se promener (états "Move" / "Idle" lus par CreatureAnimator côté client).
+	Démo : fait apparaître toutes les créatures devant le point d'apparition, une rangée par
+	zone de la carte (Surface, Pente Brumeuse, Grottes de Cristal), puis les fait se promener
+	(états "Move" / "Idle" lus par CreatureAnimator côté client).
+	Une créature sur quatre reçoit une mutation au hasard pour la démonstration.
 	Désactivez ce script (Enabled = false) dans votre vrai jeu.
 ]]
 
@@ -12,10 +14,11 @@ local TweenService = game:GetService("TweenService")
 
 local CreatureForge = require(ReplicatedStorage:WaitForChild("CreatureForge"))
 
-local SPACING = 9 -- studs entre deux créatures
-local DISTANCE = 16 -- distance devant le point d'apparition
-local WANDER_RADIUS = 7 -- rayon de promenade autour de la position d'origine
-local SPEED = 9 -- studs/s
+local GAP = 4 -- studs entre deux créatures d'une même rangée
+local ROW_GAP = 10 -- studs entre deux rangées (zones)
+local DISTANCE = 18 -- distance de la première rangée devant le point d'apparition
+local SPEED = 8 -- studs/s (multiplié par l'échelle)
+local MUTATION_DEMO = true
 
 local folder = Instance.new("Folder")
 folder.Name = "Creatures"
@@ -26,33 +29,32 @@ rayParams.FilterType = Enum.RaycastFilterType.Exclude
 rayParams.FilterDescendantsInstances = { folder }
 
 local function groundAt(pos: Vector3): Vector3
-	local hit = workspace:Raycast(pos + Vector3.new(0, 60, 0), Vector3.new(0, -200, 0), rayParams)
+	local hit = workspace:Raycast(pos + Vector3.new(0, 80, 0), Vector3.new(0, -300, 0), rayParams)
 	return if hit then hit.Position else Vector3.new(pos.X, 0, pos.Z)
 end
 
-local function wander(model: Model, home: Vector3)
+local function wander(model: Model, home: Vector3, radius: number)
 	local root = model.PrimaryPart :: BasePart
 	local rng = Random.new()
+	local scale = (model:GetAttribute("Scale") :: number?) or 1
 	while model.Parent do
-		task.wait(rng:NextNumber(1.5, 4))
+		task.wait(rng:NextNumber(2, 5))
 		if not model.Parent then
 			break
 		end
 		local angle = rng:NextNumber(0, math.pi * 2)
-		local target = groundAt(home + Vector3.new(math.cos(angle), 0, math.sin(angle)) * rng:NextNumber(2, WANDER_RADIUS))
+		local target = groundAt(home + Vector3.new(math.cos(angle), 0, math.sin(angle)) * rng:NextNumber(radius * 0.3, radius))
 		local from = root.Position
 		if (target - from).Magnitude < 0.5 then
 			continue
 		end
 		local facing = CFrame.lookAt(from, Vector3.new(target.X, from.Y, target.Z))
-		local turn = TweenService:Create(root, TweenInfo.new(0.2, Enum.EasingStyle.Quad), { CFrame = facing })
+		local turn = TweenService:Create(root, TweenInfo.new(0.3, Enum.EasingStyle.Quad), { CFrame = facing })
 		turn:Play()
 		turn.Completed:Wait()
 
 		CreatureForge.setAnimState(model, "Move")
-		local scale = (model:GetAttribute("Scale") :: number?) or 1
-		local duration = (target - from).Magnitude / (SPEED * scale)
-		local move = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
+		local move = TweenService:Create(root, TweenInfo.new((target - from).Magnitude / (SPEED * scale), Enum.EasingStyle.Linear), {
 			CFrame = facing.Rotation + target,
 		})
 		move:Play()
@@ -66,13 +68,37 @@ local base = if spawnLocation then spawnLocation.CFrame else CFrame.new(0, 0, 0)
 local forward = base.LookVector * Vector3.new(1, 0, 1)
 forward = if forward.Magnitude > 0.01 then forward.Unit else Vector3.new(0, 0, -1)
 local right = forward:Cross(Vector3.yAxis)
+local rng = Random.new()
 
-local list = CreatureForge.list()
-for i, def in list do
-	local offset = (i - (#list + 1) / 2) * SPACING
-	local pos = groundAt(base.Position + forward * DISTANCE + right * offset)
-	-- La créature regarde vers le point d'apparition
-	local cf = CFrame.lookAt(pos, Vector3.new(base.Position.X, pos.Y, base.Position.Z))
-	local model = CreatureForge.spawn(def.Id, cf, { parent = folder })
-	task.spawn(wander, model, pos)
+local rowOffset = DISTANCE
+for _, zone in CreatureForge.Rarity.Zones do
+	local defs = CreatureForge.inZone(zone.id)
+	if #defs == 0 then
+		continue
+	end
+	-- Construit la rangée hors de Workspace pour mesurer les tailles, puis la centre
+	local models, widths, depth, total = {}, {}, 0, 0
+	for _, def in defs do
+		local mutation = nil
+		if MUTATION_DEMO and rng:NextNumber() < 0.25 then
+			local list = CreatureForge.Mutations.List
+			mutation = list[rng:NextInteger(1, #list)].id
+		end
+		local model = CreatureForge.spawn(def.Id, CFrame.identity, { parent = folder, mutation = mutation })
+		local size = model:GetExtentsSize()
+		table.insert(models, model)
+		table.insert(widths, size.X)
+		depth = math.max(depth, size.Z)
+		total += size.X + GAP
+	end
+	local x = -total / 2
+	for i, model in models do
+		x += widths[i] / 2
+		local pos = groundAt(base.Position + forward * (rowOffset + depth / 2) + right * x)
+		-- La créature regarde vers le point d'apparition
+		model:PivotTo(CFrame.lookAt(pos, Vector3.new(base.Position.X, pos.Y, base.Position.Z)))
+		task.spawn(wander, model, pos, math.max(widths[i] * 0.6, 4))
+		x += widths[i] / 2 + GAP
+	end
+	rowOffset += depth + ROW_GAP
 end

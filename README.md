@@ -1,146 +1,152 @@
 # CreatureForge — bestiaire low-poly pour Roblox
 
-Des créatures 3D low-poly détaillées, assemblées **entièrement en code Luau** (Part, WedgePart,
-matériaux Roblox, Neon, particules, lumières), articulées par **Motor6D** et animées de façon
-procédurale, chacune avec son **icône UI** (UICorner + UIGradient + ViewportFrame).
+Les 21 créatures du jeu, assemblées **entièrement en code Luau** dans le style « low-poly détaillé » :
+des centaines d'écailles, de mèches de fourrure, de plumes et d'épines (Part / WedgePart), des
+matériaux Roblox (SmoothPlastic, Slate, Wood, Fabric, Grass, Glass, Metal, Neon), des ornements
+(ceintures et bagues d'or à rivets, runes lumineuses, cristaux, engrenages), des objets qui
+gravitent autour d'elles, des particules et des lumières. Chacune est articulée (Motor6D), animée,
+a son **icône UI** (UICorner + UIGradient + ViewportFrame) et accepte les **6 mutations**.
 
-| 3/4 | Profil | Icône |
-| --- | --- | --- |
-| ![Rat des Cavernes 3/4](docs/previews/rat-des-cavernes-34.png) | ![Rat des Cavernes profil](docs/previews/rat-des-cavernes-profil.png) | ![Icône](docs/previews/rat-des-cavernes-icone.png) |
-| ![Lézard Mousseux 3/4](docs/previews/lezard-mousseux-34.png) | ![Lézard Mousseux profil](docs/previews/lezard-mousseux-profil.png) | ![Icône](docs/previews/lezard-mousseux-icone.png) |
+> Aperçus rendus hors de Studio par `tools/preview/viewer.html` (ombrage cartoon + contour noir
+> sur chaque pièce, comme ton visualiseur de référence). Dans Roblox, seul le contour extérieur
+> est dessiné (Highlight) et l'éclairage dépend de ta carte.
 
-> Aperçus rendus hors de Studio par `tools/preview/viewer.html` (approximation : dans Roblox,
-> l'éclairage, les textures Fabric/Slate et les particules rendent différemment).
+## Zone 1 — La Surface (Communs & Inhabituels)
 
-## Progression (2 / 21)
+![La Surface](docs/previews/zone1-surface.png)
 
-> Répartition des raretés provisoire pour les groupes « Rares & Épiques » et « Légendaires & Mythiques ».
+## Zone 2 — La Pente Brumeuse (Rares & Épiques)
 
-| # | Créature | Rareté | État |
+![La Pente Brumeuse](docs/previews/zone2-pente-brumeuse.png)
+
+## Zone 3 — Les Grottes de Cristal (Légendaires & Mythiques)
+
+![Les Grottes de Cristal](docs/previews/zone3-grottes-cristal.png)
+
+## Mutations
+
+![Mutations du Loup des Fagnes](docs/previews/mutations.png)
+
+| Mutation | Chance | Valeur | Effet |
 | --- | --- | --- | --- |
-| 1 | Le Rat des Cavernes | Commun | ✅ `src/shared/Creatures/RatDesCavernes.luau` |
-| 2 | Le Lézard Mousseux | Commun | ✅ `src/shared/Creatures/LezardMousseux.luau` |
-| 3 | Le Corbeau des Brumes | Commun | ⏳ |
-| 4 | Le Pousse-Pierre | Commun | ⏳ |
-| 5 | Le Lapin Solaire | Commun | ⏳ |
-| 6 | Le Renard des Cendres | Inhabituel | ⏳ |
-| 7 | Le Sanglier Runique | Inhabituel | ⏳ |
-| 8 | Le Serpent d'Améthyste | Inhabituel | ⏳ |
-| 9 | Le Hibou des Glaces | Inhabituel | ⏳ |
-| 10 | La Tortue de Magma | Inhabituel | ⏳ |
-| 11 | Le Loup des Fagnes | Inhabituel | ⏳ |
-| 12 | Le Faucon de Cristal | Rare | ⏳ |
-| 13 | L'Ours Runique | Rare | ⏳ |
-| 14 | La Salamandre de Feu | Rare | ⏳ |
-| 15 | Le Cerf Céleste | Épique | ⏳ |
-| 16 | Le Chat des Abysses | Épique | ⏳ |
-| 17 | Le Sanglier Ancestral | Épique | ⏳ |
-| 18 | Le Phénix Cendré | Légendaire | ⏳ |
-| 19 | Le Léviathan des Profondeurs | Légendaire | ⏳ |
-| 20 | Le Mammouth Steampunk | Mythique | ⏳ |
-| 21 | Le Néant Couronné | Mythique | ⏳ |
+| Doré | 8 % | x2 | dégradé or, paillettes dorées |
+| Diamant | 4 % | x3 | verre bleu glacier translucide, éclats blancs |
+| Toxique | 3 % | x4 | vert radioactif, bulles lumineuses |
+| Infernal | 2 % | x5 | magma noir et orange, braises |
+| Ombre | 1 % | x7 | violet abyssal, brume du néant |
+| Arc-en-ciel | 0,5 % | x10 | arc-en-ciel le long du corps, étincelles multicolores |
 
-## Le Rat des Cavernes (Commun)
+La recoloration suit la luminosité de chaque pièce (les ombres restent des ombres), les parties
+Neon (yeux, cristaux, flammes) prennent la lueur de la mutation, et un halo de particules + une
+lumière sont ajoutés. `Mutations.roll()` fait le tirage (18,5 % de chances d'avoir une mutation).
 
-Petit rongeur agile aux yeux lumineux, corps sombre texturé et petites oreilles pointues.
+## Les 21 créatures
 
-- **298 pièces** (152 Part + 162 WedgePart, prismes octogonaux chanfreinés), ~2,2 × 2,3 × 6 studs à `scale = 1`.
-- **Matériaux** : Fabric (fourrure), SmoothPlastic (peau, dents, griffes), Neon (yeux, cristaux),
-  Slate (plaque de roche), Metal (anneau d'oreille et bague de queue dorés).
-- **Ornements** : plaque de roche + 3 cristaux de grotte sur le dos, anneau doré à l'oreille gauche,
-  bague dorée sur la queue annelée, moustaches, incisives, sourcils, joues, 12 griffes.
-- **Effets** : poussière de grotte au sol, éclats lumineux dans les yeux, spores qui montent des
-  cristaux, 2 PointLights (yeux + cristaux), contour cartoon (Highlight).
-- **Squelette** : `Root > Body > Head > Ear_R/Ear_L`, `Body > Tail1…Tail6`, `Body > Leg_FR/FL/BR/BL`
-  (14 Motor6D) — compatible avec l'Animation Editor de Roblox.
-- **Animation procédurale** : respiration, reniflements, regard, frémissement d'oreilles,
-  queue ondulante (Idle) ; trot diagonal + rebond (Move) ; pose figée (Still).
+| # | Créature | Rareté | Zone | Démarche | Pièces | Points forts |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | Rat des Cavernes | Commun | Surface | Quadrupède | 1 702 | fourrure indigo, grappe de cristaux, yeux Neon, anneau d'or |
+| 2 | Lézard Mousseux | Commun | Surface | Rampant | 1 678 | écailles en dégradé, mousse et champignons, crête à pointes d'or |
+| 3 | Corbeau des Brumes | Commun | Surface | Vol | 852 | ailes à 3 rangées, yeux violets, brume |
+| 4 | Pousse-Pierre | Commun | Surface | Quadrupède | 1 177 | carapace de dalles de roche cerclée d'acier |
+| 5 | Lapin Solaire | Commun | Surface | Quadrupède (bonds) | 1 216 | fourrure dorée, anneaux lumineux, soleils en orbite |
+| 6 | Renard des Cendres | Inhabituel | Surface | Quadrupède | 1 676 | queue de cendres en feu, marquages d'or |
+| 7 | Sanglier Runique | Inhabituel | Surface | Quadrupède | 1 305 | **monture** (selle + Seat), défenses runiques |
+| 8 | Serpent d'Améthyste | Inhabituel | Surface | Serpent | 1 365 | spirale, piques d'améthyste |
+| 9 | Hibou des Glaces | Inhabituel | Surface | Vol | 890 | yeux glacier, serres d'acier, flocons |
+| 10 | Tortue de Magma | Inhabituel | Surface | Rampant | 846 | carapace de basalte fendue de lave, volcans |
+| 11 | Loup des Fagnes | Inhabituel | Surface | Quadrupède | 2 190 | crinière, crocs, collier runique, feux follets |
+| 12 | Faucon de Cristal | Rare | Pente Brumeuse | Vol | 939 | ailes et queue de cristal translucide |
+| 13 | Ours Runique | Rare | Pente Brumeuse | Quadrupède | 1 833 | **monture** à selle sculptée, brassards de pierre gravée |
+| 14 | Salamandre de Feu | Rare | Pente Brumeuse | Rampant | 2 059 | plaques dorsales en feu, queue enflammée |
+| 15 | Cerf Céleste | Épique | Pente Brumeuse | Quadrupède | 2 283 | bois Neon géométriques, robe étoilée |
+| 16 | Chat des Abysses | Épique | Pente Brumeuse | Quadrupède | 1 270 | rayures Neon, yeux d'or, brume du néant |
+| 17 | Sanglier Ancestral | Épique | Pente Brumeuse | Quadrupède | 1 583 | défenses serties d'or, épaulettes de pierre, monolithes |
+| 18 | Léviathan des Profondeurs | Légendaire | Grottes de Cristal | Serpent | 3 463 | spirale, ceintures d'or, nageoires, piliers d'or |
+| 19 | Phénix Cendré | Légendaire | Grottes de Cristal | Vol | 1 848 | plumes d'or, traîne de flammes |
+| 20 | Mammouth Steampunk | Mythique | Grottes de Cristal | Quadrupède | 2 805 | tour d'horloge, engrenages, vapeur, halos |
+| 21 | Néant Couronné | Mythique | Grottes de Cristal | Lévitation | 1 586 | couronne, cristaux en orbite, aura rouge sang |
 
-## Le Lézard Mousseux (Commun)
-
-Reptile rampant recouvert de plaques écailleuses vertes et de mousse, avec de petites dorures sur le dos.
-
-- **402 pièces**, ~1,2 × 2,6 × 7,1 studs à `scale = 1` (bas sur pattes, longue queue).
-- **Matériaux** : Pebble (peau grumeleuse), Slate (3 rangées de plaques imbriquées, bord libre
-  relevé vers l'arrière), Grass (touffes de mousse), SmoothPlastic (ventre, yeux, langue), Metal (dorures).
-- **Ornements** : rivets dorés sur l'échine, liserés dorés sur trois plaques, losange doré au front,
-  touffes de mousse avec jeunes pousses (dos, tête, base de la queue), barbe de mousse sous le menton,
-  yeux dorés à pupille fendue, arcades osseuses, joues biseautées, queue annelée à plaques, griffes sombres.
-- **Effets** : pollen qui s'échappe de la mousse, reflets dorés le long de l'échine, poussière au sol.
-- **Squelette** : `Root > Body > Chest > Head > Jaw / Tongue`, `Body > Tail1…Tail7`, pattes
-  avant sur `Chest`, arrière sur `Body` (16 Motor6D).
-- **Animation** (démarche `Sprawler`) : le corps ondule en S, les pattes écartées balaient à
-  l'horizontale et se soulèvent au retour ; au repos, double coup de langue fourchue avec
-  mâchoire entrouverte.
+La zone 4 (« L'Abysse Profond ») est prête dans les données (`Rarity.Zones`, raretés
+**Exotique** et **Exclusif**) pour de futures créatures.
 
 ## Utilisation dans Roblox Studio
 
-### Option 1 — Command Bar (le plus rapide)
+### Option 1 — Le jeu complet (le plus simple)
 
-1. Ouvrez `dist/<Créature>.commandbar.luau` (ex. `dist/LezardMousseux.commandbar.luau`),
-   copiez **tout** le contenu.
-2. Studio : *View › Command Bar*, collez, **Entrée**.
-3. La créature apparaît devant la caméra (sélectionnée, annulable avec Ctrl+Z) et son icône
-   s'ajoute dans `StarterGui › CreatureForgeIcons`.
+Ouvre **`dist/CreatureForge.rbxl`** dans Roblox Studio et appuie sur **Play** : les 21 créatures
+apparaissent en 3 rangées (une par zone), se promènent et s'animent ; quelques-unes sont mutées
+au hasard. Le bouton **Bestiaire** (en bas à gauche) affiche toutes les icônes.
 
-### Option 2 — Fichiers modèle
+### Option 2 — Une créature dans ta propre place
 
-- Glissez `dist/<Créature>.rbxmx` dans la fenêtre 3D de Studio → le modèle.
-- Glissez `dist/<Créature>_Icon.rbxmx` sur `StarterGui` → la carte d'icône.
+- **Command Bar** : copie tout `dist/<Créature>.commandbar.luau`, colle-le dans *View › Command Bar*,
+  Entrée. Pour une variante, change `local MUTATION = nil` en `local MUTATION = "Gold"` (ou
+  `"Diamond"`, `"Toxic"`, `"Infernal"`, `"Void"`, `"Rainbow"`) en haut de la partie « Entrée ».
+- **Glisser-déposer** : `dist/models/<Créature>.rbxm` dans la vue 3D,
+  `dist/icons/<Créature>_Icon.rbxm` sur `StarterGui`.
 
-### Option 3 — Projet complet avec Rojo (recommandé pour le jeu)
+### Option 3 — Projet Rojo
 
 ```bash
 rojo serve        # puis « Connect » dans le plugin Rojo de Studio
 ```
 
-| Instance Studio | Source |
-| --- | --- |
-| `ReplicatedStorage.CreatureForge` | `src/shared/` (Kit, Fx, Icon, Rarity, Types, Creatures/) |
-| `ServerScriptService.CreatureShowcase` | `src/server/` — démo : fait apparaître et promener les créatures |
-| `StarterPlayerScripts.CreatureAnimator` | `src/client/` — animation procédurale (Motor6D.Transform) |
-| `StarterPlayerScripts.CreatureBestiary` | `src/client/` — démo UI : bouton « Bestiaire » + grille d'icônes |
-
 ```lua
 local CreatureForge = require(game.ReplicatedStorage.CreatureForge)
 
-local rat = CreatureForge.spawn("RatDesCavernes", CFrame.new(0, 0, -10), {
-	scale = 1.5,      -- taille
-	outline = true,   -- contour cartoon (Highlight : 31 max affichés à la fois)
-	effects = true,   -- particules + lumières
-})
-CreatureForge.setAnimState(rat, "Move")             -- "Idle" | "Move" | "Still"
-CreatureForge.buildIcon("RatDesCavernes", someFrame) -- carte carrée qui remplit sa cellule
+-- Taille par défaut de la créature ; mutation optionnelle
+local loup = CreatureForge.spawn("LoupDesFagnes", CFrame.new(0, 0, -20), { mutation = "Void" })
+CreatureForge.setAnimState(loup, "Move")             -- "Idle" | "Move" | "Still"
+
+local m = CreatureForge.Mutations.roll()             -- tirage d'une mutation (ou nil)
+CreatureForge.buildIcon("PhenixCendre", frame, { mutation = m and m.id })
+CreatureForge.inZone("GrottesCristal")               -- créatures d'une zone de la carte
 ```
+
+Options de `spawn` : `scale`, `mutation`, `outline` (contour Highlight, 31 visibles max),
+`effects` (particules + lumières), `detail` (densité des écailles/fourrures, 1 = complète).
+
+Les montures (Sanglier Runique, Ours Runique) ont un `Seat` sur la selle : un joueur peut
+s'y asseoir et être porté.
+
+## Performances
+
+Les créatures font entre 850 et 3 500 pièces (soudées à un Root ancré, aucune physique simulée).
+L'animation est faite côté client (`Motor6D.Transform`, zéro trafic réseau) et s'arrête au-delà
+de 160 studs de la caméra. Les icônes utilisent un modèle allégé (`detail = 0.4–0.55`) et le
+bestiaire ne les construit qu'à la première ouverture. Pour un jeu avec beaucoup de créatures à
+l'écran, le visualiseur exporte chaque créature en **GLB/OBJ** (un maillage par matériau, couleurs
+par sommet) à importer en MeshPart avec l'importateur 3D de Studio.
 
 ## Architecture
 
 ```
-src/shared/
-  init.luau        registre + spawn/buildIcon/setAnimState
-  Kit.luau         rig (os Motor6D, chaînes d'os), pièces soudées, primitives low-poly :
-                   prism (octogone chanfreiné), wedgeTri, spike, thorn, ring, shard, cylinder, strut
-  Fx.luau          particules / lumières (textures moteur rbxasset://, aucun asset à téléverser)
-  Icon.luau        carte d'icône : UICorner, UIGradient, UIStroke, ViewportFrame cadré automatiquement
-  Rarity.luau      Commun → Mythique (libellés + couleurs)
-  Types.luau       contrat CreatureDef / AnimProfile / IconTheme
-  Creatures/       une créature = un ModuleScript (auto-enregistré)
-tools/
-  export.luau      → dist/<Id>.rbxmx, dist/<Id>_Icon.rbxmx, tools/preview/<Id>.json
-  bundle.luau      → dist/<Id>.commandbar.luau (script autonome)
-  preview/viewer.html  aperçu 3D web (three.js) avec vue « Icône »
+src/shared/                 -> ReplicatedStorage.CreatureForge
+  init.luau                 registre, spawn / buildIcon / setAnimState / inZone
+  Kit.luau                  rig (os Motor6D), primitives low-poly, colonnes (spine),
+                            tubes organiques + revêtements d'écailles / fourrure, ceintures
+  Anatomy.luau              pattes, sabots, yeux, oreilles, cornes, dents, crêtes, flammes,
+                            plumes, ailes, cristaux, engrenages, runes, orbites
+  Mutations.luau            6 mutations (recoloration + particules + multiplicateur)
+  Fx.luau                   particules et lumières (textures moteur, aucun asset à téléverser)
+  Icon.luau                 carte d'icône (UICorner, UIGradient, UIStroke, ViewportFrame)
+  Rarity.luau               raretés (Commun -> Exclusif) + zones de la carte
+  Types.luau                contrat CreatureDef / AnimProfile / IconTheme
+  Creatures/                une créature = un ModuleScript (auto-enregistré)
+src/client/                 CreatureAnimator (démarches Quadruped, Sprawler, Flyer, Serpent,
+                            Hover + orbites), CreatureBestiary (UI)
+src/server/                 CreatureShowcase (démo par zones)
+tools/                      export.luau, bundle.luau, build_place.luau, preview/viewer.html
 ```
 
-Conventions du Kit : la créature regarde vers **-Z**, +X est sa droite, le sol est à Y = 0 et
-toutes les coordonnées sont écrites à `scale = 1` (le Kit applique l'échelle).
-
-### Régénérer les fichiers `dist/` et les aperçus
+### Régénérer `dist/` et les aperçus
 
 Nécessite [Lune](https://github.com/lune-org/lune) (`cargo install lune`) :
 
 ```bash
-lune run tools/export   # modèles .rbxmx + données d'aperçu
-lune run tools/bundle   # scripts Command Bar
+lune run tools/export        # dist/models, dist/icons, données d'aperçu
+lune run tools/bundle        # dist/<Créature>.commandbar.luau
+lune run tools/build_place   # dist/CreatureForge.rbxl
 cd tools/preview && python3 -m http.server 8000
-# puis ouvrez http://localhost:8000/viewer.html?id=RatDesCavernes
+# http://localhost:8000/viewer.html?id=MammouthSteampunk   (mutations, vues, export GLB/OBJ)
 ```

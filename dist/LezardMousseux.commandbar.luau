@@ -49,6 +49,8 @@ type BuildOptions = {
 		outline: boolean?, -- contour cartoon (Highlight) — défaut : true
 		effects: boolean?, -- particules + lumières — défaut : true
 		animated: boolean?, -- tag "CreatureForge" pour l'animateur client — défaut : true
+		detail: number?, -- densité des écailles/fourrures (1 = complète, 0.5 = moitié) — défaut : 1
+		mutation: string?, -- id de mutation (appliquée par CreatureForge.spawn / Icon.build)
 	}
 	
 type PartKind = "Block" | "Wedge" | "Ball" | "Cylinder"
@@ -62,6 +64,7 @@ type RigData = {
 		effects: boolean,
 		outline: boolean,
 		animated: boolean,
+		detail: number,
 		parent: Instance?,
 		bones: { [string]: BasePart },
 		folders: { [string]: Folder },
@@ -93,6 +96,21 @@ Kit.TAG = "CreatureForge"
 			s.castShadow = extra.castShadow
 		end
 		return s
+	end
+	
+--- Éclaircit (k > 0, vers le blanc) ou assombrit (k < 0, vers le noir) une couleur.
+	function Kit.shade(c: Color3, k: number): Color3
+		return if k >= 0 then c:Lerp(Color3.new(1, 1, 1), k) else c:Lerp(Color3.new(0, 0, 0), -k)
+	end
+	
+--- Dégradé de styles à partir d'une couleur : un style par valeur de `steps` (voir Kit.shade).
+	--- Ex. Kit.ramp(vert, M.SmoothPlastic, { 0.25, 0, -0.25 }) -> clair, base, sombre.
+	function Kit.ramp(base: Color3, material: Enum.Material?, steps: { number }): { Style }
+		local out = {}
+		for _, k in steps do
+			table.insert(out, Kit.style(Kit.shade(base, k), material))
+		end
+		return out
 	end
 	
 --- CFrame positionné en `pos` dont le -Z (LookVector) pointe le long de `dir`.
@@ -133,6 +151,111 @@ Kit.TAG = "CreatureForge"
 				+ (3 * p1 - p0 - 3 * p2 + p3) * u3
 			)
 	end
+	
+-- ---------------------------------------------------------------------------
+	-- Colonne vertébrale (spine) : courbe + rayons elliptiques, de l'avant vers l'arrière
+	-- ---------------------------------------------------------------------------
+	
+type Section = { pos: Vector3, rx: number, ry: number }
+	
+type SpineData = {
+		sections: { Section },
+		pts: { Vector3 },
+		n: number,
+		lutU: { number },
+		lutS: { number },
+		total: number,
+	}
+	
+local Spine = {}
+	Spine.__index = Spine
+	
+type Spine = typeof(setmetatable({} :: SpineData, Spine))
+	
+--- Crée une colonne passant par les sections (listées de l'AVANT vers l'ARRIÈRE).
+	--- Le paramètre `u` va de 1 (première section) à #sections (dernière).
+	function Kit.spine(sections: { Section }): Spine
+		local pts = {}
+		for i, s in sections do
+			pts[i] = s.pos
+		end
+		local n = #sections
+		local lutU, lutS = {}, {}
+		local samples = (n - 1) * 24
+		local prev = pts[1]
+		local acc = 0
+		for k = 0, samples do
+			local p = Kit.spline(pts, k / samples)
+			acc += (p - prev).Magnitude
+			prev = p
+			lutU[k + 1] = 1 + (n - 1) * k / samples
+			lutS[k + 1] = acc
+		end
+		local data: SpineData = { sections = sections, pts = pts, n = n, lutU = lutU, lutS = lutS, total = acc }
+		return setmetatable(data, Spine)
+	end
+	
+function Spine.pos(self: Spine, u: number): Vector3
+		return Kit.spline(self.pts, (u - 1) / (self.n - 1))
+	end
+	
+--- Rayons (horizontal, vertical) interpolés en douceur entre les sections.
+	function Spine.radii(self: Spine, u: number): (number, number)
+		local f = math.clamp(u, 1, self.n)
+		local i = math.min(math.floor(f), self.n - 1)
+		local a, b = self.sections[i], self.sections[i + 1]
+		local k = f - i
+		k = k * k * (3 - 2 * k)
+		return a.rx + (b.rx - a.rx) * k, a.ry + (b.ry - a.ry) * k
+	end
+	
+--- Repère local en `u` : -Z vers l'avant (u décroissant), +Y vers le haut, +X à droite.
+	function Spine.frame(self: Spine, u: number): CFrame
+		local e = 0.02
+		local a = self:pos(math.max(1, u - e))
+		local b = self:pos(math.min(self.n, u + e))
+		return Kit.lookAlong(self:pos(u), a - b)
+	end
+	
+--- Longueur de courbe depuis la première section jusqu'à `u`.
+	function Spine.lengthAt(self: Spine, u: number): number
+		local f = (math.clamp(u, 1, self.n) - 1) / (self.n - 1) * (#self.lutU - 1) + 1
+		local i = math.min(math.floor(f), #self.lutU - 1)
+		return self.lutS[i] + (self.lutS[i + 1] - self.lutS[i]) * (f - i)
+	end
+	
+--- Paramètre `u` correspondant à la longueur de courbe `s`.
+	function Spine.uAt(self: Spine, s: number): number
+		local lutS = self.lutS
+		if s <= 0 then
+			return 1
+		elseif s >= self.total then
+			return self.n
+		end
+		local lo, hi = 1, #lutS
+		while hi - lo > 1 do
+			local mid = (lo + hi) // 2
+			if lutS[mid] < s then
+				lo = mid
+			else
+				hi = mid
+			end
+		end
+		local k = (s - lutS[lo]) / math.max(lutS[hi] - lutS[lo], 1e-6)
+		return self.lutU[lo] + (self.lutU[hi] - self.lutU[lo]) * k
+	end
+	
+--- Repère posé à la surface du tube : `deg` = angle autour de l'axe (0 = dessus, 90 = droite),
+	--- +Y = normale sortante, +Z = vers l'arrière de la colonne. `lift` décolle le repère de la surface.
+	function Spine.surface(self: Spine, u: number, deg: number, lift: number?): CFrame
+		local rx, ry = self:radii(u)
+		local th = math.rad(deg)
+		local p = Vector3.new(rx * math.sin(th), ry * math.cos(th), 0)
+		local n = Vector3.new(math.sin(th) / rx, math.cos(th) / ry, 0).Unit
+		return self:frame(u) * CFrame.fromMatrix(p + n * (lift or 0), n:Cross(Vector3.zAxis), n, Vector3.zAxis)
+	end
+	
+Kit.Spine = Spine
 	
 -- ---------------------------------------------------------------------------
 	-- Création du rig
@@ -183,6 +306,7 @@ local function configureLoose(p: BasePart)
 			effects = if o.effects == nil then true else o.effects,
 			outline = if o.outline == nil then true else o.outline,
 			animated = if o.animated == nil then true else o.animated,
+			detail = math.clamp(o.detail or 1, 0.2, 1),
 			parent = o.parent,
 			bones = { Root = root },
 			folders = {},
@@ -366,6 +490,7 @@ function Rig.ball(self: Rig, bone: string, name: string, pos: Vector3, diameter:
 	
 --- Prisme octogonal (bloc aux 4 arêtes chanfreinées) extrudé le long du Z local de `cf`.
 	--- 7 pièces : idéal pour des volumes organiques "low-poly".
+	--- `chamfer` = chanfrein horizontal, `chamferY` = chanfrein vertical (défaut : identique).
 	function Rig.prism(
 		self: Rig,
 		bone: string,
@@ -373,24 +498,26 @@ function Rig.ball(self: Rig, bone: string, name: string, pos: Vector3, diameter:
 		cf: CFrame,
 		size: Vector3,
 		chamfer: number,
-		style: Style
+		style: Style,
+		chamferY: number?
 	): { BasePart }
-		local c = math.min(chamfer, size.X / 2 - 0.005, size.Y / 2 - 0.005)
-		if c <= 0.01 then
+		local cx = math.min(chamfer, size.X / 2 - 0.005)
+		local cy = math.min(chamferY or chamfer, size.Y / 2 - 0.005)
+		if cx <= 0.01 or cy <= 0.01 then
 			return { self:block(bone, name, cf, size, style) }
 		end
 		local hx, hy, L = size.X / 2, size.Y / 2, size.Z
 		local parts = {
-			self:block(bone, name, cf, Vector3.new(size.X - 2 * c, size.Y, L), style),
-			self:block(bone, name .. "_S", cf * CFrame.new(hx - c / 2, 0, 0), Vector3.new(c, size.Y - 2 * c, L), style),
-			self:block(bone, name .. "_S", cf * CFrame.new(-(hx - c / 2), 0, 0), Vector3.new(c, size.Y - 2 * c, L), style),
+			self:block(bone, name, cf, Vector3.new(size.X - 2 * cx, size.Y, L), style),
+			self:block(bone, name .. "_S", cf * CFrame.new(hx - cx / 2, 0, 0), Vector3.new(cx, size.Y - 2 * cy, L), style),
+			self:block(bone, name .. "_S", cf * CFrame.new(-(hx - cx / 2), 0, 0), Vector3.new(cx, size.Y - 2 * cy, L), style),
 		}
 		for _, sgn in { { 1, 1 }, { -1, 1 }, { 1, -1 }, { -1, -1 } } do
 			local sx, sy = sgn[1], sgn[2]
-			local corner = (cf * CFrame.new(sx * (hx - c), sy * (hy - c), 0)).Position
+			local corner = (cf * CFrame.new(sx * (hx - cx), sy * (hy - cy), 0)).Position
 			table.insert(
 				parts,
-				self:wedgeTri(bone, name .. "_C", corner, cf.RightVector * sx, cf.UpVector * sy, c, c, L, style)
+				self:wedgeTri(bone, name .. "_C", corner, cf.RightVector * sx, cf.UpVector * sy, cx, cy, L, style)
 			)
 		end
 		return parts
@@ -407,10 +534,11 @@ function Rig.ball(self: Rig, bone: string, name: string, pos: Vector3, diameter:
 		h: number,
 		chamfer: number,
 		style: Style,
-		roll: number?
+		roll: number?,
+		chamferY: number?
 	): { BasePart }
 		local cf = Kit.lookAlong((a + b) / 2, b - a) * CFrame.Angles(0, 0, roll or 0)
-		return self:prism(bone, name, cf, Vector3.new(w, h, (b - a).Magnitude), chamfer, style)
+		return self:prism(bone, name, cf, Vector3.new(w, h, (b - a).Magnitude), chamfer, style, chamferY)
 	end
 	
 --- Plaque triangulaire isocèle (2 WedgeParts) : base centrée sur `base`,
@@ -496,11 +624,194 @@ function Rig.ball(self: Rig, bone: string, name: string, pos: Vector3, diameter:
 		fn(-1, "_L")
 	end
 	
+-- ---------------------------------------------------------------------------
+	-- Tubes organiques : noyau facetté + revêtement d'écailles / de fourrure
+	-- ---------------------------------------------------------------------------
+	
+--- Revêtement de surface d'un tube.
+	type Cover = {
+		kind: ("Scale" | "Tuft")?, -- Scale : écailles plates imbriquées ; Tuft : mèches de fourrure en pointe
+		size: Vector3, -- (largeur, hauteur, longueur) d'un élément pour un rayon de `refRadius`
+		spacing: number, -- distance entre deux rangées (pour un rayon de `refRadius`)
+		arc: number?, -- demi-angle couvert autour de `center` (degrés, défaut 115)
+		center: number?, -- centre de la zone couverte (degrés : 0 = dessus, 90 = droite, 180 = dessous)
+		from: number?, -- portion de la colonne couverte (u)
+		to: number?,
+		shades: { Style }, -- du centre de la zone (clair) vers ses bords (sombre)
+		tip: Style?, -- pointe colorée sur chaque élément
+		tilt: number?, -- élément couché vers l'arrière (degrés)
+		refRadius: number?, -- les éléments rétrécissent là où le tube s'affine
+		jitter: number?, -- variations aléatoires (0 à 1)
+		seed: number?,
+	}
+	
+type TubeSpec = {
+		name: string,
+		bone: (u: number) -> string, -- os de chaque portion du tube
+		core: Style?, -- noyau facetté (nil = pas de noyau)
+		coreStep: number?, -- longueur des segments du noyau
+		from: number?,
+		to: number?,
+		cover: { Cover }?,
+	}
+	
+local ARC_STEPS = 24
+	
+--- Construit un tube le long de `spine` : noyau en prismes octogonaux + revêtements.
+	function Rig.tube(self: Rig, spine: Spine, spec: TubeSpec)
+		local u0, u1 = spec.from or 1, spec.to or spine.n
+		local s0, s1 = spine:lengthAt(u0), spine:lengthAt(u1)
+	
+	if spec.core then
+			local step = spec.coreStep or 0.3
+			local segs = math.max(1, math.ceil((s1 - s0) / step))
+			for i = 0, segs - 1 do
+				local ua = spine:uAt(s0 + (s1 - s0) * i / segs)
+				local ub = spine:uAt(s0 + (s1 - s0) * (i + 1) / segs)
+				local um = (ua + ub) / 2
+				local a, b = spine:pos(ua), spine:pos(ub)
+				local rx, ry = spine:radii(um)
+				local d = (b - a).Unit
+				local ov = math.min(rx, ry) * 0.3
+				-- Octogone inscrit dans l'ellipse : les revêtements restent visibles même sur un tube aplati
+				self:prismBetween(spec.bone(um), spec.name, a - d * ov, b + d * ov, 1.9 * rx, 1.9 * ry, 0.64 * rx, spec.core, nil, 0.64 * ry)
+			end
+		end
+	
+	for ci, cv in spec.cover or {} do
+			local rng = Random.new(cv.seed or (ci * 97))
+			local arc = math.rad(cv.arc or 115)
+			local center = math.rad(cv.center or 0)
+			local refR = cv.refRadius or 0.5
+			local jitter = cv.jitter or 0.35
+			local tilt = math.rad(cv.tilt or (if cv.kind == "Tuft" then 38 else 18))
+			local sEnd = spine:lengthAt(cv.to or u1)
+			local s = spine:lengthAt(cv.from or u0)
+			local row = 0
+			while s <= sEnd + 1e-6 do
+				local u = spine:uAt(s)
+				local rx, ry = spine:radii(u)
+				local k = math.clamp(math.min(rx, ry) / refR, 0.45, 1.4)
+				local dk = 1 / math.sqrt(self.detail)
+				local size = cv.size * k * Vector3.new(dk, 1, dk)
+				local fr = spine:frame(u)
+	
+			-- Longueur de l'arc d'ellipse couvert (table cumulée pour un espacement régulier)
+				local function at(th: number): Vector2
+					return Vector2.new(rx * math.sin(th), ry * math.cos(th))
+				end
+				local lens = { 0 }
+				local prev = at(center - arc)
+				for j = 1, ARC_STEPS do
+					local p = at(center - arc + 2 * arc * j / ARC_STEPS)
+					lens[j + 1] = lens[j] + (p - prev).Magnitude
+					prev = p
+				end
+				local total = lens[ARC_STEPS + 1]
+				local count = math.max(1, math.floor(total / (size.X * 0.9) + 0.5))
+	
+			for e = 0, count - 1 do
+					local target = (e + (if row % 2 == 1 then 0.75 else 0.25)) / count * total
+					local j = 1
+					while j < ARC_STEPS and lens[j + 1] < target do
+						j += 1
+					end
+					local f = (target - lens[j]) / math.max(lens[j + 1] - lens[j], 1e-6)
+					local th = center - arc + 2 * arc * (j - 1 + f) / ARC_STEPS
+	
+				local p = Vector3.new(rx * math.sin(th), ry * math.cos(th), 0)
+					local nrm = Vector3.new(math.sin(th) / rx, math.cos(th) / ry, 0).Unit
+					local back = Vector3.zAxis
+					local sz = size * (1 + (rng:NextNumber() - 0.5) * 0.3 * jitter)
+					local local0 = CFrame.fromMatrix(p + nrm * (sz.Y * 0.18), nrm:Cross(back), nrm, back)
+						* CFrame.Angles(0, (rng:NextNumber() - 0.5) * 0.5 * jitter, 0)
+						* CFrame.Angles(tilt + (rng:NextNumber() - 0.5) * 0.4 * jitter, 0, 0)
+					local cf = fr * local0
+	
+				-- Teinte : clair au centre de la zone, sombre sur les bords (+ un peu de hasard)
+					local dist = math.abs(th - center) / arc
+					local idx = math.floor(dist * #cv.shades) + 1
+					if rng:NextNumber() < 0.18 * jitter then
+						idx += if rng:NextNumber() < 0.5 then -1 else 1
+					end
+					local style = cv.shades[math.clamp(idx, 1, #cv.shades)]
+	
+				local bone = spec.bone(u)
+					self:wedge(bone, spec.name .. (cv.kind or "Scale"), cf, sz, style)
+					if cv.tip then
+						self:wedge(
+							bone,
+							spec.name .. "Tip",
+							cf * CFrame.new(0, sz.Y * 0.3, sz.Z * 0.22),
+							Vector3.new(sz.X * 0.62, sz.Y * 0.45, sz.Z * 0.5),
+							cv.tip
+						)
+					end
+				end
+				row += 1
+				s += cv.spacing * k * dk
+			end
+		end
+	end
+	
+--- Ceinture autour du tube en `u` (bande polygonale épousant l'ellipse) + rivets sur le dessus.
+	function Rig.band(
+		self: Rig,
+		spine: Spine,
+		bone: string,
+		name: string,
+		u: number,
+		width: number,
+		thickness: number,
+		style: Style,
+		rivet: Style?
+	)
+		local fr = spine:frame(u)
+		local rx, ry = spine:radii(u)
+		rx += thickness * 0.35
+		ry += thickness * 0.35
+		local m = 16
+		for j = 0, m - 1 do
+			local a1, a2 = j / m * math.pi * 2, (j + 1) / m * math.pi * 2
+			local q1 = Vector3.new(rx * math.sin(a1), ry * math.cos(a1), 0)
+			local q2 = Vector3.new(rx * math.sin(a2), ry * math.cos(a2), 0)
+			local tan = (q2 - q1).Unit
+			local out = Vector3.zAxis:Cross(tan)
+			local cf = fr * CFrame.fromMatrix((q1 + q2) / 2, tan, out, Vector3.zAxis)
+			self:block(bone, name, cf, Vector3.new((q2 - q1).Magnitude + thickness * 0.6, thickness, width), style)
+			if rivet and j % 2 == 0 and math.cos((a1 + a2) / 2) > -0.2 then
+				local mid = (q1 + q2) / 2
+				self:ball(bone, name .. "Rivet", (fr * CFrame.new(mid + out * thickness * 0.5)).Position, width * 0.42, rivet)
+			end
+		end
+	end
+	
 --- Pièce invisible (support de particules/lumières ou hitbox).
 	function Rig.anchor(self: Rig, bone: string, name: string, cf: CFrame, size: Vector3): BasePart
 		local p = self:part(bone, name, "Block", cf, size, { color = Color3.new(1, 1, 1), transparency = 1, castShadow = false })
 		self.partCount -= 1
 		return p
+	end
+	
+--- Siège (Seat) pour monter sur la créature : un joueur qui s'assoit est porté par la monture.
+	function Rig.seat(self: Rig, bone: string, cf: CFrame, size: Vector3): Seat
+		local b = self.bones[bone]
+		local seat = Instance.new("Seat")
+		seat.Name = "Saddle"
+		seat.Size = size * self.scale
+		seat.Transparency = 1
+		seat.CanCollide = false
+		seat.CanTouch = true
+		seat.Massless = true
+		seat.Anchored = false
+		seat.CFrame = self:toWorld(cf)
+		local w = Instance.new("Weld")
+		w.Part0 = b
+		w.Part1 = seat
+		w.C0 = b.CFrame:ToObjectSpace(seat.CFrame)
+		w.Parent = seat
+		seat.Parent = self.model
+		return seat
 	end
 	
 --- Hitbox invisible interrogeable (clics, ProximityPrompt, raycasts).
@@ -602,6 +913,16 @@ Rarity.Tiers = {
 		Epic = tier("Epic", "ÉPIQUE", 4, Color3.fromRGB(172, 92, 255), Color3.fromRGB(232, 180, 255), Color3.fromRGB(84, 30, 160)),
 		Legendary = tier("Legendary", "LÉGENDAIRE", 5, Color3.fromRGB(255, 186, 52), Color3.fromRGB(255, 240, 160), Color3.fromRGB(196, 96, 10)),
 		Mythic = tier("Mythic", "MYTHIQUE", 6, Color3.fromRGB(255, 64, 108), Color3.fromRGB(255, 186, 214), Color3.fromRGB(140, 10, 60)),
+		Exotic = tier("Exotic", "EXOTIQUE", 7, Color3.fromRGB(255, 120, 40), Color3.fromRGB(255, 220, 150), Color3.fromRGB(150, 30, 10)),
+		Exclusive = tier("Exclusive", "EXCLUSIF", 8, Color3.fromRGB(40, 240, 220), Color3.fromRGB(200, 255, 250), Color3.fromRGB(10, 110, 120)),
+	}
+	
+--- Zones de la carte (canyon) : du haut vers le fond.
+	Rarity.Zones = {
+		{ id = "Surface", label = "1. LA SURFACE", rarities = { "Common", "Uncommon" } },
+		{ id = "PenteBrumeuse", label = "2. LA PENTE BRUMEUSE", rarities = { "Rare", "Epic" } },
+		{ id = "GrottesCristal", label = "3. LES GROTTES DE CRISTAL", rarities = { "Legendary", "Mythic" } },
+		{ id = "Abysse", label = "4. L'ABYSSE PROFOND", rarities = { "Exotic", "Exclusive" } },
 	}
 	
 function Rarity.get(id: string): Tier
@@ -609,6 +930,471 @@ function Rarity.get(id: string): Tier
 	end
 	
 return Rarity
+
+end
+
+__modules["Fx"] = function()
+	--[[
+		CreatureForge.Fx
+		----------------
+		Fabriques de particules et de lumières. Utilise uniquement les textures
+		intégrées au moteur (rbxasset://) : aucun asset à téléverser.
+		Les tailles, vitesses et accélérations sont multipliées par `scale`.
+	]]
+	
+local Fx = {}
+	
+Fx.TEXTURES = {
+		sparkle = "rbxasset://textures/particles/sparkles_main.dds",
+		smoke = "rbxasset://textures/particles/smoke_main.dds",
+		fire = "rbxasset://textures/particles/fire_main.dds",
+		spark = "rbxasset://textures/particles/fire_sparks_main.dds",
+	}
+	
+type ParticleDef = {
+		name: string,
+		texture: string?,
+		colors: { Color3 }, -- répartis uniformément sur la durée de vie
+		sizes: { number }, -- idem (studs, avant échelle)
+		transparencies: { number }?, -- idem
+		lifetime: NumberRange,
+		rate: number,
+		speed: NumberRange?,
+		spread: Vector2?, -- SpreadAngle en degrés
+		acceleration: Vector3?,
+		drag: number?,
+		lightEmission: number?,
+		lightInfluence: number?,
+		brightness: number?,
+		rotation: NumberRange?,
+		rotSpeed: NumberRange?,
+		lockedToPart: boolean?,
+		direction: Enum.NormalId?,
+		volume: boolean?, -- émettre dans tout le volume de la pièce
+		zOffset: number?,
+	}
+	
+type LightDef = {
+		color: Color3,
+		range: number,
+		brightness: number?,
+		shadows: boolean?,
+	}
+	
+local function numberSeq(values: { number }, mul: number): NumberSequence
+		if #values == 1 then
+			return NumberSequence.new(values[1] * mul)
+		end
+		local kps = {}
+		for i, v in values do
+			table.insert(kps, NumberSequenceKeypoint.new((i - 1) / (#values - 1), v * mul))
+		end
+		return NumberSequence.new(kps)
+	end
+	
+local function colorSeq(values: { Color3 }): ColorSequence
+		if #values == 1 then
+			return ColorSequence.new(values[1])
+		end
+		local kps = {}
+		for i, c in values do
+			table.insert(kps, ColorSequenceKeypoint.new((i - 1) / (#values - 1), c))
+		end
+		return ColorSequence.new(kps)
+	end
+	
+function Fx.particles(parent: Instance, def: ParticleDef, scale: number?): ParticleEmitter
+		local s = scale or 1
+		local e = Instance.new("ParticleEmitter")
+		e.Name = def.name
+		e.Texture = def.texture or Fx.TEXTURES.sparkle
+		e.Color = colorSeq(def.colors)
+		e.Size = numberSeq(def.sizes, s)
+		e.Transparency = numberSeq(def.transparencies or { 0 }, 1)
+		e.Lifetime = def.lifetime
+		e.Rate = def.rate
+		local speed = def.speed or NumberRange.new(0)
+		e.Speed = NumberRange.new(speed.Min * s, speed.Max * s)
+		e.SpreadAngle = def.spread or Vector2.zero
+		e.Acceleration = (def.acceleration or Vector3.zero) * s
+		e.Drag = def.drag or 0
+		e.LightEmission = def.lightEmission or 0
+		e.LightInfluence = def.lightInfluence or 1
+		e.Brightness = def.brightness or 1
+		e.Rotation = def.rotation or NumberRange.new(0)
+		e.RotSpeed = def.rotSpeed or NumberRange.new(0)
+		e.LockedToPart = def.lockedToPart or false
+		e.EmissionDirection = def.direction or Enum.NormalId.Top
+		e.ZOffset = (def.zOffset or 0) * s
+		if def.volume then
+			e.Shape = Enum.ParticleEmitterShape.Box
+			e.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+		end
+		e.Parent = parent
+		return e
+	end
+	
+-- Préréglages ---------------------------------------------------------------
+	
+function Fx.sparkles(name: string, colors: { Color3 }, rate: number, size: number, rise: number?): ParticleDef
+		return {
+			name = name,
+			texture = Fx.TEXTURES.sparkle,
+			colors = colors,
+			sizes = { size, size * 0.6, 0 },
+			transparencies = { 0.1, 0.2, 1 },
+			lifetime = NumberRange.new(1, 2),
+			rate = rate,
+			speed = NumberRange.new(0.1, 0.4),
+			spread = Vector2.new(180, 180),
+			acceleration = Vector3.new(0, rise or 0.3, 0),
+			drag = 1,
+			lightEmission = 1,
+			rotation = NumberRange.new(0, 360),
+			rotSpeed = NumberRange.new(-60, 60),
+			volume = true,
+		}
+	end
+	
+function Fx.embers(name: string, colors: { Color3 }, rate: number, size: number): ParticleDef
+		return {
+			name = name,
+			texture = Fx.TEXTURES.spark,
+			colors = colors,
+			sizes = { size, size * 0.5, 0 },
+			lifetime = NumberRange.new(0.8, 1.6),
+			rate = rate,
+			speed = NumberRange.new(0.5, 1.5),
+			spread = Vector2.new(30, 30),
+			acceleration = Vector3.new(0, 1.2, 0),
+			lightEmission = 1,
+			rotation = NumberRange.new(0, 360),
+			volume = true,
+		}
+	end
+	
+function Fx.mist(name: string, colors: { Color3 }, rate: number, size: number, lightEmission: number?): ParticleDef
+		return {
+			name = name,
+			texture = Fx.TEXTURES.smoke,
+			colors = colors,
+			sizes = { size * 0.5, size },
+			transparencies = { 1, 0.55, 1 },
+			lifetime = NumberRange.new(1.5, 3),
+			rate = rate,
+			speed = NumberRange.new(0.1, 0.4),
+			spread = Vector2.new(180, 180),
+			acceleration = Vector3.new(0, 0.1, 0),
+			drag = 1,
+			lightEmission = lightEmission or 0,
+			rotation = NumberRange.new(0, 360),
+			rotSpeed = NumberRange.new(-20, 20),
+			volume = true,
+		}
+	end
+	
+function Fx.fire(name: string, colors: { Color3 }, rate: number, size: number): ParticleDef
+		return {
+			name = name,
+			texture = Fx.TEXTURES.fire,
+			colors = colors,
+			sizes = { size, size * 0.7, 0 },
+			transparencies = { 0.2, 0.4, 1 },
+			lifetime = NumberRange.new(0.5, 1),
+			rate = rate,
+			speed = NumberRange.new(0.6, 1.4),
+			spread = Vector2.new(15, 15),
+			acceleration = Vector3.new(0, 1.5, 0),
+			lightEmission = 1,
+			rotation = NumberRange.new(0, 360),
+			rotSpeed = NumberRange.new(-60, 60),
+			volume = true,
+		}
+	end
+	
+function Fx.light(parent: Instance, def: LightDef, scale: number?): PointLight
+		local l = Instance.new("PointLight")
+		l.Color = def.color
+		l.Range = def.range * (scale or 1)
+		l.Brightness = def.brightness or 1
+		l.Shadows = def.shadows or false
+		l.Parent = parent
+		return l
+	end
+	
+return Fx
+
+end
+
+__modules["Mutations"] = function()
+	--[[
+		CreatureForge.Mutations
+		-----------------------
+		Variantes rares applicables à N'IMPORTE QUELLE créature après sa construction :
+		recoloration (dégradé selon la luminosité de chaque pièce), matériau, lueur des parties
+		Neon, particules et lumière dédiées, multiplicateur de valeur.
+	
+	    local rat = CreatureForge.spawn("RatDesCavernes", cf, { mutation = "Gold" })
+		    Mutations.apply(model, "Rainbow")      -- sur un modèle déjà construit
+		    Mutations.roll(rng)                    -- tirage aléatoire selon les chances (nil = aucune)
+	]]
+	
+local Kit = __require("Kit")
+	local Fx = __require("Fx")
+	
+type Mutation = {
+		id: string,
+		label: string,
+		chance: number, -- en % (tirage indépendant de la rareté)
+		multiplier: number, -- bonus de valeur / de gains
+		ramp: { Color3 }, -- couleurs du sombre au clair (nil si `rainbow`)
+		glow: Color3, -- couleur des parties Neon + lumière
+		material: Enum.Material?, -- matériau imposé aux pièces non-Neon
+		rainbow: boolean?, -- teinte selon la position le long du corps
+		transparency: number?, -- transparence ajoutée aux pièces claires (cristal)
+		badge: { Color3 }, -- dégradé de la pastille d'icône
+		particle: Fx.ParticleDef,
+	}
+	
+local rgb = Color3.fromRGB
+	
+local function sparkle(name: string, colors: { Color3 }, rate: number, size: number): Fx.ParticleDef
+		return {
+			name = name,
+			texture = Fx.TEXTURES.sparkle,
+			colors = colors,
+			sizes = { size, size * 0.6, 0 },
+			transparencies = { 0.1, 0.2, 1 },
+			lifetime = NumberRange.new(0.8, 1.6),
+			rate = rate,
+			speed = NumberRange.new(0.2, 0.6),
+			spread = Vector2.new(180, 180),
+			acceleration = Vector3.new(0, 0.4, 0),
+			drag = 1,
+			lightEmission = 1,
+			rotation = NumberRange.new(0, 360),
+			rotSpeed = NumberRange.new(-90, 90),
+			volume = true,
+		}
+	end
+	
+local Mutations = {}
+	
+Mutations.List = {
+		{
+			id = "Gold",
+			label = "DORÉ",
+			chance = 8,
+			multiplier = 2,
+			ramp = { rgb(110, 58, 8), rgb(196, 120, 20), rgb(255, 196, 54), rgb(255, 238, 150) },
+			glow = rgb(255, 214, 90),
+			badge = { rgb(255, 240, 150), rgb(230, 150, 20) },
+			particle = sparkle("GoldSparkle", { rgb(255, 230, 120), rgb(255, 180, 40) }, 8, 0.35),
+		},
+		{
+			id = "Diamond",
+			label = "DIAMANT",
+			chance = 4,
+			multiplier = 3,
+			ramp = { rgb(40, 90, 150), rgb(90, 180, 230), rgb(170, 236, 255), rgb(240, 252, 255) },
+			glow = rgb(160, 240, 255),
+			material = Enum.Material.Glass,
+			transparency = 0.15,
+			badge = { rgb(230, 252, 255), rgb(70, 170, 240) },
+			particle = sparkle("DiamondSparkle", { rgb(255, 255, 255), rgb(150, 230, 255) }, 10, 0.4),
+		},
+		{
+			id = "Toxic",
+			label = "TOXIQUE",
+			chance = 3,
+			multiplier = 4,
+			ramp = { rgb(20, 40, 10), rgb(46, 110, 24), rgb(120, 220, 40), rgb(210, 255, 120) },
+			glow = rgb(150, 255, 40),
+			badge = { rgb(210, 255, 120), rgb(60, 160, 20) },
+			particle = {
+				name = "ToxicBubbles",
+				texture = Fx.TEXTURES.sparkle,
+				colors = { rgb(170, 255, 60), rgb(90, 200, 30) },
+				sizes = { 0.15, 0.35, 0 },
+				transparencies = { 0.2, 0.3, 1 },
+				lifetime = NumberRange.new(1.2, 2.2),
+				rate = 9,
+				speed = NumberRange.new(0.4, 1),
+				spread = Vector2.new(30, 30),
+				acceleration = Vector3.new(0, 0.6, 0),
+				lightEmission = 0.8,
+				volume = true,
+			},
+		},
+		{
+			id = "Infernal",
+			label = "INFERNAL",
+			chance = 2,
+			multiplier = 5,
+			ramp = { rgb(30, 8, 6), rgb(110, 20, 8), rgb(230, 80, 20), rgb(255, 200, 70) },
+			glow = rgb(255, 110, 30),
+			badge = { rgb(255, 210, 90), rgb(200, 30, 10) },
+			particle = {
+				name = "InfernalEmbers",
+				texture = Fx.TEXTURES.spark,
+				colors = { rgb(255, 220, 120), rgb(255, 90, 20), rgb(140, 20, 10) },
+				sizes = { 0.25, 0.15, 0 },
+				lifetime = NumberRange.new(0.8, 1.6),
+				rate = 14,
+				speed = NumberRange.new(0.8, 2),
+				spread = Vector2.new(25, 25),
+				acceleration = Vector3.new(0, 1.2, 0),
+				lightEmission = 1,
+				volume = true,
+			},
+		},
+		{
+			id = "Void",
+			label = "OMBRE",
+			chance = 1,
+			multiplier = 7,
+			ramp = { rgb(8, 4, 16), rgb(30, 14, 56), rgb(72, 30, 128), rgb(150, 80, 230) },
+			glow = rgb(200, 70, 255),
+			badge = { rgb(220, 150, 255), rgb(60, 10, 120) },
+			particle = {
+				name = "VoidMist",
+				texture = Fx.TEXTURES.smoke,
+				colors = { rgb(120, 40, 200), rgb(20, 6, 40) },
+				sizes = { 0.6, 1.4 },
+				transparencies = { 1, 0.5, 1 },
+				lifetime = NumberRange.new(1.5, 2.5),
+				rate = 10,
+				speed = NumberRange.new(0.1, 0.4),
+				spread = Vector2.new(180, 180),
+				lightEmission = 0.3,
+				rotation = NumberRange.new(0, 360),
+				rotSpeed = NumberRange.new(-30, 30),
+				volume = true,
+			},
+		},
+		{
+			id = "Rainbow",
+			label = "ARC-EN-CIEL",
+			chance = 0.5,
+			multiplier = 10,
+			ramp = {},
+			rainbow = true,
+			glow = rgb(255, 255, 255),
+			badge = { rgb(255, 90, 90), rgb(255, 220, 60), rgb(80, 220, 120), rgb(70, 150, 255), rgb(190, 90, 255) },
+			particle = sparkle(
+				"RainbowSparkle",
+				{ rgb(255, 80, 80), rgb(255, 220, 60), rgb(80, 230, 120), rgb(70, 150, 255), rgb(200, 90, 255) },
+				12,
+				0.4
+			),
+		},
+	} :: { Mutation }
+	
+local byId: { [string]: Mutation } = {}
+	for _, m in Mutations.List do
+		byId[m.id] = m
+	end
+	
+function Mutations.get(id: string): Mutation?
+		return byId[id]
+	end
+	
+--- Tirage : renvoie une mutation selon les chances (en %), ou nil.
+	function Mutations.roll(rng: Random?): Mutation?
+		local r = (rng or Random.new()):NextNumber(0, 100)
+		local acc = 0
+		for i = #Mutations.List, 1, -1 do -- des plus rares aux plus communes
+			local m = Mutations.List[i]
+			acc += m.chance
+			if r < acc then
+				return m
+			end
+		end
+		return nil
+	end
+	
+local function sampleRamp(ramp: { Color3 }, x: number): Color3
+		local f = math.clamp(x, 0, 1) * (#ramp - 1)
+		local i = math.min(math.floor(f) + 1, #ramp - 1)
+		return ramp[i]:Lerp(ramp[i + 1], f - (i - 1))
+	end
+	
+--- Nouvelle couleur d'une pièce (luminosité d'origine -> dégradé de la mutation).
+	--- `along` = position relative le long du corps (0 = avant, 1 = arrière), pour l'arc-en-ciel.
+	function Mutations.recolor(m: Mutation, c: Color3, isNeon: boolean, along: number): Color3
+		local lum = 0.299 * c.R + 0.587 * c.G + 0.114 * c.B
+		if m.rainbow then
+			local h = (along * 0.85 + lum * 0.15) % 1
+			return Color3.fromHSV(h, if isNeon then 0.45 else 0.78, 0.45 + 0.55 * math.sqrt(lum))
+		end
+		if isNeon then
+			return m.glow
+		end
+		return sampleRamp(m.ramp, lum ^ 0.85)
+	end
+	
+--- Applique la mutation `id` au modèle (une seule fois). Renvoie le modèle.
+	function Mutations.apply(model: Model, id: string): Model
+		local m = byId[id]
+		assert(m, `CreatureForge: mutation inconnue "{id}"`)
+		if model:GetAttribute("Mutation") then
+			return model
+		end
+		local root = model.PrimaryPart
+		local ref = if root then root.CFrame else CFrame.identity
+		local center, size = Kit.visibleBounds(model)
+		local zMin = center.Z - size.Z / 2
+	
+	for _, d in model:GetDescendants() do
+			if d:IsA("BasePart") and d.Transparency < 0.95 then
+				local isNeon = d.Material == Enum.Material.Neon
+				local along = (ref:PointToObjectSpace(d.CFrame.Position).Z - zMin) / math.max(size.Z, 0.01)
+				d.Color = Mutations.recolor(m, d.Color, isNeon, along)
+				if m.material and not isNeon then
+					d.Material = m.material
+					local lum = 0.299 * d.Color.R + 0.587 * d.Color.G + 0.114 * d.Color.B
+					if m.transparency and lum > 0.55 then
+						d.Transparency = math.max(d.Transparency, m.transparency)
+					end
+				end
+			elseif d:IsA("PointLight") then
+				d.Color = m.glow
+			elseif d:IsA("ParticleEmitter") and m.rainbow then
+				-- les effets d'origine gardent leur forme, l'arc-en-ciel les colore
+				d.Color = ColorSequence.new(Color3.fromRGB(255, 120, 200), Color3.fromRGB(120, 200, 255))
+			end
+		end
+	
+	-- Halo de particules + lumière autour du corps
+		if root then
+			local scale = (model:GetAttribute("Scale") :: number?) or 1
+			local aura = Instance.new("Part")
+			aura.Name = "FX_Mutation"
+			aura.Size = size * 0.9
+			aura.Transparency = 1
+			aura.Anchored = false
+			aura.CanCollide = false
+			aura.CanTouch = false
+			aura.CanQuery = false
+			aura.Massless = true
+			aura.CastShadow = false
+			aura.CFrame = ref * CFrame.new(center)
+			local w = Instance.new("Weld")
+			w.Part0 = root
+			w.Part1 = aura
+			w.C0 = CFrame.new(center)
+			w.Parent = aura
+			aura.Parent = model
+			Fx.particles(aura, m.particle, scale)
+			Fx.light(aura, { color = m.glow, range = math.max(size.X, size.Z) * 0.8 / scale, brightness = 1.2 }, scale)
+		end
+	
+	model:SetAttribute("Mutation", m.id)
+		model:SetAttribute("Multiplier", m.multiplier)
+		return model
+	end
+	
+return Mutations
 
 end
 
@@ -636,7 +1422,14 @@ local Kit = __require("Kit")
 		headLook: number?, -- regard gauche/droite au repos (degrés)
 		sniff: boolean?, -- petits reniflements rapides
 		earTwitch: boolean?, -- frémissement des oreilles
+		flap: number?, -- amplitude des battements d'ailes (degrés, Flyer)
+		flapRate: number?, -- vitesse des battements (rad/s)
+		hover: number?, -- amplitude du flottement (studs, Flyer / Hover)
+		auraSpeed: number?, -- vitesse de rotation des objets en orbite (rad/s)
 	}
+	
+--- Zones de la carte (du haut du canyon vers le fond).
+	type Zone = "Surface" | "PenteBrumeuse" | "GrottesCristal" | "Abysse"
 	
 --- Habillage de l'icône d'inventaire.
 	type IconTheme = {
@@ -653,6 +1446,8 @@ type CreatureDef = {
 		Id: string,
 		DisplayName: string,
 		Rarity: string,
+		Zone: Zone, -- zone de la carte où la créature apparaît
+		Scale: number?, -- échelle par défaut à l'apparition (taille en jeu)
 		Category: string,
 		Description: string,
 		Icon: IconTheme,
@@ -680,6 +1475,7 @@ __modules["Icon"] = function()
 	
 local Kit = __require("Kit")
 	local Rarity = __require("Rarity")
+	local Mutations = __require("Mutations")
 	local Types = __require("Types")
 	
 local Icon = {}
@@ -691,6 +1487,8 @@ type IconOptions = {
 		layoutOrder: number?,
 		showName: boolean?, -- défaut : true
 		showRarity: boolean?, -- défaut : true
+		mutation: string?, -- affiche la variante mutée + sa pastille
+		detail: number?, -- densité du modèle 3D (défaut : 0.55, plus léger)
 	}
 	
 local WHITE = Color3.new(1, 1, 1)
@@ -837,7 +1635,16 @@ local function label(name: string, parent: Instance, text: string, color: Color3
 		cam.FieldOfView = 28
 		cam.Parent = vf
 		vf.CurrentCamera = cam
-		local model = def.build({ effects = false, outline = false, animated = false })
+		local model = def.build({ effects = false, outline = false, animated = false, detail = o.detail or 0.55 })
+		local mutation = if o.mutation then Mutations.get(o.mutation) else nil
+		if mutation then
+			Mutations.apply(model, mutation.id)
+			for _, d in model:GetDescendants() do
+				if d:IsA("ParticleEmitter") or d:IsA("Light") then
+					d:Destroy()
+				end
+			end
+		end
 		model.Parent = vf
 		Icon.frameCamera(model, cam, theme)
 	
@@ -861,6 +1668,17 @@ local function label(name: string, parent: Instance, text: string, color: Color3
 			stroke(gem, BLACK, 1.5, 0.3)
 		end
 	
+	-- Pastille de mutation (sous la rareté)
+		if mutation then
+			local tag = frame("Mutation", card, UDim2.fromScale(0.5, 0.11), UDim2.fromScale(0.3, 0.22), WHITE, 0, 5)
+			corner(tag, 0.5)
+			gradient(tag, mutation.badge, 0)
+			stroke(tag, BLACK, 1.5, 0.2)
+			local t = label("Label", tag, `{mutation.label} x{mutation.multiplier}`, WHITE, 14)
+			t.Size = UDim2.fromScale(0.9, 0.72)
+			stroke(t, BLACK, 1.2)
+		end
+	
 	-- Plaque de nom
 		if o.showName ~= false then
 			local plate = frame("NamePlate", card, UDim2.fromScale(0.9, 0.17), UDim2.fromScale(0.5, 0.86), BLACK, 0.3, 5)
@@ -879,143 +1697,28 @@ return Icon
 
 end
 
-__modules["Fx"] = function()
-	--[[
-		CreatureForge.Fx
-		----------------
-		Fabriques de particules et de lumières. Utilise uniquement les textures
-		intégrées au moteur (rbxasset://) : aucun asset à téléverser.
-		Les tailles, vitesses et accélérations sont multipliées par `scale`.
-	]]
-	
-local Fx = {}
-	
-Fx.TEXTURES = {
-		sparkle = "rbxasset://textures/particles/sparkles_main.dds",
-		smoke = "rbxasset://textures/particles/smoke_main.dds",
-		fire = "rbxasset://textures/particles/fire_main.dds",
-		spark = "rbxasset://textures/particles/fire_sparks_main.dds",
-	}
-	
-type ParticleDef = {
-		name: string,
-		texture: string?,
-		colors: { Color3 }, -- répartis uniformément sur la durée de vie
-		sizes: { number }, -- idem (studs, avant échelle)
-		transparencies: { number }?, -- idem
-		lifetime: NumberRange,
-		rate: number,
-		speed: NumberRange?,
-		spread: Vector2?, -- SpreadAngle en degrés
-		acceleration: Vector3?,
-		drag: number?,
-		lightEmission: number?,
-		lightInfluence: number?,
-		brightness: number?,
-		rotation: NumberRange?,
-		rotSpeed: NumberRange?,
-		lockedToPart: boolean?,
-		direction: Enum.NormalId?,
-		volume: boolean?, -- émettre dans tout le volume de la pièce
-		zOffset: number?,
-	}
-	
-type LightDef = {
-		color: Color3,
-		range: number,
-		brightness: number?,
-		shadows: boolean?,
-	}
-	
-local function numberSeq(values: { number }, mul: number): NumberSequence
-		if #values == 1 then
-			return NumberSequence.new(values[1] * mul)
-		end
-		local kps = {}
-		for i, v in values do
-			table.insert(kps, NumberSequenceKeypoint.new((i - 1) / (#values - 1), v * mul))
-		end
-		return NumberSequence.new(kps)
-	end
-	
-local function colorSeq(values: { Color3 }): ColorSequence
-		if #values == 1 then
-			return ColorSequence.new(values[1])
-		end
-		local kps = {}
-		for i, c in values do
-			table.insert(kps, ColorSequenceKeypoint.new((i - 1) / (#values - 1), c))
-		end
-		return ColorSequence.new(kps)
-	end
-	
-function Fx.particles(parent: Instance, def: ParticleDef, scale: number?): ParticleEmitter
-		local s = scale or 1
-		local e = Instance.new("ParticleEmitter")
-		e.Name = def.name
-		e.Texture = def.texture or Fx.TEXTURES.sparkle
-		e.Color = colorSeq(def.colors)
-		e.Size = numberSeq(def.sizes, s)
-		e.Transparency = numberSeq(def.transparencies or { 0 }, 1)
-		e.Lifetime = def.lifetime
-		e.Rate = def.rate
-		local speed = def.speed or NumberRange.new(0)
-		e.Speed = NumberRange.new(speed.Min * s, speed.Max * s)
-		e.SpreadAngle = def.spread or Vector2.zero
-		e.Acceleration = (def.acceleration or Vector3.zero) * s
-		e.Drag = def.drag or 0
-		e.LightEmission = def.lightEmission or 0
-		e.LightInfluence = def.lightInfluence or 1
-		e.Brightness = def.brightness or 1
-		e.Rotation = def.rotation or NumberRange.new(0)
-		e.RotSpeed = def.rotSpeed or NumberRange.new(0)
-		e.LockedToPart = def.lockedToPart or false
-		e.EmissionDirection = def.direction or Enum.NormalId.Top
-		e.ZOffset = (def.zOffset or 0) * s
-		if def.volume then
-			e.Shape = Enum.ParticleEmitterShape.Box
-			e.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
-		end
-		e.Parent = parent
-		return e
-	end
-	
-function Fx.light(parent: Instance, def: LightDef, scale: number?): PointLight
-		local l = Instance.new("PointLight")
-		l.Color = def.color
-		l.Range = def.range * (scale or 1)
-		l.Brightness = def.brightness or 1
-		l.Shadows = def.shadows or false
-		l.Parent = parent
-		return l
-	end
-	
-return Fx
-
-end
-
 __modules["LezardMousseux"] = function()
 	--[[
 		LE LÉZARD MOUSSEUX — Commun
 		===========================
-		Reptile rampant recouvert de plaques écailleuses vertes (Slate) et de mousse,
+		Reptile rampant recouvert de plaques écailleuses vertes et de mousse,
 		avec de petites dorures sur le dos.
 	
-	Détails :
-		  • peau verte grumeleuse (Pebble), ventre clair, queue annelée vert clair / vert sombre ;
-		  • trois rangées de plaques d'écailles imbriquées (WedgeParts en Slate) du cou à la queue ;
-		  • dorures : rivets dorés sur l'échine, liserés dorés sur trois plaques, losange doré au front ;
-		  • touffes de mousse (Grass) avec jeunes pousses sur le dos, la tête et la base de la queue,
-		    petite barbe de mousse sous le menton ;
-		  • yeux dorés à pupille fendue, arcades osseuses, narines, mâchoire articulée,
-		    langue fourchue rétractable ;
-		  • pattes écartées de reptile, doigts écartés et griffes sombres.
-		  • Particules : pollen qui s'échappe de la mousse, reflets sur les dorures, poussière au sol.
+	Construction :
+		  • corps + queue = un seul tube continu le long d'une colonne courbe (Kit.spine / Rig.tube),
+		    recouvert de centaines d'écailles imbriquées en dégradé (vert-jaune sur le dessus,
+		    vert profond sur les flancs) et d'écailles ventrales jaunes ;
+		  • crête dorsale d'épines vert sombre à pointes dorées, du cou au bout de la queue ;
+		  • dorures : collier et deux bagues de queue à rivets, losange au front ;
+		  • touffes de mousse (Grass) en relief avec pousses et deux petits champignons ;
+		  • tête effilée écaillée, yeux Neon ambre à pupille fendue, collerette d'épines
+		    derrière les yeux, rangée de petites dents, mâchoire articulée, langue fourchue ;
+		  • pattes écailleuses coudées, doigts écartés, griffes ivoire.
+		  • Particules : pollen de mousse, reflets dorés le long de la crête, poussière au sol.
 	
 	Os (Motor6D) : Root > Body > Chest > Head > Jaw / Tongue
-		                      Body > Tail1 > … > Tail7
+		                      Body > Tail1 > … > Tail6
 		                      Chest > Leg_FR / Leg_FL      Body > Leg_BR / Leg_BL
-		Taille (scale = 1) : ~1,1 stud de haut, ~7 studs du museau au bout de la queue.
 	]]
 	
 local Kit = __require("Kit")
@@ -1033,250 +1736,345 @@ local S = Kit.style
 local ID = "LezardMousseux"
 	
 local P = {
-		skin = S(rgb(92, 136, 70), M.Pebble),
-		skinDark = S(rgb(60, 98, 54), M.Pebble),
-		belly = S(rgb(214, 204, 146)),
-		plate = S(rgb(72, 132, 88), M.Slate),
-		plateLight = S(rgb(110, 166, 100), M.Slate),
-		plateDark = S(rgb(44, 88, 64), M.Slate),
-		moss = S(rgb(98, 150, 48), M.Grass),
-		mossLight = S(rgb(142, 188, 68), M.Grass),
-		sprout = S(rgb(176, 222, 96)),
-		gold = S(rgb(226, 176, 66), M.Metal, { reflectance = 0.05 }),
-		eye = S(rgb(250, 196, 54)),
-		pupil = S(rgb(18, 16, 14)),
-		mouth = S(rgb(140, 54, 66)),
-		tongue = S(rgb(222, 82, 112)),
-		claw = S(rgb(44, 38, 32)),
+		core = S(rgb(38, 122, 86)),
+		scales = {
+			S(rgb(190, 234, 98)),
+			S(rgb(136, 210, 88)),
+			S(rgb(82, 178, 90)),
+			S(rgb(46, 140, 92)),
+		},
+		headScales = {
+			S(rgb(150, 212, 84)),
+			S(rgb(92, 182, 86)),
+			S(rgb(48, 140, 88)),
+		},
+		limbScales = {
+			S(rgb(100, 188, 84)),
+			S(rgb(56, 150, 88)),
+			S(rgb(34, 114, 84)),
+		},
+		belly = { S(rgb(255, 236, 150)), S(rgb(240, 204, 104)) },
+		bellyCore = S(rgb(236, 196, 96)),
+		spike = S(rgb(22, 84, 78)),
+		gold = S(rgb(255, 198, 54)),
+		goldDark = S(rgb(214, 138, 26)),
+		moss = { S(rgb(130, 204, 56), M.Grass), S(rgb(98, 172, 42), M.Grass), S(rgb(170, 226, 80), M.Grass) },
+		mossPad = S(rgb(76, 140, 40), M.Grass),
+		sprout = S(rgb(196, 240, 96)),
+		stem = S(rgb(250, 236, 200)),
+		cap = S(rgb(232, 64, 54)),
+		dot = S(rgb(255, 250, 240)),
+		eye = S(rgb(255, 196, 40), M.Neon),
+		socket = S(rgb(18, 58, 50)),
+		pupil = S(rgb(16, 14, 12)),
+		mouth = S(rgb(150, 40, 60)),
+		tooth = S(rgb(250, 246, 232)),
+		tongue = S(rgb(236, 74, 116)),
+		claw = S(rgb(244, 236, 214)),
+		toe = S(rgb(40, 128, 86)),
 	}
 	
--- Hauteur du dos selon z (sommet des volumes du cou, du torse et des hanches)
-	local BACK = {
-		{ -1.5, 0.84 },
-		{ -1.1, 0.85 },
-		{ -0.3, 0.85 },
-		{ 0.5, 0.85 },
-		{ 1.1, 0.8 },
-		{ 1.35, 0.72 },
-	}
+-- Colonne du cou au bout de la queue (de l'avant vers l'arrière)
+	local SPINE = Kit.spine({
+		{ pos = v3(0, 0.62, -1.5), rx = 0.28, ry = 0.22 },
+		{ pos = v3(0, 0.6, -1.1), rx = 0.36, ry = 0.26 },
+		{ pos = v3(0, 0.57, -0.6), rx = 0.46, ry = 0.29 },
+		{ pos = v3(0, 0.56, 0.05), rx = 0.54, ry = 0.31 },
+		{ pos = v3(0, 0.55, 0.7), rx = 0.46, ry = 0.28 },
+		{ pos = v3(0, 0.5, 1.25), rx = 0.32, ry = 0.24 },
+		{ pos = v3(0.06, 0.4, 1.9), rx = 0.24, ry = 0.19 },
+		{ pos = v3(0.24, 0.3, 2.6), rx = 0.17, ry = 0.14 },
+		{ pos = v3(0.42, 0.24, 3.3), rx = 0.12, ry = 0.1 },
+		{ pos = v3(0.36, 0.2, 3.95), rx = 0.085, ry = 0.075 },
+		{ pos = v3(0.05, 0.18, 4.5), rx = 0.05, ry = 0.045 },
+		{ pos = v3(-0.3, 0.17, 4.85), rx = 0.02, ry = 0.02 },
+	})
+	local TAIL_START = 6 -- section où commence la queue
 	
-local function backY(z: number): number
-		for i = 1, #BACK - 1 do
-			local a, b = BACK[i], BACK[i + 1]
-			if z <= b[1] then
-				local t = math.clamp((z - a[1]) / (b[1] - a[1]), 0, 1)
-				return a[2] + (b[2] - a[2]) * t
-			end
-		end
-		return BACK[#BACK][2]
-	end
+-- Tête (du bout du museau vers la nuque)
+	local HEAD = Kit.spine({
+		{ pos = v3(0, 0.6, -2.5), rx = 0.09, ry = 0.065 },
+		{ pos = v3(0, 0.63, -2.32), rx = 0.2, ry = 0.12 },
+		{ pos = v3(0, 0.68, -2.05), rx = 0.3, ry = 0.17 },
+		{ pos = v3(0, 0.71, -1.78), rx = 0.36, ry = 0.21 },
+		{ pos = v3(0, 0.67, -1.48), rx = 0.29, ry = 0.21 },
+	})
 	
--- Le torse avant (et le cou) appartiennent à l'os Chest, le reste à Body
-	local function trunkBone(z: number): string
-		return if z < -0.3 then "Chest" else "Body"
-	end
+local JAW = Kit.spine({
+		{ pos = v3(0, 0.505, -2.44), rx = 0.08, ry = 0.035 },
+		{ pos = v3(0, 0.5, -2.2), rx = 0.19, ry = 0.06 },
+		{ pos = v3(0, 0.52, -1.72), rx = 0.27, ry = 0.08 },
+	})
 	
--- Queue : articulations, largeur et hauteur de chaque segment
-	local TAIL = {
-		v3(0, 0.55, 1.05),
-		v3(0, 0.47, 1.6),
-		v3(0.08, 0.38, 2.15),
-		v3(0.26, 0.3, 2.68),
-		v3(0.42, 0.25, 3.2),
-		v3(0.42, 0.22, 3.72),
-		v3(0.22, 0.2, 4.2),
-		v3(-0.12, 0.19, 4.6),
-	}
-	local TAIL_W = { 0.66, 0.54, 0.44, 0.36, 0.28, 0.2, 0.13 }
-	
--- Pattes : épaule/hanche -> coude/genou -> poignet/cheville, doigts (angle vers l'extérieur, longueur)
+-- Pattes : épaule/hanche -> coude/genou -> poignet/cheville (rayons), doigts (angle, longueur)
 	local LEGS = {
 		F = {
-			hip = v3(0.35, 0.55, -0.85),
-			knee = v3(0.82, 0.48, -0.95),
-			ankle = v3(0.9, 0.1, -1.02),
-			foot = v3(0.92, 0.06, -1.06),
-			upper = { 0.24, 0.22 },
-			lower = { 0.18, 0.2 },
-			joint = 0.24,
+			path = { { v3(0.35, 0.56, -0.85), 0.14, 0.13 }, { v3(0.8, 0.5, -0.95), 0.11, 0.1 }, { v3(0.88, 0.13, -1.02), 0.08, 0.08 } },
+			foot = v3(0.9, 0.06, -1.06),
 			toes = { { -45, 0.2 }, { -15, 0.27 }, { 15, 0.26 }, { 45, 0.2 } },
 		},
 		B = {
-			hip = v3(0.32, 0.55, 0.85),
-			knee = v3(0.82, 0.5, 0.72),
-			ankle = v3(0.92, 0.1, 0.86),
+			path = { { v3(0.32, 0.56, 0.85), 0.2, 0.18 }, { v3(0.8, 0.52, 0.72), 0.14, 0.13 }, { v3(0.92, 0.13, 0.86), 0.09, 0.09 } },
 			foot = v3(0.95, 0.06, 0.86),
-			upper = { 0.32, 0.3 },
-			lower = { 0.2, 0.22 },
-			joint = 0.3,
 			toes = { { 5, 0.26 }, { 35, 0.34 }, { 65, 0.3 }, { 100, 0.2 } },
 		},
 	}
 	
+local function trunkBone(u: number): string
+		if u < 3.6 then
+			return "Chest"
+		elseif u < TAIL_START then
+			return "Body"
+		end
+		return "Tail" .. math.clamp(math.floor(u - TAIL_START) + 1, 1, 6)
+	end
+	
 local function build(opts: Kit.BuildOptions?): Model
 		local rig = Kit.newRig(ID, opts)
-	
-	-- Touffe de mousse : trois boules (Grass) + jeunes pousses
-		local function moss(bone: string, c: Vector3, size: number, seed: number)
-			rig:prism(bone, "MossPad", cf(c - v3(0, 0.07, 0) * size) * ang(0, seed, 0), v3(0.46, 0.1, 0.4) * size, 0.04 * size, P.moss)
-			rig:ball(bone, "Moss", c, 0.26 * size, P.moss)
-			rig:ball(bone, "Moss", c + v3(0.11, -0.02, 0.07) * size, 0.19 * size, P.mossLight)
-			rig:ball(bone, "Moss", c + v3(-0.1, -0.03, -0.08) * size, 0.17 * size, P.moss)
-			for k = 0, 2 do
-				local a = seed + k * 2.1
-				local base = cf(c + v3(math.cos(a) * 0.07, 0.07, math.sin(a) * 0.07) * size)
-					* ang(math.cos(a) * 0.35, a, math.sin(a) * 0.35)
-				rig:spike(bone, "Sprout", base, 0.05 * size, (0.13 + k * 0.03) * size, 0.02, P.sprout)
-			end
-		end
 	
 	-- ===================================================================
 		-- Squelette
 		-- ===================================================================
 		rig:bone("Body", "Root", cf(0, 0.56, 0.3))
-		rig:bone("Chest", "Body", cf(0, 0.58, -0.3))
-		rig:bone("Head", "Chest", cf(0, 0.64, -1.45))
-		rig:bone("Jaw", "Head", cf(0, 0.58, -1.62))
-		rig:bone("Tongue", "Head", cf(0, 0.555, -1.95))
+		rig:bone("Chest", "Body", cf(0, 0.57, -0.3))
+		rig:bone("Head", "Chest", cf(0, 0.64, -1.48))
+		rig:bone("Jaw", "Head", cf(0, 0.56, -1.66))
+		rig:bone("Tongue", "Head", cf(0, 0.545, -1.95))
 		rig:mirrored(function(side, sfx)
 			local s = string.sub(sfx, 2)
-			local f, b = LEGS.F.hip, LEGS.B.hip
+			local f, b = LEGS.F.path[1][1], LEGS.B.path[1][1]
 			rig:bone("Leg_F" .. s, "Chest", cf(side * f.X, f.Y, f.Z))
 			rig:bone("Leg_B" .. s, "Body", cf(side * b.X, b.Y, b.Z))
 		end)
-		local tailBones = rig:boneChain("Tail", "Body", TAIL)
+		local tailJoints = {}
+		for i = TAIL_START, #SPINE.sections do
+			table.insert(tailJoints, SPINE:pos(i))
+		end
+		rig:boneChain("Tail", "Body", tailJoints)
 	
 	-- ===================================================================
-		-- Tronc
+		-- Touffe de mousse (+ champignon optionnel), posée sur un repère de surface
 		-- ===================================================================
-		rig:prism("Chest", "Chest", cf(0, 0.57, -0.72), v3(0.9, 0.54, 0.9), 0.2, P.skin)
-		rig:prism("Chest", "Neck", cf(0, 0.62, -1.32) * ang(rad(-6), 0, 0), v3(0.62, 0.44, 0.5), 0.15, P.skin)
-		rig:prism("Chest", "Belly", cf(0, 0.3, -0.7), v3(0.6, 0.12, 0.95), 0.03, P.belly)
-		rig:prism("Chest", "Throat", cf(0, 0.42, -1.3), v3(0.5, 0.14, 0.5), 0.05, P.belly)
-	
-	rig:prism("Body", "Midriff", cf(0, 0.56, 0.1), v3(1.1, 0.6, 0.85), 0.22, P.skin)
-		rig:prism("Body", "Hips", cf(0, 0.55, 0.82), v3(0.86, 0.52, 0.7), 0.2, P.skin)
-		rig:prism("Body", "Belly", cf(0, 0.29, 0.35), v3(0.66, 0.12, 1.5), 0.03, P.belly)
-	
-	-- Rangée centrale de plaques (bord libre relevé vers l'arrière) + dorures
-		local i = 0
-		for z = -1.35, 1.2, 0.28 do
-			i += 1
-			local bone = trunkBone(z)
-			local w = if z < -1.1 then 0.32 elseif z < -0.3 then 0.38 elseif z > 0.5 then 0.32 else 0.42
-			local y = backY(z) + 0.04
-			rig:wedge(bone, "Plate", cf(0, y, z), v3(w, 0.12, 0.36), if i % 2 == 0 then P.plate else P.plateLight)
-			if i % 2 == 1 then
-				rig:ball(bone, "GoldRivet", v3(0, y + 0.07, z + 0.06), 0.075, P.gold)
+		local function moss(bone: string, base: CFrame, size: number, seed: number, mushroom: boolean?)
+			local rng = Random.new(seed)
+			local function at(x: number, y: number, z: number): CFrame
+				return base * cf(x * size, y * size, z * size)
 			end
-			if i % 3 == 0 then
-				rig:block(bone, "GoldTrim", cf(0, y + 0.06, z + 0.16), v3(w * 0.85, 0.035, 0.04), P.gold)
+			rig:prism(bone, "MossPad", at(0, 0, 0) * ang(0, seed, 0), v3(0.42, 0.07, 0.36) * size, 0.05 * size, P.mossPad)
+			local blobs = {
+				{ 0, 0.09, 0, 0.28 },
+				{ 0.14, 0.06, 0.09, 0.21 },
+				{ -0.13, 0.05, -0.06, 0.2 },
+				{ 0.04, 0.06, -0.15, 0.17 },
+				{ -0.08, 0.07, 0.14, 0.16 },
+			}
+			for i, b in blobs do
+				rig:ball(bone, "Moss", at(b[1], b[2], b[3]).Position, b[4] * size, P.moss[(i % #P.moss) + 1])
+			end
+			for k = 0, 3 do
+				local a = seed + k * 1.7
+				local r = 0.06 + rng:NextNumber() * 0.08
+				rig:spike(
+					bone,
+					"Sprout",
+					at(math.cos(a) * r, 0.1, math.sin(a) * r) * ang(math.cos(a) * 0.4, a, math.sin(a) * 0.4),
+					0.05 * size,
+					(0.14 + k * 0.03) * size,
+					0.02 * size,
+					P.sprout
+				)
+			end
+			if mushroom then
+				local foot = at(0.12, 0.08, 0.1)
+				rig:cylinder(bone, "MushroomStem", foot.Position, (foot * cf(0, 0.2 * size, 0)).Position, 0.075 * size, P.stem)
+				-- Chapeau en dôme : trois disques octogonaux empilés (axe = normale)
+				for k, d in { { 0.27, 0.05 }, { 0.21, 0.05 }, { 0.12, 0.04 } } do
+					local capCF = foot * cf(0, (0.2 + (k - 1) * 0.045) * size, 0) * ang(-math.pi / 2, 0, 0)
+					rig:prism(bone, "MushroomCap", capCF, v3(d[1], d[1], d[2]) * size, d[1] * 0.3 * size, P.cap)
+				end
+				for k = 0, 3 do
+					local a = k * 1.6 + 0.4
+					local r = if k == 3 then 0 else 0.075
+					local y = if k == 3 then 0.3 else 0.255
+					local dot = foot * cf(math.cos(a) * r * size, y * size, math.sin(a) * r * size)
+					rig:ball(bone, "MushroomDot", dot.Position, 0.045 * size, P.dot)
+				end
 			end
 		end
 	
-	-- Rangées latérales, inclinées vers l'extérieur et décalées d'une demi-plaque
-		rig:mirrored(function(side)
-			for z = -1.21, 1.1, 0.28 do
-				local x, y
-				if z < -1.1 then
-					x, y = 0.27, 0.78
-				elseif z < -0.3 then
-					x, y = 0.37, 0.76
-				elseif z < 0.5 then
-					x, y = 0.45, 0.77
-				else
-					x, y = 0.34, 0.72
-				end
-				rig:wedge(
-					trunkBone(z),
-					"SidePlate",
-					cf(side * x, y, z) * ang(0, 0, -side * rad(40)),
-					v3(0.28, 0.09, 0.3),
-					if math.floor(z * 10) % 2 == 0 then P.plateDark else P.plate
-				)
-			end
-		end)
+	-- ===================================================================
+		-- Corps + queue : noyau, écailles dorsales, écailles ventrales
+		-- ===================================================================
+		rig:tube(SPINE, {
+			name = "Trunk",
+			bone = trunkBone,
+			core = P.core,
+			coreStep = 0.28,
+			cover = {
+				{
+					kind = "Scale",
+					size = v3(0.3, 0.11, 0.32),
+					spacing = 0.24,
+					arc = 112,
+					shades = P.scales,
+					tilt = 22,
+					refRadius = 0.42,
+					seed = 11,
+				},
+				{
+					kind = "Scale",
+					size = v3(0.28, 0.06, 0.24),
+					spacing = 0.22,
+					arc = 60,
+					center = 180,
+					to = 10,
+					shades = P.belly,
+					tilt = 8,
+					refRadius = 0.42,
+					jitter = 0.15,
+					seed = 12,
+				},
+			},
+		})
 	
-	moss("Chest", v3(-0.26, 0.86, -0.62), 1.3, 0.4)
-		moss("Body", v3(0.3, 0.87, 0.36), 1.45, 1.7)
-		moss("Body", v3(-0.14, 0.83, 1.0), 1.05, 3.1)
+	-- Crête dorsale : épines vert sombre à pointe dorée
+		do
+			local s, sEnd, i = SPINE:lengthAt(1.3), SPINE:lengthAt(11.3), 0
+			while s < sEnd do
+				local u = SPINE:uAt(s)
+				local _, ry = SPINE:radii(u)
+				local k = math.clamp(ry / 0.3, 0.45, 1.1)
+				-- Lame en dents de scie (plaque orientée le long de l'échine) + pointe dorée
+				local h = 0.36 * k * (if i % 2 == 0 then 1 else 0.7)
+				local base = SPINE:surface(u, 0, 0.04 * k) * ang(rad(34), 0, 0) * ang(0, math.pi / 2, 0)
+				rig:spike(trunkBone(u), "Spike", base, 0.22 * k, h, 0.05 * k, P.spike)
+				rig:spike(trunkBone(u), "SpikeTip", base * cf(0, h * 0.58, 0), 0.11 * k, h * 0.48, 0.07 * k, P.gold)
+				s += 0.25 * k
+				i += 1
+			end
+		end
+	
+	-- Dorures : collier + deux bagues de queue à rivets
+		rig:band(SPINE, "Chest", "GoldCollar", 1.75, 0.12, 0.06, P.gold, P.goldDark)
+		rig:band(SPINE, trunkBone(6.9), "GoldBand", 6.9, 0.1, 0.05, P.gold, P.goldDark)
+		rig:band(SPINE, trunkBone(8.5), "GoldBand", 8.5, 0.08, 0.04, P.gold, P.goldDark)
+	
+	-- Mousse sur le dos et la base de la queue
+		moss("Chest", SPINE:surface(3.0, -38, 0.06), 1.15, 1, true)
+		moss("Body", SPINE:surface(4.4, 32, 0.07), 1.35, 2, false)
+		moss("Body", SPINE:surface(5.5, -24, 0.06), 1.0, 3, true)
+		moss(trunkBone(6.4), SPINE:surface(6.4, 28, 0.05), 0.85, 4, false)
 	
 	-- ===================================================================
 		-- Tête
 		-- ===================================================================
-		rig:prism("Head", "Skull", cf(0, 0.72, -1.8), v3(0.76, 0.4, 0.62), 0.14, P.skin)
-		rig:prism("Head", "Snout", cf(0, 0.66, -2.24), v3(0.52, 0.28, 0.4), 0.1, P.skin)
-		rig:wedge("Head", "Bridge", cf(0, 0.86, -2.275), v3(0.36, 0.12, 0.33), P.skin)
-		rig:prism("Head", "HeadPlate", cf(0, 0.93, -1.76), v3(0.42, 0.06, 0.5), 0.03, P.plateDark)
-		rig:block("Head", "GoldGem", cf(0, 0.97, -1.92) * ang(0, rad(45), 0), v3(0.1, 0.04, 0.1), P.gold)
-		rig:block("Head", "Mouth", cf(0, 0.545, -2.12), v3(0.48, 0.05, 0.55), P.mouth)
-		moss("Head", v3(0.14, 0.94, -1.56), 0.75, 5.2)
+		rig:tube(HEAD, {
+			name = "Head",
+			bone = function()
+				return "Head"
+			end,
+			core = P.core,
+			coreStep = 0.2,
+			cover = {
+				{
+					kind = "Scale",
+					size = v3(0.17, 0.06, 0.17),
+					spacing = 0.14,
+					arc = 100,
+					from = 1.6,
+					shades = P.headScales,
+					tilt = 14,
+					refRadius = 0.3,
+					jitter = 0.2,
+					seed = 21,
+				},
+			},
+		})
+		rig:tube(JAW, {
+			name = "Jaw",
+			bone = function()
+				return "Jaw"
+			end,
+			core = P.bellyCore,
+			coreStep = 0.2,
+		})
+		rig:block("Head", "Mouth", cf(0, 0.535, -2.08), v3(0.42, 0.04, 0.62), P.mouth)
+		rig:block("Head", "GoldGem", cf(0, 0.935, -1.86) * ang(0, rad(45), 0), v3(0.11, 0.05, 0.11), P.gold)
+		moss("Head", HEAD:surface(4.4, 20, 0.03), 0.6, 5, false)
 	
 	rig:mirrored(function(side, sfx)
-			rig:wedge("Head", "Brow" .. sfx, cf(side * 0.29, 0.92, -1.84), v3(0.16, 0.1, 0.26), P.plateDark)
-			-- Joues biseautées : la tête s'affine vers le museau (vue de dessus triangulaire)
-			rig:wedgeTri("Head", "Jowl" .. sfx, v3(side * 0.26, 0.68, -2.1), v3(side, 0, 0), v3(0, 0, -1), 0.12, 0.3, 0.28, P.skin)
-			rig:ball("Head", "EyeSocket" .. sfx, v3(side * 0.35, 0.8, -1.88), 0.2, P.skinDark)
-			rig:ball("Head", "Eye" .. sfx, v3(side * 0.39, 0.8, -1.89), 0.17, P.eye)
-			rig:block("Head", "Pupil" .. sfx, cf(side * 0.472, 0.8, -1.89), v3(0.02, 0.12, 0.04), P.pupil)
-			rig:block("Head", "Nostril" .. sfx, cf(side * 0.12, 0.76, -2.44), v3(0.05, 0.03, 0.03), P.pupil)
-			-- Barbe de mousse sous le menton
-			rig:spike("Jaw", "MossBeard", cf(side * 0.08, 0.45, -2.2) * ang(math.pi, 0, side * rad(12)), 0.09, 0.14, 0.05, P.moss)
+			-- Yeux
+			rig:ball("Head", "EyeSocket" .. sfx, v3(side * 0.3, 0.82, -1.84), 0.21, P.socket)
+			rig:ball("Head", "Eye" .. sfx, v3(side * 0.335, 0.83, -1.86), 0.17, P.eye)
+			rig:block("Head", "Pupil" .. sfx, cf(side * 0.418, 0.83, -1.86), v3(0.02, 0.12, 0.035), P.pupil)
+			rig:wedge("Head", "Brow" .. sfx, cf(side * 0.27, 0.93, -1.86) * ang(0, 0, -side * rad(18)), v3(0.2, 0.08, 0.28), P.headScales[3])
+			rig:block("Head", "Nostril" .. sfx, cf(side * 0.07, 0.66, -2.47), v3(0.04, 0.03, 0.03), P.pupil)
+	
+		-- Collerette d'épines derrière les yeux (pointes dorées)
+			for k = 0, 2 do
+				local base = cf(side * (0.27 + k * 0.03), 0.8 - k * 0.07, -1.6 + k * 0.04)
+					* ang(rad(62 - k * 6), side * rad(-30 - k * 12), side * rad(-20))
+				local h = 0.24 - k * 0.04
+				rig:thorn("Head", "Frill" .. sfx, base, 0.09, h, P.spike)
+				rig:thorn("Head", "FrillTip" .. sfx, base * cf(0, h * 0.6, 0), 0.045, h * 0.5, P.gold)
+			end
+	
+		-- Petites dents le long de la lèvre supérieure
+			for k = 0, 4 do
+				rig:thorn("Head", "Tooth" .. sfx, cf(side * (0.07 + k * 0.045), 0.545, -2.36 + k * 0.12) * ang(math.pi, 0, 0), 0.035, 0.055, P.tooth)
+			end
 		end)
 	
-	rig:prism("Jaw", "Jaw", cf(0, 0.49, -2.03), v3(0.56, 0.1, 0.78), 0.04, P.belly)
-	
 	-- Langue fourchue (rentrée au repos, sortie par l'animateur)
-		rig:strut("Tongue", "Tongue", v3(0, 0.555, -1.95), v3(0, 0.555, -2.32), 0.07, 0.03, P.tongue)
+		rig:strut("Tongue", "Tongue", v3(0, 0.545, -1.95), v3(0, 0.545, -2.32), 0.07, 0.03, P.tongue)
 		rig:mirrored(function(side)
-			rig:strut("Tongue", "TongueFork", v3(0, 0.555, -2.31), v3(side * 0.05, 0.555, -2.42), 0.04, 0.025, P.tongue)
+			rig:strut("Tongue", "TongueFork", v3(0, 0.545, -2.31), v3(side * 0.05, 0.545, -2.42), 0.04, 0.025, P.tongue)
 		end)
 	
 	-- ===================================================================
-		-- Pattes écartées
+		-- Pattes écailleuses
 		-- ===================================================================
 		rig:mirrored(function(side, sfx)
 			local s = string.sub(sfx, 2)
 			for key, L in LEGS do
 				local bone = "Leg_" .. key .. s
-				local function m(v: Vector3): Vector3
-					return v3(side * v.X, v.Y, v.Z)
+				local sections = {}
+				for _, p in L.path do
+					table.insert(sections, { pos = v3(side * p[1].X, p[1].Y, p[1].Z), rx = p[2], ry = p[3] })
 				end
-				local hip, knee, ankle, foot = m(L.hip), m(L.knee), m(L.ankle), m(L.foot)
-				rig:prismBetween(bone, "Upper", hip, knee, L.upper[1], L.upper[2], 0.07, P.skin)
-				rig:ball(bone, "Joint", knee, L.joint, P.skin)
-				rig:prismBetween(bone, "Lower", knee + v3(0, 0.02, 0), ankle, L.lower[1], L.lower[2], 0.06, P.skin)
-				rig:prism(bone, "Foot", cf(foot), v3(0.25, 0.1, 0.24), 0.04, P.skinDark)
-				rig:wedge(
-					bone,
-					"LegPlate",
-					cf(hip:Lerp(knee, 0.55) + v3(0, L.upper[2] / 2, 0)) * ang(0, 0, -side * rad(10)),
-					v3(0.24, 0.07, 0.22),
-					P.plate
-				)
+				rig:tube(Kit.spine(sections), {
+					name = "Leg",
+					bone = function()
+						return bone
+					end,
+					core = P.core,
+					coreStep = 0.2,
+					cover = {
+						{
+							kind = "Scale",
+							size = v3(0.17, 0.05, 0.15),
+							spacing = 0.13,
+							arc = 180,
+							shades = P.limbScales,
+							tilt = 16,
+							refRadius = 0.13,
+							jitter = 0.2,
+							seed = (if key == "F" then 30 else 40) + side,
+						},
+					},
+				})
+				local foot = v3(side * L.foot.X, L.foot.Y, L.foot.Z)
+				rig:prism(bone, "Foot", cf(foot), v3(0.24, 0.09, 0.22), 0.04, P.limbScales[2])
 				for _, toe in L.toes do
 					local a = rad(toe[1])
 					local dir = v3(side * math.sin(a), 0, -math.cos(a))
-					local tip = foot + dir * toe[2] + v3(0, -0.02, 0)
-					rig:strut(bone, "Toe", foot, tip, 0.05, 0.05, P.skinDark)
-					rig:wedge(bone, "Claw", Kit.lookAlong(tip + dir * 0.04, dir), v3(0.045, 0.05, 0.08), P.claw)
+					local tip = foot + dir * toe[2] + v3(0, -0.015, 0)
+					rig:strut(bone, "Toe", foot, tip, 0.06, 0.05, P.toe)
+					rig:ball(bone, "ToePad", tip, 0.07, P.limbScales[1])
+					rig:wedge(bone, "Claw", Kit.lookAlong(tip + dir * 0.06, dir), v3(0.04, 0.05, 0.09), P.claw)
 				end
 			end
 		end)
-	
-	-- ===================================================================
-		-- Queue annelée à plaques
-		-- ===================================================================
-		for n, bone in tailBones do
-			local a, b, w = TAIL[n], TAIL[n + 1], TAIL_W[n]
-			local dir = (b - a).Unit
-			rig:prismBetween(bone, "Tail", a - dir * 0.05, b + dir * 0.05, w, w * 0.78, w * 0.28, if n % 2 == 0 then P.skinDark else P.skin)
-			for _, t in { 0.3, 0.75 } do
-				local p = a:Lerp(b, t) + v3(0, w * 0.39, 0)
-				rig:wedge(bone, "TailPlate", Kit.lookAlong(p, -dir), v3(w * 0.55, 0.08, (b - a).Magnitude * 0.42), P.plate)
-			end
-		end
-		moss(tailBones[1], TAIL[1]:Lerp(TAIL[2], 0.55) + v3(0.12, 0.28, 0), 0.95, 2.4)
 	
 	rig:hitbox(cf(0, 0.5, 0.6), v3(2.1, 1.1, 5.4))
 	
@@ -1286,34 +2084,34 @@ local function build(opts: Kit.BuildOptions?): Model
 		if rig.effects then
 			local sc = rig.scale
 	
-		local pollen = rig:anchor("Body", "FX_Pollen", cf(0, 0.98, 0), v3(0.9, 0.2, 2.2))
+		local pollen = rig:anchor("Body", "FX_Pollen", cf(0, 1.0, -0.1), v3(0.9, 0.2, 2.4))
 			Fx.particles(pollen, {
 				name = "MossPollen",
 				texture = Fx.TEXTURES.sparkle,
-				colors = { rgb(196, 236, 96), rgb(244, 255, 170) },
-				sizes = { 0.1, 0.14, 0 },
-				transparencies = { 0.3, 0.2, 1 },
+				colors = { rgb(200, 240, 96), rgb(250, 255, 176) },
+				sizes = { 0.1, 0.15, 0 },
+				transparencies = { 0.3, 0.15, 1 },
 				lifetime = NumberRange.new(2, 3.5),
-				rate = 3,
+				rate = 3.5,
 				speed = NumberRange.new(0.1, 0.3),
 				spread = Vector2.new(40, 40),
 				acceleration = v3(0, 0.12, 0),
 				drag = 1,
-				lightEmission = 0.6,
+				lightEmission = 0.7,
 				rotation = NumberRange.new(0, 360),
 				rotSpeed = NumberRange.new(-40, 40),
 				volume = true,
 			}, sc)
 	
-		local glint = rig:anchor("Body", "FX_GoldGlint", cf(0, 0.95, -0.1), v3(0.2, 0.1, 2.4))
+		local glint = rig:anchor("Body", "FX_GoldGlint", cf(0, 1.02, 0), v3(0.25, 0.15, 3.2))
 			Fx.particles(glint, {
 				name = "GoldGlint",
 				texture = Fx.TEXTURES.sparkle,
-				colors = { rgb(255, 220, 120) },
-				sizes = { 0.28, 0 },
-				transparencies = { 0.1, 1 },
+				colors = { rgb(255, 226, 120) },
+				sizes = { 0.3, 0 },
+				transparencies = { 0.05, 1 },
 				lifetime = NumberRange.new(0.3, 0.5),
-				rate = 1.2,
+				rate = 2,
 				lockedToPart = true,
 				lightEmission = 1,
 				rotation = NumberRange.new(0, 360),
@@ -1324,7 +2122,7 @@ local function build(opts: Kit.BuildOptions?): Model
 			Fx.particles(dust, {
 				name = "GroundDust",
 				texture = Fx.TEXTURES.smoke,
-				colors = { rgb(140, 126, 98), rgb(104, 96, 80) },
+				colors = { rgb(150, 132, 98), rgb(112, 100, 80) },
 				sizes = { 0.18, 0.45 },
 				transparencies = { 1, 0.75, 1 },
 				lifetime = NumberRange.new(1.2, 2),
@@ -1345,6 +2143,8 @@ local LezardMousseux: Types.CreatureDef = {
 		Id = ID,
 		DisplayName = "Lézard Mousseux",
 		Rarity = "Common",
+		Zone = "Surface",
+		Scale = 1.2,
 		Category = "Créature Commune",
 		Description = "Reptile rampant des sous-bois humides. La mousse pousse entre ses écailles et de petites dorures ornent son dos.",
 		Icon = {
@@ -1378,8 +2178,14 @@ end
 -- Entrée
 -- ============================================================================
 do
+	-- Réglages : mutation éventuelle ("Gold", "Diamond", "Toxic", "Infernal", "Void", "Rainbow")
+	-- et échelle (nil = taille par défaut de la créature).
+	local MUTATION = nil
+	local SCALE = nil
+
 	local def = __require("LezardMousseux")
 	local Icon = __require("Icon")
+	local Mutations = __require("Mutations")
 
 	-- Position : 14 studs devant la caméra, posée au sol, tournée vers la caméra
 	local look = Vector3.new(0, 0, -1)
@@ -1394,7 +2200,11 @@ do
 	end
 	local hit = workspace:Raycast(pos + Vector3.new(0, 50, 0), Vector3.new(0, -300, 0))
 	local ground = if hit then hit.Position else Vector3.new(pos.X, 0, pos.Z)
-	local model = def.build({ cframe = CFrame.lookAt(ground, ground - look), parent = workspace })
+	local model = def.build({ cframe = CFrame.lookAt(ground, ground - look), scale = SCALE or def.Scale })
+	if MUTATION then
+		Mutations.apply(model, MUTATION)
+	end
+	model.Parent = workspace
 
 	-- Icône UI (visible dans l'éditeur via StarterGui)
 	local StarterGui = game:GetService("StarterGui")
@@ -1424,7 +2234,7 @@ do
 	if old then
 		old:Destroy()
 	end
-	Icon.build(def, tray)
+	Icon.build(def, tray, { mutation = MUTATION })
 
 	pcall(function()
 		game:GetService("Selection"):Set({ model })

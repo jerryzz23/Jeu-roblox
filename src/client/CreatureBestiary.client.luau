@@ -3,7 +3,8 @@
 	CreatureBestiary (StarterPlayerScripts)
 	---------------------------------------
 	Démo d'UI : un bouton "Bestiaire" ouvre un panneau listant l'icône de chaque
-	créature enregistrée (grille UIGridLayout, tri par rareté).
+	créature enregistrée (grille UIGridLayout, tri par rareté). Icônes construites
+	à la première ouverture.
 ]]
 
 local Players = game:GetService("Players")
@@ -102,8 +103,20 @@ local cellRatio = Instance.new("UIAspectRatioConstraint")
 cellRatio.AspectRatio = 1
 cellRatio.Parent = grid
 
-for i, def in CreatureForge.list() do
-	CreatureForge.buildIcon(def.Id, scroll, { layoutOrder = i })
+-- Les icônes (modèles 3D en ViewportFrame) sont construites à la première ouverture,
+-- en densité réduite, pour ne pas alourdir l'arrivée du joueur.
+local built = false
+local function buildIcons()
+	if built then
+		return
+	end
+	built = true
+	for i, def in CreatureForge.list() do
+		CreatureForge.buildIcon(def.Id, scroll, { layoutOrder = i, detail = 0.4 })
+		if i % 3 == 0 then
+			task.wait()
+		end
+	end
 end
 
 local open = false
@@ -114,6 +127,7 @@ toggle.Activated:Connect(function()
 		current:Cancel()
 	end
 	if open then
+		task.spawn(buildIcons)
 		panel.Visible = true
 		panelScale.Scale = 0.85
 		current = TweenService:Create(panelScale, OPEN, { Scale = 1 })
