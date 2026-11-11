@@ -1,0 +1,26 @@
+{
+  "name": "Jeu-roblox",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "CreatureForge": {
+        "$path": "src/shared"
+      }
+    },
+    "ServerScriptService": {
+      "CreatureShowcase": {
+        "$path": "src/server/CreatureShowcase.server.luau"
+      }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "CreatureAnimator": {
+          "$path": "src/client/CreatureAnimator.client.luau"
+        },
+        "CreatureBestiary": {
+          "$path": "src/client/CreatureBestiary.client.luau"
+        }
+      }
+    }
+  }
+}

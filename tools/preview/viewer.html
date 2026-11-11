@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CreatureForge Preview</title>
+<style>
+  :root { --bg: #e9eaee; --ink: #1d1d24; --muted: #6b6d78; --chip: #ffffff; --chip-on: #1d1d24; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 13px/1.4 system-ui, sans-serif; }
+  #bar { position: fixed; top: 0; left: 0; right: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 10px 16px; z-index: 2; }
+  #bar button { border: 1px solid #c9cad2; background: var(--chip); color: var(--ink); border-radius: 6px; padding: 4px 10px; cursor: pointer; font: inherit; }
+  #bar button.on { background: var(--chip-on); color: #fff; border-color: var(--chip-on); }
+  #info { margin-left: 8px; color: var(--muted); }
+  #info b { color: var(--ink); }
+  canvas { display: block; }
+  #icon { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; }
+  #card { position: relative; width: min(80vw, 80vh); aspect-ratio: 1; border-radius: 16%; overflow: hidden; box-shadow: 0 0 0 4px #b0b8c4 inset; }
+  #card canvas { position: absolute; inset: 0; width: 100% !important; height: 100% !important; }
+  .glow { position: absolute; left: 50%; top: 47%; border-radius: 50%; transform: translate(-50%, -50%); }
+  #pill { position: absolute; left: 5%; top: 4%; width: 44%; height: 12%; border-radius: 99px; background: linear-gradient(#ecf0f6, #b0b8c4); color: #686e7a; font: 700 4.4vmin system-ui; display: flex; align-items: center; justify-content: center; z-index: 3; }
+  #plate { position: absolute; left: 5%; bottom: 5.5%; width: 90%; height: 17%; border-radius: 40%/50%; background: rgba(0,0,0,.55); color: #fff; font: 700 5.6vmin system-ui; display: flex; align-items: center; justify-content: center; z-index: 3; text-shadow: 0 0 3px #000; }
+</style>
+</head>
+<body>
+<div id="bar">
+  <button data-view="34" class="on">3/4</button>
+  <button data-view="front">Face</button>
+  <button data-view="side">Profil</button>
+  <button data-view="back">Arrière</button>
+  <button data-view="top">Dessus</button>
+  <button data-view="icon">Icône</button>
+  <span id="info">Glissez un fichier .json exporté par <code>lune run tools/export</code> ou ouvrez <code>?id=RatDesCavernes</code></span>
+</div>
+<div id="icon"><div id="card"><div id="pill">COMMUN</div><div id="plate"></div></div></div>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+const params = new URLSearchParams(location.search);
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(30, 1, 0.05, 500);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+scene.add(new THREE.HemisphereLight(0xf4f6ff, 0x5a5560, 1.4));
+const sun = new THREE.DirectionalLight(0xfff6e8, 2.2);
+sun.position.set(4, 9, -6);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+scene.add(sun, sun.target);
+const ground = new THREE.Mesh(new THREE.CircleGeometry(30, 64), new THREE.ShadowMaterial({ opacity: 0.18 }));
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+const creature = new THREE.Group();
+scene.add(creature);
+let data = null;
+let bounds = new THREE.Box3();
+let view = params.get("view") || "34";
+
+function wedgeGeometry() {
+  const v = [
+    [-0.5, -0.5, -0.5], [0.5, -0.5, -0.5], [0.5, -0.5, 0.5], [-0.5, -0.5, 0.5], [-0.5, 0.5, 0.5], [0.5, 0.5, 0.5],
+  ];
+  const tris = [[0, 2, 1], [0, 3, 2], [3, 5, 4], [3, 2, 5], [0, 4, 5], [0, 5, 1], [0, 3, 4], [1, 5, 2]];
+  const pos = [];
+  for (const t of tris) for (const i of t) pos.push(...v[i]);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.computeVertexNormals();
+  return g;
+}
+const GEO = {
+  Block: new THREE.BoxGeometry(1, 1, 1),
+  Wedge: wedgeGeometry(),
+  Ball: new THREE.SphereGeometry(0.5, 20, 14),
+  Cylinder: new THREE.CylinderGeometry(0.5, 0.5, 1, 20).rotateZ(-Math.PI / 2),
+};
+
+function material(p) {
+  const color = new THREE.Color().setRGB(p.col[0] / 255, p.col[1] / 255, p.col[2] / 255, THREE.SRGBColorSpace);
+  const opts = { color, transparent: p.t > 0, opacity: 1 - p.t, side: THREE.DoubleSide };
+  if (p.m === "Neon") return new THREE.MeshBasicMaterial({ ...opts, color: color.clone().multiplyScalar(1.25) });
+  const std = { ...opts, flatShading: true, roughness: 0.85, metalness: 0 };
+  if (p.m === "Metal" || p.m === "DiamondPlate" || p.m === "Foil") Object.assign(std, { roughness: 0.35, metalness: 0.65 });
+  if (p.m === "Glass") Object.assign(std, { roughness: 0.1, transparent: true, opacity: Math.min(1 - p.t, 0.6) });
+  if (p.m === "Fabric" || p.m === "Slate") std.roughness = 1;
+  return new THREE.MeshStandardMaterial(std);
+}
+
+function load(json) {
+  data = json;
+  creature.clear();
+  for (const p of json.parts) {
+    const mesh = new THREE.Mesh(GEO[p.k] || GEO.Block, material(p));
+    const c = p.c;
+    const m = new THREE.Matrix4().set(c[3], c[4], c[5], c[0], c[6], c[7], c[8], c[1], c[9], c[10], c[11], c[2], 0, 0, 0, 1);
+    let s = p.s;
+    if (p.k === "Ball") { const d = Math.min(...s); s = [d, d, d]; }
+    if (p.k === "Cylinder") { const d = Math.min(s[1], s[2]); s = [s[0], d, d]; }
+    m.multiply(new THREE.Matrix4().makeScale(s[0], s[1], s[2]));
+    mesh.matrixAutoUpdate = false;
+    mesh.matrix.copy(m);
+    mesh.castShadow = p.m !== "Neon";
+    mesh.receiveShadow = true;
+    creature.add(mesh);
+  }
+  creature.updateMatrixWorld(true);
+  bounds = new THREE.Box3().setFromObject(creature);
+  document.getElementById("info").innerHTML =
+    `<b>${json.name}</b> · ${json.rarity} · ${json.parts.length} pièces · ` +
+    `${(bounds.max.y - bounds.min.y).toFixed(2)} st de haut · ${(bounds.max.z - bounds.min.z).toFixed(2)} st de long`;
+  document.getElementById("plate").textContent = json.name;
+  setView(view);
+}
+
+function fit(dir) {
+  const center = bounds.getCenter(new THREE.Vector3());
+  const radius = bounds.getSize(new THREE.Vector3()).length() / 2;
+  const dist = radius / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2)) * 0.82;
+  camera.position.copy(center).add(dir.clone().normalize().multiplyScalar(dist));
+  controls.target.copy(center);
+  camera.lookAt(center);
+}
+
+function setView(v) {
+  view = v;
+  document.querySelectorAll("#bar button").forEach(b => b.classList.toggle("on", b.dataset.view === v));
+  const iconMode = v === "icon";
+  document.getElementById("icon").style.display = iconMode ? "flex" : "none";
+  ground.visible = !iconMode;
+  if (iconMode) {
+    document.getElementById("card").appendChild(renderer.domElement);
+    renderer.setClearColor(0x000000, 0);
+    const ic = data.icon;
+    const card = document.getElementById("card");
+    const rgb = a => `rgb(${a[0]},${a[1]},${a[2]})`;
+    card.style.background = `linear-gradient(${rgb(ic.top)}, ${rgb(ic.bottom)})`;
+    card.querySelectorAll(".glow").forEach(e => e.remove());
+    for (const [size, alpha] of [[92, 0.1], [68, 0.18], [44, 0.28]]) {
+      const g = document.createElement("div");
+      g.className = "glow";
+      g.style.cssText = `width:${size}%;height:${size}%;background:rgba(${ic.glow.join(",")},${alpha})`;
+      card.prepend(g);
+    }
+    const c = ic.camera;
+    const m = new THREE.Matrix4().set(c[3], c[4], c[5], c[0], c[6], c[7], c[8], c[1], c[9], c[10], c[11], c[2], 0, 0, 0, 1);
+    camera.fov = ic.fov;
+    camera.matrixAutoUpdate = true;
+    m.decompose(camera.position, camera.quaternion, camera.scale);
+    controls.enabled = false;
+  } else {
+    document.body.appendChild(renderer.domElement);
+    renderer.setClearColor(0xe9eaee, 1);
+    camera.fov = 30;
+    controls.enabled = true;
+    const dirs = {
+      "34": new THREE.Vector3(0.75, 0.42, -1),
+      front: new THREE.Vector3(0, 0.15, -1),
+      side: new THREE.Vector3(1, 0.12, 0),
+      back: new THREE.Vector3(-0.7, 0.45, 1),
+      top: new THREE.Vector3(0.0001, 1, -0.2),
+    };
+    fit(dirs[v] || dirs["34"]);
+  }
+  resize();
+}
+
+function resize() {
+  const el = view === "icon" ? document.getElementById("card") : document.body;
+  const w = el.clientWidth || innerWidth, h = el.clientHeight || innerHeight;
+  renderer.setSize(w, h, view !== "icon");
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+addEventListener("resize", resize);
+document.querySelectorAll("#bar button").forEach(b => b.onclick = () => setView(b.dataset.view));
+
+addEventListener("dragover", e => e.preventDefault());
+addEventListener("drop", async e => {
+  e.preventDefault();
+  const f = e.dataTransfer.files[0];
+  if (f) load(JSON.parse(await f.text()));
+});
+
+renderer.setAnimationLoop(() => {
+  if (view !== "icon") controls.update();
+  renderer.render(scene, camera);
+});
+
+const id = params.get("id");
+if (id) fetch(`${id}.json`).then(r => r.json()).then(load).then(() => (window.__ready = true));
+</script>
+</body>
+</html>
