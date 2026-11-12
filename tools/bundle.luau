@@ -42,7 +42,21 @@ local function indent(src: string): string
 	return (string.gsub(src, "\n(.)", "\n\t%1"))
 end
 
+--- Module de Creatures/ qui définit `id` (un module peut définir plusieurs créatures).
+local function moduleOfId(id: string): string
+	if fs.isFile(`{SHARED}/Creatures/{id}.luau`) then
+		return id
+	end
+	for _, n in fs.readDir(`{SHARED}/Creatures`) do
+		if string.find(fs.readFile(`{SHARED}/Creatures/{n}`), `"{id}"`, 1, true) then
+			return (string.gsub(n, "%.luau$", ""))
+		end
+	end
+	error("Créature introuvable : " .. id)
+end
+
 local function bundle(id: string): string
+	local moduleName = moduleOfId(id)
 	local order: { string } = {}
 	local seen: { [string]: boolean } = {}
 	local function visit(name: string)
@@ -56,7 +70,7 @@ local function bundle(id: string): string
 		table.insert(order, name)
 	end
 	visit("Icon")
-	visit(id)
+	visit(moduleName)
 
 	local chunks = {
 		`-- CreatureForge — {id}`,
@@ -95,6 +109,13 @@ do
 	local SCALE = nil
 
 	local def = __require("%s")
+	if not def.Id then -- module à plusieurs créatures : on prend celle-ci
+		for _, d in def do
+			if d.Id == "%s" then
+				def = d
+			end
+		end
+	end
 	local Icon = __require("Icon")
 	local Mutations = __require("Mutations")
 
@@ -155,7 +176,7 @@ do
 	end)
 	print(("[CreatureForge] %%s créé (%%d pièces) à %%s"):format(def.DisplayName, model:GetAttribute("PartCount"), tostring(ground)))
 end
-]]):format(id)
+]]):format(moduleName, id)
 	)
 	return table.concat(chunks, "\n")
 end

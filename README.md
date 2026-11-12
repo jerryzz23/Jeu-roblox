@@ -1,6 +1,6 @@
 # CreatureForge — les personnages du jeu du tapis roulant
 
-Les **21 personnages** du jeu (récap du 1er nov. 2026), assemblés **entièrement en code Luau** dans
+Les **21 personnages** du jeu (récap du 1er nov. 2026), dont le Néant Couronné en **10 variétés**, assemblés **entièrement en code Luau** dans
 le style « low-poly détaillé » : des centaines d'écailles, de mèches de fourrure, de plumes et
 d'épines (Part / WedgePart), des matériaux Roblox (SmoothPlastic, Slate, Granite, Marble, Basalt,
 Sand, Wood, Fabric, Grass, Glass, Metal, Neon), des ornements (armures d'or, runes lumineuses,
@@ -10,7 +10,7 @@ articulé (Motor6D), animé, a son **icône UI**, une **selle** (monture) et, po
 
 ## Bestiaire animé
 
-`tools/preview/bestiaire.html` affiche les 21 personnages en 3D, **animés** (repos, marche,
+`tools/preview/bestiaire.html` affiche les 30 modèles (21 personnages, dont 10 variétés du Néant) en 3D, **animés** (repos, marche,
 capacité spéciale, figé), classés par rareté, avec leurs stats (taille, argent de base, bonus de
 vitesse, passager) et les **mutations cumulables** (le revenu se calcule en direct). C'est le même
 animateur que dans le jeu, porté en JavaScript. En local :
@@ -70,21 +70,25 @@ tirées à part au bout du tapis. `luck = 2` pour le boost « Chance x2 ». Vale
 | Licorne d'éclipse | Exclusif (tapis + roue) | Grand | 8M $/s | +200 % | Oui | licorne noire, anneau de lumière autour de la corne |
 | Sphinx stellaire | Exclusif (roue) | Géant | 11M $/s | +220 % | Oui | tête de pharaon, ailes remplies d'étoiles |
 | Béhémoth abyssal | Exclusif (roue) | Colossal | 14M $/s | +240 % | Oui | leurre et photophores bleus, gueule aux dents-aiguilles |
-| Le Néant Couronné | Chaotique | Colossal | 100M $/s | +400 % | Oui | vide et étoiles, couronne qui flotte au-dessus de la tête |
+| Le Néant Couronné (10 variétés) | Chaotique | Colossal | 100M $/s | +400 % | Oui | vide et étoiles, couronne qui flotte au-dessus de la tête |
 
 Les données de jeu sont dans chaque définition : `Size`, `Income`, `SpeedBonus`, `Passenger`,
 `Source` (`"Tapis"`, `"TapisEtRoue"`, `"Roue"`). Les anciens modèles (Rat des Cavernes, Lézard
 Mousseux…) sont conservés dans `src/shared/Archive/` mais ne sont plus dans le jeu.
 
-### Les 10 variantes du Néant Couronné
+### Les 10 variétés du Néant Couronné
 
-![Variantes du Néant Couronné](docs/previews/neant-variantes.png)
+![Les 10 variétés du Néant Couronné](docs/previews/neant-variantes.png)
 
-`src/shared/Concepts/NeantCouronneVariantes.luau` : 10 styles différents (gothique spectral,
-cosmique, nébuleuse, obsidienne et lave, royal noir et or, bioluminescent, flammes spectrales,
-théâtre, éclipse solaire, céleste déchu). Toutes ont la couronne qui flotte et un corps de vide
-constellé d'étoiles. Le Néant du jeu utilise la variante choisie : change `CHOIX` (1 à 10) dans
-`src/shared/Creatures/NeantCouronne.luau`.
+Le Néant Couronné existe en **10 variétés**, chacune avec sa fiche dans l'Index : Roi Spectral
+(gothique spectral), Œil du Néant (cosmique), Dragon (nébuleuse), Colosse (obsidienne et lave),
+Seigneur Cornu (royal noir et or), Méduse Abyssale (bioluminescent), Bête du Néant (flammes
+spectrales), Masque (théâtre), Astre Noir (éclipse solaire), Archange Déchu (céleste déchu).
+Toutes ont la couronne qui flotte et un corps de vide constellé d'étoiles, et les mêmes stats
+(100M $/s, +400 %, passager). Quand un Chaotique apparaît (1 sur 1 000 000), l'une des 10 est
+tirée au hasard : chaque variété est donc à 1 sur 10 000 000. Définitions :
+`src/shared/Creatures/NeantCouronne.luau` (un module, 10 créatures) ; modèles :
+`src/shared/Concepts/NeantCouronneVariantes.luau`.
 
 ## Mutations
 
@@ -191,7 +195,7 @@ src/shared/                 -> ReplicatedStorage.CreatureForge
   Rarity.luau               8 raretés (Commun -> Chaotique), couleurs animées, tailles
   Types.luau                contrat CreatureDef / AnimProfile / IconTheme
   Creatures/                un personnage = un ModuleScript (auto-enregistré)
-  Concepts/                 les 10 variantes du Néant Couronné (non enregistrées)
+  Concepts/                 modèles des 10 variétés du Néant Couronné
   Archive/                  anciens modèles (non enregistrés)
 src/client/                 CreatureAnimator (démarches Quadruped, Sprawler, Flyer, Serpent,
                             Hover, Biped + orbites + capacités + lumières + mutations), CreatureBestiary (UI)
@@ -206,7 +210,6 @@ Nécessite [Lune](https://github.com/lune-org/lune) (`cargo install lune`) :
 
 ```bash
 lune run tools/export        # dist/models, dist/icons, données d'aperçu
-lune run tools/export --concepts   # les 10 variantes du Néant Couronné
 lune run tools/bundle        # dist/<Créature>.commandbar.luau
 lune run tools/build_place   # dist/CreatureForge.rbxl
 cd tools/preview && python3 -m http.server 8000

@@ -8,7 +8,7 @@ for _, def in Forge.list() do
 	print(string.format("%-24s %-9s saddle=%s passenger=%s income=%s", def.Id, def.Rarity, tostring(saddle ~= nil), tostring(pass ~= nil), Forge.Spawning.formatMoney(m:GetAttribute("Income"))))
 	if saddle and ((pass ~= nil) == def.Passenger) then ok += 1 end
 end
-print(ok, "/", n)
+print(ok, "/", n)  -- 30 attendus (21 du récap, dont 10 variétés du Néant)
 local rng = Sandbox.Random.new(42)
 local counts = {}
 for i = 1, 20000 do

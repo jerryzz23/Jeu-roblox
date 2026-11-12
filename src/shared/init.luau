@@ -11,7 +11,8 @@
 	    local def, mutations = CreatureForge.rollSpawn(0.8)    -- apparition sur le tapis
 
 	Ajouter une créature = déposer un ModuleScript dans CreatureForge/Creatures
-	(voir Types.CreatureDef). Elle est enregistrée automatiquement.
+	(voir Types.CreatureDef ; un module peut aussi renvoyer une liste de définitions).
+	Elle est enregistrée automatiquement.
 ]]
 
 local Kit = require(script.Kit)
@@ -43,9 +44,13 @@ local registry: { [string]: Types.CreatureDef } = {}
 
 for _, m in script.Creatures:GetChildren() do
 	if m:IsA("ModuleScript") then
-		local def: Types.CreatureDef = require(m) :: any
-		assert(registry[def.Id] == nil, `CreatureForge: identifiant en double "{def.Id}"`)
-		registry[def.Id] = def
+		-- Un module renvoie une définition, ou une liste de définitions (ex. les 10 variétés du Néant)
+		local result: any = require(m)
+		local defs: { Types.CreatureDef } = if result.Id then { result } else result
+		for _, def in defs do
+			assert(registry[def.Id] == nil, `CreatureForge: identifiant en double "{def.Id}"`)
+			registry[def.Id] = def
+		end
 	end
 end
 
@@ -69,6 +74,9 @@ function CreatureForge.list(): { Types.CreatureDef }
 		local ra, rb = Rarity.get(a.Rarity).order, Rarity.get(b.Rarity).order
 		if ra ~= rb then
 			return ra < rb
+		end
+		if (a.Order or 0) ~= (b.Order or 0) then
+			return (a.Order or 0) < (b.Order or 0)
 		end
 		return a.DisplayName < b.DisplayName
 	end)

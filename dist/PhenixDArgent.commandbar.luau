@@ -3917,6 +3917,13 @@ do
 	local SCALE = nil
 
 	local def = __require("PhenixDArgent")
+	if not def.Id then -- module à plusieurs créatures : on prend celle-ci
+		for _, d in def do
+			if d.Id == "PhenixDArgent" then
+				def = d
+			end
+		end
+	end
 	local Icon = __require("Icon")
 	local Mutations = __require("Mutations")
 

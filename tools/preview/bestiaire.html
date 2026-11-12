@@ -106,7 +106,7 @@ body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 var(-
   <aside class="side" aria-label="Créatures">
     <div class="brand">
       <h1>Bestiaire du Tapis</h1>
-      <p>21 créatures, 8 raretés, 11 mutations cumulables, et 10 variantes du Néant Couronné à départager.</p>
+      <p>30 personnages (dont les 10 variétés du Néant Couronné), 8 raretés, 11 mutations cumulables.</p>
     </div>
     <div id="zones"></div>
   </aside>
@@ -1141,7 +1141,7 @@ function renderList() {
       const b = document.createElement("button");
       b.className = "item";
       b.id = "item-" + c.id;
-      const sub = c.zone === "Concepts" ? GAIT[c.gait] || "" : `${SIZE[c.size] || ""} · ${money(c.income)} $/s`;
+      const sub = c.rarity === "Chaotic" ? `${GAIT[c.gait] || ""} · ${money(c.income)} $/s` : `${SIZE[c.size] || ""} · ${money(c.income)} $/s`;
       b.innerHTML = `<i class="pip ${r.cls || ""}" style="background:${r.color}"></i><b>${c.name}</b><small>${sub}</small>`;
       b.onclick = () => { location.hash = c.id; };
       list.appendChild(b);
@@ -1292,11 +1292,7 @@ renderer.setAnimationLoop(() => {
 window.addEventListener("hashchange", () => show(location.hash.slice(1)));
 (async () => {
   try {
-    [index, mutations, concepts] = await Promise.all([
-      fetch("index.json").then(r => r.json()),
-      fetch("mutations.json").then(r => r.json()),
-      fetch("concepts.json").then(r => (r.ok ? r.json() : [])).catch(() => []),
-    ]);
+    [index, mutations] = await Promise.all([fetch("index.json").then(r => r.json()), fetch("mutations.json").then(r => r.json())]);
   } catch (err) {
     document.getElementById("loading").textContent = "Impossible de charger le bestiaire. Recharge la page.";
     return;
@@ -1304,7 +1300,7 @@ window.addEventListener("hashchange", () => show(location.hash.slice(1)));
   renderList();
   renderMutations();
   const start = location.hash.slice(1);
-  await show(index.some(c => c.id === start) || concepts.some(c => c.id === start) ? start : (concepts[0] || index[0]).id);
+  await show(index.some(c => c.id === start) ? start : (index.find(c => c.rarity === "Chaotic") || index[0]).id);
   window.__ready = true;
 })();
 </script>

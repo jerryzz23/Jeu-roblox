@@ -202,30 +202,6 @@ end
 
 local ids = table.clone(process.args)
 
--- Variantes de concept (non enregistrées dans le jeu) : lune run tools/export --concepts
-if ids[1] == "--concepts" then
-	local variants = Sandbox.load("src/shared/Concepts/NeantCouronneVariantes")
-	local list = {}
-	for _, def in variants do
-		local model = def.build({ scale = 1 })
-		local gui = roblox.Instance.new("ScreenGui")
-		local card = Forge.Icon.build(def, gui, {})
-		local preview = exportPreview(def, model, card)
-		preview.zone = "Concepts"
-		preview.size = "Colossal"
-		preview.income = 100000000
-		preview.speed = 4
-		preview.passenger = true
-		fs.writeFile(`tools/preview/{def.Id}.json`, serde.encode("json", preview, false))
-		fs.writeFile(`dist/models/{def.Id}.rbxm`, roblox.serializeModel({ model }))
-		table.insert(list, { id = def.Id, name = def.DisplayName, rarity = def.Rarity, zone = "Concepts", ability = def.Ability and def.Ability.name, gait = def.Animation.gait })
-		local _, size = Forge.Kit.visibleBounds(model)
-		print(string.format("%-12s %5d pièces | %.1f x %.1f x %.1f", def.Id, #preview.parts, size.Y, size.X, size.Z))
-	end
-	fs.writeFile("tools/preview/concepts.json", serde.encode("json", list, false))
-	return
-end
-
 local all = #ids == 0
 if all then
 	for _, def in Forge.list() do

@@ -69,6 +69,7 @@ export type CreatureDef = {
 	Passenger: boolean, -- peut porter un passager (selle passager)
 	Source: Source?, -- défaut : "Tapis"
 	Scale: number?, -- échelle par défaut à l'apparition (taille en jeu)
+	Order: number?, -- ordre d'affichage dans une même rareté (sinon : par nom)
 	Category: string,
 	Description: string,
 	Icon: IconTheme,

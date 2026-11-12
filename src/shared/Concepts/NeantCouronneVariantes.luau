@@ -6,8 +6,8 @@
 	du Néant Couronné : une couronne, une orbite de cristaux violets, des fragments d'énergie
 	rouges en orbite, une aura rouge sang et le cercle runique au sol.
 
-	Ces variantes ne sont PAS enregistrées dans le jeu (CreatureForge ne lit que Creatures/).
-	La variante choisie remplacera Creatures/NeantCouronne.luau.
+	Les 10 variétés sont enregistrées dans le jeu par Creatures/NeantCouronne.luau
+	(une fiche chacune). Ce module ne fait que construire leurs modèles.
 
 	    local Variantes = require(ReplicatedStorage.CreatureForge.Concepts.NeantCouronneVariantes)
 	    local model = Variantes[3].build({ cframe = CFrame.new(0, 0, -20), parent = workspace })
