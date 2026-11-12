@@ -2,9 +2,9 @@
 	Génère un fichier de jeu prêt à ouvrir dans Roblox Studio :
 	  dist/CreatureForge.rbxl
 	    ReplicatedStorage.CreatureForge       (tous les ModuleScripts de src/shared)
-	    ServerScriptService.CreatureShowcase  (démo : les 21 créatures se promènent)
+	    ServerScriptService.CreatureShowcase  (démo : les créatures se promènent dans leur zone)
 	    StarterPlayerScripts.CreatureAnimator / CreatureBestiary
-	    Workspace : sol + point d'apparition
+	    Workspace : la carte (bases, canyon en pente, 4 zones) + point d'apparition
 
 	Usage : lune run tools/build_place
 ]]
@@ -55,29 +55,26 @@ scriptFrom("LocalScript", "CreatureAnimator", "src/client/CreatureAnimator.clien
 scriptFrom("LocalScript", "CreatureBestiary", "src/client/CreatureBestiary.client.luau").Parent = sps
 
 local workspace = game:GetService("Workspace")
-local ground = Instance.new("Part")
-ground.Name = "Ground"
-ground.Anchored = true
-ground.Size = roblox.Vector3.new(400, 2, 400)
-ground.CFrame = roblox.CFrame.new(0, -1, 60)
-ground.Color = roblox.Color3.fromRGB(120, 168, 92)
-ground.Material = roblox.Enum.Material.Grass
-ground.TopSurface = roblox.Enum.SurfaceType.Smooth
-ground.Parent = workspace
-
-local spawn = Instance.new("SpawnLocation")
-spawn.Name = "SpawnLocation"
-spawn.Anchored = true
-spawn.Size = roblox.Vector3.new(8, 1, 8)
-spawn.CFrame = roblox.CFrame.new(0, 0.5, 0) * roblox.CFrame.Angles(0, math.pi, 0)
-spawn.Color = roblox.Color3.fromRGB(240, 240, 240)
-spawn.Material = roblox.Enum.Material.SmoothPlastic
-spawn.Parent = workspace
+-- La carte du jeu (canyon, bases, pente, zones) est construite ici et enregistrée dans la place
+local Sandbox = require("./lib/sandbox")
+local Forge = Sandbox.load("src/shared")
+local map = Forge.Map.build({})
+map.Parent = workspace
+print(`carte : {map:GetAttribute("PartCount")} pièces`)
 
 local lighting = game:GetService("Lighting")
 lighting.ClockTime = 14.5
 lighting.Brightness = 2.5
 lighting.OutdoorAmbient = roblox.Color3.fromRGB(150, 150, 160)
+-- Brume légère et ciel bleu comme sur l'illustration de la carte
+local atmosphere = Instance.new("Atmosphere")
+atmosphere.Density = 0.28
+atmosphere.Offset = 0.1
+atmosphere.Color = roblox.Color3.fromRGB(190, 210, 240)
+atmosphere.Decay = roblox.Color3.fromRGB(110, 120, 170)
+atmosphere.Glare = 0.2
+atmosphere.Haze = 1.2
+atmosphere.Parent = lighting
 
 fs.writeDir("dist")
 fs.writeFile("dist/CreatureForge.rbxl", roblox.serializePlace(game))

@@ -81,7 +81,7 @@ return {
 	Id = ID,
 	DisplayName = "Tapis du néant",
 	Tier = 6,
-	Price = 5000000,
+	Price = 2500000000,
 	Gain = 400,
 	Theme = "Néant",
 	Description = "Obsidienne et lueurs violettes, portail en spirale, croissants de lune en orbite.",

@@ -51,6 +51,15 @@ end)
 --- Vitesse du convoyeur (studs/s) : la bande ramène le joueur vers l'arrière.
 Treadmills.CONVEYOR_SPEED = 10
 
+--- Multiplicateur global des prix (équilibrage) : les mutations cumulables font monter vite
+--- les revenus, les prix suivent une progression d'environ x20 par niveau.
+Treadmills.PRICE_MULTIPLIER = 1
+
+--- Prix d'achat du tapis `id` (multiplicateur global appliqué).
+function Treadmills.priceOf(id: string): number
+	return Treadmills.get(id).Price * Treadmills.PRICE_MULTIPLIER
+end
+
 function Treadmills.list(): { TreadmillDef }
 	return ordered
 end

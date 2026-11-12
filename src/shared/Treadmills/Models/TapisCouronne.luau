@@ -90,7 +90,7 @@ return {
 	Id = ID,
 	DisplayName = "Tapis du Néant Couronné",
 	Tier = 10,
-	Price = 50000000000,
+	Price = 600000000000000,
 	Gain = 100000,
 	Theme = "Néant Couronné",
 	Description = "Le tapis ultime : bande arc-en-ciel, couronne flottante, étoiles et aura Chaotique.",

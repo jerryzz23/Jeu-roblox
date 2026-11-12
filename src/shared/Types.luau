@@ -45,7 +45,7 @@ export type Ability = {
 --- Taille (voir Rarity.Sizes) : plus une créature est grosse, plus elle rapporte.
 export type Size = "Small" | "Medium" | "Large" | "Giant" | "Colossal"
 
---- Où la créature s'obtient : sur le tapis, sur le tapis ET dans la roue, ou seulement dans la roue.
+--- Où la créature s'obtient : dans le canyon ("Tapis"), dans le canyon ET la roue, ou seulement dans la roue.
 export type Source = "Tapis" | "TapisEtRoue" | "Roue"
 
 --- Habillage de l'icône d'inventaire.

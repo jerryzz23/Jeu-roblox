@@ -2,12 +2,12 @@
 --[[
 	CreatureForge.Spawning
 	----------------------
-	Tirage des apparitions sur le tapis roulant (logique pure, à exécuter côté SERVEUR).
+	Tirage des apparitions dans le canyon (logique pure, à exécuter côté SERVEUR).
 
-	- Le tapis va de 0 (début, près des bases) à 1 (tout au bout).
+	- La pente va de 0 (en haut, près des bases) à 1 (tout au bout) : Map.distanceOf(position).
 	- Raretés normales (Commun -> Mythique) : tirage pondéré parmi celles dont la bande
-	  contient la distance ; plus on va loin, plus les bandes rares se chevauchent.
-	- Raretés ultimes, uniquement tout au bout : Chaotique 1/1 000 000, Exclusif 1/50 000,
+	  contient la distance ; plus on descend, plus les raretés hautes dominent.
+	- Raretés ultimes, uniquement dans l'Abysse : Chaotique 1/1 000 000, Exclusif 1/50 000,
 	  Exotique 1/5 000 (tirées en premier, de la plus rare à la moins rare).
 	- `luck` (boost « Chance x2 ») multiplie les chances de tout ce qui n'est pas Commun.
 ]]

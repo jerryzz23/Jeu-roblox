@@ -89,7 +89,7 @@ return {
 	Id = ID,
 	DisplayName = "Tapis céleste",
 	Tier = 4,
-	Price = 50000,
+	Price = 6000000,
 	Gain = 35,
 	Theme = "Céleste",
 	Description = "Marbre blanc et or, ailes de plumes, halo flottant et nuages.",

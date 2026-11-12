@@ -79,7 +79,7 @@ return {
 	Id = ID,
 	DisplayName = "Tapis d'orage",
 	Tier = 5,
-	Price = 500000,
+	Price = 120000000,
 	Gain = 120,
 	Theme = "Orage",
 	Description = "Métal bleu nuit, bobines Tesla reliées par des arcs, nuage d'orage flottant.",

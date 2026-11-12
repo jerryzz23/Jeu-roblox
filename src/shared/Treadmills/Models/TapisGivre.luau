@@ -78,7 +78,7 @@ return {
 	Id = ID,
 	DisplayName = "Tapis givré",
 	Tier = 3,
-	Price = 5000,
+	Price = 350000,
 	Gain = 10,
 	Theme = "Glace",
 	Description = "Acier blanc couvert de givre, cristaux de glace et stalactites.",

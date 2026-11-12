@@ -91,7 +91,7 @@ return {
 	Id = ID,
 	DisplayName = "Tapis de forge",
 	Tier = 2,
-	Price = 500,
+	Price = 20000,
 	Gain = 3,
 	Theme = "Lave",
 	Description = "Fer noirci et lave : chevrons incandescents, échappements enflammés, engrenages.",

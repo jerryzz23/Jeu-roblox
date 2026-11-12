@@ -81,7 +81,7 @@ return {
 	Id = ID,
 	DisplayName = "Tapis royal",
 	Tier = 7,
-	Price = 50000000,
+	Price = 50000000000,
 	Gain = 1500,
 	Theme = "Royal",
 	Description = "Pourpre et or : couronne, éventails de plumes de paon, bannières de velours.",

@@ -1,4 +1,4 @@
-# CreatureForge — les personnages du jeu du tapis roulant
+# CreatureForge — les personnages, la carte et les tapis du jeu
 
 Les **21 personnages** du jeu (récap du 1er nov. 2026), dont le Néant Couronné en **10 variétés**, assemblés **entièrement en code Luau** dans
 le style « low-poly détaillé » : des centaines d'écailles, de mèches de fourrure, de plumes et
@@ -10,7 +10,7 @@ articulé (Motor6D), animé, a son **icône UI**, une **selle** (monture) et, po
 
 ## Bestiaire animé
 
-`tools/preview/bestiaire.html` affiche les 10 tapis de course et les 30 modèles de créatures (21 personnages, dont 10 variétés du Néant) en 3D, **animés** (repos, marche,
+`tools/preview/bestiaire.html` affiche la carte, les 10 tapis de course et les 30 modèles de créatures (21 personnages, dont 10 variétés du Néant) en 3D, **animés** (repos, marche,
 capacité spéciale, figé), classés par rareté, avec leurs stats (taille, argent de base, bonus de
 vitesse, passager) et les **mutations cumulables** (le revenu se calcule en direct). C'est le même
 animateur que dans le jeu, porté en JavaScript. En local :
@@ -19,32 +19,62 @@ animateur que dans le jeu, porté en JavaScript. En local :
 
 ![Les 21 personnages](docs/previews/roster.png)
 
+## La carte du jeu
+
+![La carte : la pente du canyon, les bases, l'Abysse](docs/previews/carte.png)
+
+`src/shared/Map.luau` construit la carte d'après l'illustration (≈ 10 800 pièces, déjà
+enregistrée dans `dist/CreatureForge.rbxl`, et dans `dist/models/Carte.rbxm`) :
+
+- **Les bases** en haut : une place, une allée en terre, **8 parcelles** avec bâtiment néon
+  « BASE » (panneau prêt pour le nom du joueur), enclos et tapis d'entraînement, et un point
+  d'apparition.
+- **L'entrée** : piliers à lanternes et clôtures en bois.
+- **La pente** (640 studs, environ 7°) : un large chemin qui descend au fond du canyon, sans tapis
+  roulant. On descend facilement, mais remonter la pente vide l'endurance. Il est entouré de
+  falaises en terrasses avec des sapins, de lampadaires aux couleurs de la zone et de panneaux.
+- **4 zones**, une statue de pierre par zone :
+  1. La Surface : herbe, clôtures, buissons, Renard des cendres.
+  2. La Pente Brumeuse : brume violette, améthystes, Kirin céleste.
+  3. Les Grottes de Cristal : cristaux bleus, arches de cristal, Léviathan des sables.
+  4. L'Abysse Profond : lave, cascades de feu, cristaux rouges, Rhinocéros d'obsidienne.
+- **Tout au bout** : le portail du Néant, des îles flottantes et un dragon d'aurore dans le ciel.
+
+```lua
+local Map = CreatureForge.Map
+local d = Map.distanceOf(rootPart.Position)        -- 0 (haut de la pente) -> 1 (tout au bout)
+Map.zoneOf(d).label                                -- "3. LES GROTTES DE CRISTAL"
+local def, mutations = CreatureForge.rollSpawn(d)  -- apparition selon la profondeur
+Map.isClimbing(rootPart.AssemblyLinearVelocity)    -- vrai quand le joueur remonte (endurance)
+```
+
 ## Raretés
 
 | Rareté | Couleur | Où elle apparaît | Chance |
 | --- | --- | --- | --- |
-| Commun | Gris | Début du tapis | très fréquent |
-| Rare | Bleu | Un peu plus loin | fréquent |
-| Épique | Violet | Milieu du tapis | moyen |
-| Légendaire | Or | Loin | peu fréquent |
-| Mythique | Rouge | Très loin | rare |
-| Exotique | Arc-en-ciel (animé) | Tout au bout | 1 sur 5 000 |
-| Exclusif | Noir et or | Tout au bout + roue | 1 sur 50 000 |
-| Chaotique | Glitch (couleurs qui changent) | Tout au bout | 1 sur 1 000 000 |
+| Commun | Gris | La Surface | très fréquent |
+| Rare | Bleu | La Surface et la Pente Brumeuse | fréquent |
+| Épique | Violet | La Pente Brumeuse | moyen |
+| Légendaire | Or | Les Grottes de Cristal | peu fréquent |
+| Mythique | Rouge | Grottes de Cristal et Abysse | rare |
+| Exotique | Arc-en-ciel (animé) | L'Abysse Profond | 1 sur 5 000 |
+| Exclusif | Noir et or | L'Abysse Profond + roue | 1 sur 50 000 |
+| Chaotique | Glitch (couleurs qui changent) | Tout au bout de l'Abysse | 1 sur 1 000 000 |
 
 Chaque rareté a son **aura** autour des pieds (anneaux au sol, colonnes de lumière, particules),
 de plus en plus riche ; l'Exotique est arc-en-ciel, l'Exclusif noir et or, le Chaotique glitch.
-`Spawning.rollRarity(distance)` tire la rareté selon la position sur le tapis (0 = début,
-1 = tout au bout) : chaque rareté normale suit une courbe en cloche, les raretés ultimes sont
-tirées à part au bout du tapis. `luck = 2` pour le boost « Chance x2 ». Valeurs à ajuster en test :
+`Spawning.rollRarity(distance)` tire la rareté selon la profondeur dans le canyon
+(`Map.distanceOf`) : chaque rareté normale suit une courbe en cloche, les raretés ultimes sont
+tirées à part dans l'Abysse. `luck = 2` pour le boost « Chance x2 ». Valeurs à ajuster en test :
 
 | Distance | Commun | Rare | Épique | Légendaire | Mythique |
 | --- | --- | --- | --- | --- | --- |
-| 0 (début) | 100 % | | | | |
-| 0,2 | 48 % | 52 % | | | |
-| 0,5 | 1 % | 33 % | 67 % | | |
-| 0,7 | | 2 % | 32 % | 66 % | |
-| 1 (bout) | | | 0,4 % | 16 % | 84 % (+ Exotique 0,02 %, Exclusif 0,002 %, Chaotique 0,0001 %) |
+| 0 (haut, Surface) | 100 % | | | | |
+| 0,2 (Surface) | 40 % | 60 % | | | |
+| 0,4 (Pente Brumeuse) | 4 % | 32 % | 64 % | | |
+| 0,5 (début des Grottes) | 0,6 % | 9 % | 52 % | 39 % | |
+| 0,7 (Grottes) | | 0,2 % | 9 % | 51 % | 40 % |
+| 1 (bout de l'Abysse) | | | 0,1 % | 10 % | 90 % (+ Exotique 0,02 %, Exclusif 0,002 %, Chaotique 0,0001 %) |
 
 ## Les 21 personnages
 
@@ -67,13 +97,13 @@ tirées à part au bout du tapis. `luck = 2` pour le boost « Chance x2 ». Vale
 | Léviathan des sables | Mythique | Colossal | 150 000 $/s | +100 % | Oui | anneaux qui plongent dans les dunes |
 | Dragon d'aurore | Exotique | Géant | 900 000 $/s | +150 % | Oui | écailles en dégradé d'aurore, ailes de verre teinté |
 | Titan de cristal | Exotique | Colossal | 1,4M $/s | +160 % | Oui | golem de roche et de cristaux violets (démarche bipède) |
-| Licorne d'éclipse | Exclusif (tapis + roue) | Grand | 8M $/s | +200 % | Oui | licorne noire, anneau de lumière autour de la corne |
+| Licorne d'éclipse | Exclusif (canyon + roue) | Grand | 8M $/s | +200 % | Oui | licorne noire, anneau de lumière autour de la corne |
 | Sphinx stellaire | Exclusif (roue) | Géant | 11M $/s | +220 % | Oui | tête de pharaon, ailes remplies d'étoiles |
 | Béhémoth abyssal | Exclusif (roue) | Colossal | 14M $/s | +240 % | Oui | leurre et photophores bleus, gueule aux dents-aiguilles |
 | Le Néant Couronné (10 variétés) | Chaotique | Colossal | 100M $/s | +400 % | Oui | vide et étoiles, couronne qui flotte au-dessus de la tête |
 
 Les données de jeu sont dans chaque définition : `Size`, `Income`, `SpeedBonus`, `Passenger`,
-`Source` (`"Tapis"`, `"TapisEtRoue"`, `"Roue"`). Les anciens modèles (Rat des Cavernes, Lézard
+`Source` (`"Tapis"` = dans le canyon, `"TapisEtRoue"`, `"Roue"`). Les anciens modèles (Rat des Cavernes, Lézard
 Mousseux…) sont conservés dans `src/shared/Archive/` mais ne sont plus dans le jeu.
 
 ### Les 10 variétés du Néant Couronné
@@ -123,20 +153,21 @@ fissures, engrenages, squelette, étoiles, ombre, fantôme) s'additionnent. Les 
 Le joueur gagne de la vitesse en courant sur le mini tapis de sa base ; un meilleur tapis fait
 gagner plus vite. 10 niveaux (`src/shared/Treadmills/`), chacun avec sa bande qui défile (os
 `Belt`), son écran face au coureur, son emblème en façade et ses décors animés. Prix et gains sont
-des valeurs de départ à ajuster :
+des valeurs de départ : les mutations cumulables font monter vite les revenus, donc les prix
+suivent une progression d'environ x20 par niveau (`Treadmills.PRICE_MULTIPLIER` pour tout ajuster) :
 
 | Niveau | Tapis | Thème | Prix | Vitesse gagnée / s |
 | --- | --- | --- | --- | --- |
 | 1 | Tapis d'entraînement | acier brossé, néon cyan, gourde et serviette | offert | +1 |
-| 2 | Tapis de forge | fer noirci, chevrons de lave, échappements en feu, engrenages | 500 $ | +3 |
-| 3 | Tapis givré | acier blanc, cristaux de glace, stalactites, neige | 5K $ | +10 |
-| 4 | Tapis céleste | marbre et or, ailes de plumes, halo flottant, nuages | 50K $ | +35 |
-| 5 | Tapis d'orage | bobines Tesla reliées par des arcs, nuage d'orage | 500K $ | +120 |
-| 6 | Tapis du néant | obsidienne, portail en spirale qui tourne, croissants de lune | 5M $ | +400 |
-| 7 | Tapis royal | pourpre et or, couronne, éventails de plumes, bannières | 50M $ | +1,5K |
-| 8 | Tapis lune de sang | lune de sang qui tourne, chaînes, cierges, runes | 500M $ | +5K |
-| 9 | Tapis d'émeraude | flèches gothiques aux flammes vertes, lianes lumineuses | 5B $ | +20K |
-| 10 | Tapis du Néant Couronné | bande arc-en-ciel, couronne flottante, étoiles, aura Chaotique | 50B $ | +100K |
+| 2 | Tapis de forge | fer noirci, chevrons de lave, échappements en feu, engrenages | 20K $ | +3 |
+| 3 | Tapis givré | acier blanc, cristaux de glace, stalactites, neige | 350K $ | +10 |
+| 4 | Tapis céleste | marbre et or, ailes de plumes, halo flottant, nuages | 6M $ | +35 |
+| 5 | Tapis d'orage | bobines Tesla reliées par des arcs, nuage d'orage | 120M $ | +120 |
+| 6 | Tapis du néant | obsidienne, portail en spirale qui tourne, croissants de lune | 2,5B $ | +400 |
+| 7 | Tapis royal | pourpre et or, couronne, éventails de plumes, bannières | 50B $ | +1,5K |
+| 8 | Tapis lune de sang | lune de sang qui tourne, chaînes, cierges, runes | 1T $ | +5K |
+| 9 | Tapis d'émeraude | flèches gothiques aux flammes vertes, lianes lumineuses | 25T $ | +20K |
+| 10 | Tapis du Néant Couronné | bande arc-en-ciel, couronne flottante, étoiles, aura Chaotique | 600T $ | +100K |
 
 ```lua
 local Treadmills = CreatureForge.Treadmills
@@ -162,8 +193,8 @@ souffle, gerbe d'éclats ou éruption, avec une pose de rugissement.
 ### Option 1 — Le jeu complet (le plus simple)
 
 Ouvre **`dist/CreatureForge.rbxl`** dans Roblox Studio et appuie sur **Play** : les 21 personnages
-apparaissent en rangées (une par rareté), se promènent et s'animent ; environ un sur trois reçoit
-une ou deux mutations. Les 10 tapis de course sont alignés derrière le point d'apparition. Le bouton **Bestiaire** (en bas à gauche) affiche toutes les icônes.
+se promènent dans la carte, chacun dans la zone de sa rareté ; environ un sur trois reçoit une ou
+deux mutations. Les 10 tapis de course sont exposés sur la place des bases. Le bouton **Bestiaire** (en bas à gauche) affiche toutes les icônes.
 
 ### Option 2 — Une créature dans ta propre place
 
@@ -223,6 +254,7 @@ src/shared/                 -> ReplicatedStorage.CreatureForge
   Mutations.luau            11 mutations cumulables (peinture, ajouts, runtime client)
   Spawning.luau             tirage des raretés selon la distance sur le tapis, format 1,5K / 2M
   Treadmills/               tapis de course : Base (châssis, bande, console), Models/ (10 niveaux)
+  Map.luau                  la carte : bases, pente du canyon, 4 zones, statues, bout
   Vfx.luau                  aura de rareté, rayons (Beam), traînées (Trail), capacités spéciales
   Fx.luau                   particules et lumières (textures moteur, aucun asset à téléverser)
   Icon.luau                 carte d'icône (UICorner, UIGradient, UIStroke, ViewportFrame)
@@ -233,7 +265,7 @@ src/shared/                 -> ReplicatedStorage.CreatureForge
   Archive/                  anciens modèles (non enregistrés)
 src/client/                 CreatureAnimator (démarches Quadruped, Sprawler, Flyer, Serpent,
                             Hover, Biped + orbites + capacités + lumières + mutations), CreatureBestiary (UI)
-src/server/                 CreatureShowcase (démo par rareté)
+src/server/                 CreatureShowcase (démo : créatures dans leur zone, tapis exposés)
 tools/                      export.luau, bundle.luau, build_place.luau,
                             preview/bestiaire.html (bestiaire animé), preview/viewer.html (aperçus)
 ```

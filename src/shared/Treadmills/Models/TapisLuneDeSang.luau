@@ -96,7 +96,7 @@ return {
 	Id = ID,
 	DisplayName = "Tapis lune de sang",
 	Tier = 8,
-	Price = 500000000,
+	Price = 1000000000000,
 	Gain = 5000,
 	Theme = "Lune de sang",
 	Description = "Fer noirci et cramoisi : lune de sang qui tourne, chaînes, cierges, runes.",

@@ -86,7 +86,7 @@ return {
 	Id = ID,
 	DisplayName = "Tapis d'émeraude",
 	Tier = 9,
-	Price = 5000000000,
+	Price = 25000000000000,
 	Gain = 20000,
 	Theme = "Émeraude",
 	Description = "Pierre sombre et émeraude : flèches gothiques aux flammes vertes, lianes lumineuses.",

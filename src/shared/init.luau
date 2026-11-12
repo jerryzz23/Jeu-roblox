@@ -8,7 +8,7 @@
 	    local renard = CreatureForge.spawn("RenardDesCendres", CFrame.new(0, 0, -10), { mutations = { "Kintsugi" } })
 	    CreatureForge.setAnimState(renard, "Move")             -- "Idle" | "Move" | "Still"
 	    CreatureForge.buildIcon("RenardDesCendres", someFrame) -- carte d'inventaire
-	    local def, mutations = CreatureForge.rollSpawn(0.8)    -- apparition sur le tapis
+	    local def, mutations = CreatureForge.rollSpawn(0.8)    -- apparition dans le canyon
 
 	Ajouter une créature = déposer un ModuleScript dans CreatureForge/Creatures
 	(voir Types.CreatureDef ; un module peut aussi renvoyer une liste de définitions).
@@ -25,6 +25,7 @@ local Vfx = require(script.Vfx)
 local Types = require(script.Types)
 local Spawning = require(script.Spawning)
 local Treadmills = require(script.Treadmills)
+local Map = require(script.Map)
 
 export type CreatureDef = Types.CreatureDef
 export type AnimState = "Idle" | "Move" | "Still" | "Ability"
@@ -39,6 +40,7 @@ local CreatureForge = {
 	Vfx = Vfx,
 	Spawning = Spawning,
 	Treadmills = Treadmills,
+	Map = Map,
 	TAG = Kit.TAG,
 }
 
@@ -188,7 +190,8 @@ function CreatureForge.income(id: string, mutations: { string }?): number
 	return CreatureForge.get(id).Income * Mutations.multiplier(mutations)
 end
 
---- Tirage d'une apparition sur le tapis à la distance `distance` (0 = début, 1 = tout au bout).
+--- Tirage d'une apparition dans le canyon à la distance `distance` (0 = en haut de la pente,
+--- 1 = tout au bout ; voir Map.distanceOf).
 --- Renvoie la créature et ses mutations. `luck` = 2 pendant le boost « Chance x2 ».
 function CreatureForge.rollSpawn(distance: number, rng: Random?, luck: number?): (Types.CreatureDef?, { string })
 	local r = rng or Random.new()

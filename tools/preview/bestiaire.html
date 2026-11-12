@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Bestiaire du Tapis</title>
+<title>Bestiaire du Canyon</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito+Sans:wght@400;600;700&display=swap">
@@ -105,8 +105,8 @@ body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 var(-
 <div class="app">
   <aside class="side" aria-label="Créatures">
     <div class="brand">
-      <h1>Bestiaire du Tapis</h1>
-      <p>10 tapis de course, 30 personnages (dont les 10 variétés du Néant Couronné), 8 raretés, 11 mutations cumulables.</p>
+      <h1>Bestiaire du Canyon</h1>
+      <p>La carte du canyon, 10 tapis de course, 30 personnages (dont les 10 variétés du Néant Couronné), 8 raretés, 11 mutations cumulables.</p>
     </div>
     <div id="zones"></div>
   </aside>
@@ -1128,6 +1128,7 @@ function renderList() {
   const zones = document.getElementById("zones");
   zones.innerHTML = "";
   const groups = [];
+  groups.push({ label: "Carte du jeu", sub: "Les bases et le canyon en pente", items: [{ id: "Carte", name: "La carte du canyon" }], map: true });
   if (treadmills.length) groups.push({ label: "Tapis de course", sub: "10 niveaux : plus de vitesse gagnée par seconde", items: treadmills, treadmill: true });
   for (const r of ORDER) {
     const items = index.filter(c => c.rarity === r);
@@ -1140,6 +1141,15 @@ function renderList() {
     const list = document.createElement("div");
     list.className = "list";
     for (const c of g.items) {
+      if (g.map) {
+        const b = document.createElement("button");
+        b.className = "item";
+        b.id = "item-" + c.id;
+        b.innerHTML = `<i class="pip" style="background:linear-gradient(180deg,#8ce664,#b46eff,#50b4ff,#ff5a32)"></i><b>${c.name}</b><small>4 zones · 8 bases</small>`;
+        b.onclick = () => { location.hash = c.id; };
+        list.appendChild(b);
+        continue;
+      }
       if (g.treadmill) {
         const b = document.createElement("button");
         b.className = "item";
@@ -1233,10 +1243,30 @@ async function show(id, keepCamera = false) {
   fxGroup.add(creature.fxRoot);
   holder.updateMatrixWorld(true);
   for (let k = 0; k < 60; k++) for (const em of creature.fx.emitters) em.step(1 / 30);
-  if (!keepCamera) fit(creature);
+  const isMap = data.kind === "Map";
+  camera.far = isMap ? 4000 : 500;
+  camera.near = isMap ? 0.5 : 0.05;
+  camera.updateProjectionMatrix();
+  shadowGround.visible = !isMap;
+  if (isMap && !keepCamera) {
+    camera.position.set(0, 42, 70);
+    controls.target.set(0, -38, -330);
+    controls.update();
+  } else if (!keepCamera) fit(creature);
   const isTread = data.kind === "Treadmill";
-  document.getElementById("mutations").hidden = isTread;
-  document.querySelector(".seg").hidden = isTread;
+  document.getElementById("mutations").hidden = isTread || isMap;
+  document.querySelector(".seg").hidden = isTread || isMap;
+  if (isMap) {
+    document.getElementById("name").textContent = data.name;
+    document.getElementById("desc").textContent = data.description || "";
+    document.getElementById("tags").innerHTML = `<span class="tag rarity" style="background:#e8e4ff">Carte</span><span class="tag">8 bases</span><span class="tag">Pente de ${data.length} studs</span>`;
+    document.getElementById("stats").innerHTML = arr(data.zones).map(z => `<span><strong style="color:rgb(${z.color.join(",")})">${z.label}</strong> ${z.sub}</span>`).join("");
+    document.getElementById("income").textContent = "Fais glisser pour tourner autour, molette pour zoomer";
+    document.getElementById("abilityName").textContent = "";
+    document.getElementById("loading").hidden = true;
+    document.title = `${data.name} · Bestiaire du Canyon`;
+    return;
+  }
   if (isTread) {
     const next = treadmills.find(x => x.tier === data.tier + 1);
     document.getElementById("name").textContent = data.name.replace(/ — niveau \d+$/, "");
@@ -1250,7 +1280,7 @@ async function show(id, keepCamera = false) {
     document.getElementById("income").textContent = next ? `Niveau suivant : ${next.name.replace(/ — niveau \d+$/, "")} (${money(next.price)} $, +${money(next.gain)} vitesse/s)` : "Le meilleur tapis du jeu";
     document.getElementById("abilityName").textContent = "";
     document.getElementById("loading").hidden = true;
-    document.title = `${document.getElementById("name").textContent} · Bestiaire du Tapis`;
+    document.title = `${document.getElementById("name").textContent} · Bestiaire du Canyon`;
     return;
   }
   const meta = index.find(c => c.id === id) || concepts.find(c => c.id === id) || {};
@@ -1275,7 +1305,7 @@ async function show(id, keepCamera = false) {
     : `Revenu : ${money(data.income)} $/s (sans mutation)`;
   document.getElementById("abilityName").textContent = data.ability ? `Capacité : ${data.ability.name} (${KIND[data.ability.kind] || data.ability.kind})` : "";
   document.getElementById("loading").hidden = true;
-  document.title = `${data.name} · Bestiaire du Tapis`;
+  document.title = `${data.name} · Bestiaire du Canyon`;
 }
 
 document.querySelectorAll("[data-anim]").forEach(b => b.onclick = () => {
@@ -1335,8 +1365,10 @@ window.addEventListener("hashchange", () => show(location.hash.slice(1)));
   renderList();
   renderMutations();
   const start = location.hash.slice(1);
-  const known = index.some(c => c.id === start) || treadmills.some(c => c.id === start);
-  await show(known ? start : (treadmills[treadmills.length - 1] || index[0]).id);
+  const known = start === "Carte" || index.some(c => c.id === start) || treadmills.some(c => c.id === start);
+  await show(known ? start : "Carte");
+  // Point de vue scriptable (captures d'écran de la carte)
+  window.__view = (p, t) => { camera.position.set(...p); controls.target.set(...t); controls.update(); };
   window.__ready = true;
 })();
 </script>

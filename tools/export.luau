@@ -297,6 +297,26 @@ for _, id in ids do
 	print(string.format("%-24s %-9s %-8s %5d pièces | %.1f x %.1f x %.1f (scale 1) | Scale %.2f -> conseillé %.2f", id, def.Rarity, def.Size or "?", #preview.parts, body.Y, body.X, body.Z, def.Scale or 1, target / span))
 end
 
+-- Carte du jeu (aperçu web : vue de la carte entière)
+if all then
+	local map = Forge.Map.build({})
+	local bones = roblox.Instance.new("Folder")
+	bones.Name = "Bones"
+	bones.Parent = map
+	local zones = {}
+	for _, z in Forge.Map.ZONES do
+		table.insert(zones, { id = z.id, label = z.label, sub = z.sub, from = z.from, to = z.to, color = c3(z.color) })
+	end
+	local preview = exportPreview({ Id = "Carte", DisplayName = "La carte du canyon", Rarity = "Map", Animation = { gait = "Static" }, Description = "Les bases en haut, puis la pente du canyon à travers les 4 zones : plus on descend, plus les personnages sont rares. Remonter la pente vide l'endurance.", Category = "Carte", Scale = 1 }, map, nil)
+	preview.kind = "Map"
+	preview.zones = zones
+	preview.length = Forge.Map.LENGTH
+	preview.drop = Forge.Map.DROP
+	fs.writeFile("tools/preview/Carte.json", serde.encode("json", preview, false))
+	fs.writeFile("dist/models/Carte.rbxm", roblox.serializeModel({ map }))
+	print(string.format("Carte : %d pièces", #preview.parts))
+end
+
 -- Tapis de course
 if all then
 	local tlist = {}
