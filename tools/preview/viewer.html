@@ -142,39 +142,253 @@ function partMatrix(p, grow = 0) {
 }
 
 // ---- Mutations (même algorithme que src/shared/Mutations.luau) ----
+// Mutations (portage de src/shared/Mutations.luau) : peinture + pièces ajoutées + effets animés
+// ---------------------------------------------------------------------------
 let mutations = [];
-let mutation = params.get("mut") || "";
 function hsv(h, s, v) {
   const i = Math.floor(h * 6), f = h * 6 - i, p = v * (1 - s), q = v * (1 - f * s), t = v * (1 - (1 - f) * s);
-  return [[v, t, p], [q, v, p], [p, v, t], [p, q, v], [t, p, v], [v, p, q]][i % 6];
+  return [[v, t, p], [q, v, p], [p, v, t], [p, q, v], [t, p, v], [v, p, q]][((i % 6) + 6) % 6];
 }
-function mutate(p, along) {
-  const m = mutations.find(x => x.id === mutation);
-  if (!m) return p;
-  const [r, g, b] = p.col.map(x => x / 255);
-  const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-  const neon = p.m === "Neon";
-  let col, mat = p.m, t = p.t;
-  if (m.rainbow) col = hsv((along * 0.85 + lum * 0.15) % 1, neon ? 0.45 : 0.78, 0.45 + 0.55 * Math.sqrt(lum)).map(x => x * 255);
-  else if (neon) col = m.glow;
-  else {
-    const x = Math.pow(lum, 0.85) * (m.ramp.length - 1), i = Math.min(Math.floor(x), m.ramp.length - 2), f = x - i;
-    col = m.ramp[i].map((c, k) => c + (m.ramp[i + 1][k] - c) * f);
-  }
-  if (m.material && !neon) {
-    mat = m.material;
-    const l2 = (0.299 * col[0] + 0.587 * col[1] + 0.114 * col[2]) / 255;
-    if (m.transparency && l2 > 0.55) t = Math.max(t, m.transparency);
-  }
-  return { ...p, col, m: mat, t };
+const hsv255 = (h, s, v) => hsv(((h % 1) + 1) % 1, s, v).map(x => x * 255);
+const RAMP = {
+  stone: [[70, 72, 68], [116, 118, 110], [160, 160, 150], [200, 198, 186]],
+  moss: [[40, 80, 30], [72, 118, 44], [112, 154, 60], [160, 192, 90]],
+  porcelain: [[26, 50, 130], [104, 136, 200], [230, 234, 244], [252, 252, 255]],
+  brass: [[70, 44, 18], [150, 100, 44], [214, 162, 80], [250, 220, 150]],
+  heat: [[150, 60, 50], [230, 120, 70], [255, 190, 120], [255, 236, 200]],
+  amber: [[110, 40, 8], [200, 100, 20], [250, 160, 40], [255, 214, 130]],
+  night: [[4, 4, 12], [10, 10, 28], [20, 20, 54], [40, 40, 92]],
+};
+const GLASS6 = [[220, 30, 50], [30, 90, 230], [30, 170, 80], [255, 180, 30], [150, 50, 210], [30, 200, 210]];
+function ramp(list, x) {
+  const f = Math.min(Math.max(x, 0), 1) * (list.length - 1), i = Math.min(Math.floor(f), list.length - 2), k = f - i;
+  return list[i].map((c, j) => c + (list[i + 1][j] - c) * k);
 }
+const auroraHue = (c, t) => 0.3 + 0.5 * (0.5 + 0.5 * Math.sin((c.along * 1.6 + c.height * 1.1) * Math.PI * 2 - t * 1.3));
+const PAINT = {
+  Mousse: (l, neon, c) => neon ? { col: [190, 255, 150] } : ((c.height > 0.48 && c.h < 0.62) || c.h < 0.14) ? { col: ramp(RAMP.moss, l ** 0.8), m: "Grass", t: 0 } : { col: ramp(RAMP.stone, l ** 0.8), m: "Slate", t: 0 },
+  Kintsugi: (l, neon) => neon ? { col: [255, 205, 80] } : { col: ramp(RAMP.porcelain, l ** 0.7), m: "SmoothPlastic", t: 0 },
+  Vitrail: (l, neon, c) => neon ? { col: [255, 250, 230] } : { col: GLASS6[c.cell - 1].map(x => x * (1 - 0.4 * (1 - l))), m: "Glass", t: 0.25 },
+  Horloger: (l, neon) => neon ? { col: [255, 170, 60] } : { col: ramp(RAMP.brass, l), m: "Glass", t: 0.45 },
+  Mirage: (l, neon) => neon ? { col: [255, 240, 210] } : { col: ramp(RAMP.heat, l), m: "SmoothPlastic", t: 0.2 },
+  Encre: (l, neon) => (neon || l < 0.4) ? { col: [16, 16, 22], m: "SmoothPlastic", t: 0 } : { col: l < 0.62 ? [212, 206, 192] : [246, 242, 230], m: "SmoothPlastic", t: 0 },
+  Aurore: (l, neon, c, t) => { const h = auroraHue(c, t); return neon ? { col: hsv255(h, 0.35, 1) } : { col: hsv255(h, 0.72, 0.3 + 0.7 * l), m: "SmoothPlastic", t: 0 }; },
+  Fossile: (l, neon) => neon ? { col: [255, 190, 80] } : { col: ramp(RAMP.amber, l), m: "Glass", t: 0.45 },
+  Constellation: (l, neon) => neon ? { col: [210, 225, 255] } : { col: ramp(RAMP.night, l), m: "SmoothPlastic", t: 0 },
+  Paradoxe: (l, neon, c, t) => { const h = (c.along * 0.7 + c.height * 0.3 + t * 0.15) % 1; return neon ? { col: hsv255(h, 0.25, 1) } : { col: hsv255(h, 0.85, 0.3 + 0.7 * l), m: "SmoothPlastic", t: 0 }; },
+};
+const PARADOX_CYCLE = ["Constellation", "Vitrail", "Encre", "Aurore", "Kintsugi", "Fossile", "Mousse", "Horloger", "Mirage"];
+const lumOf = col => (0.299 * col[0] + 0.587 * col[1] + 0.114 * col[2]) / 255;
+const fract = x => x - Math.floor(x);
+const hash1 = x => fract(Math.sin(x * 12.9898) * 43758.5453);
+function rng32(seed) {
+  let a = seed >>> 0;
+  return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+const isAura = b => b.startsWith("Aura") || b.startsWith("FX_");
+// CFrame Roblox <-> matrices
+const cfOf = m => { const e = m.elements; return [e[12], e[13], e[14], e[0], e[4], e[8], e[1], e[5], e[9], e[2], e[6], e[10]]; };
+const cfAt = (x, y, z) => [x, y, z, 1, 0, 0, 0, 1, 0, 0, 0, 1];
+function cfLook(pos, target) {
+  const look = target.clone().sub(pos).normalize();
+  let up = new THREE.Vector3(0, 1, 0);
+  if (Math.abs(look.dot(up)) > 0.95) up = new THREE.Vector3(1, 0, 0);
+  const right = new THREE.Vector3().crossVectors(look, up).normalize();
+  const up2 = new THREE.Vector3().crossVectors(right, look).normalize();
+  return [pos.x, pos.y, pos.z, right.x, up2.x, -look.x, right.y, up2.y, -look.y, right.z, up2.z, -look.z];
+}
+const partPos = p => new THREE.Vector3(p.c[0], p.c[1], p.c[2]);
+function extentAlong(p, n) {
+  const c = p.c;
+  return 0.5 * (Math.abs(c[3] * n.x + c[6] * n.y + c[9] * n.z) * p.s[0] + Math.abs(c[4] * n.x + c[7] * n.y + c[10] * n.z) * p.s[1] + Math.abs(c[5] * n.x + c[8] * n.y + c[11] * n.z) * p.s[2]);
+}
+const mk = (b, n, k, c, s, col, m = "SmoothPlastic", t = 0) => ({ b, n, k, c, s, col, m, t });
+
+/** Applique une liste de mutations aux données d'une créature (copie) : renvoie les pièces,
+ *  os, effets ajoutés et les infos d'animation. */
+function mutateData(data, ids) {
+  const list = mutations.filter(m => ids.includes(m.id));
+  const out = { parts: data.parts, bones: data.bones, emitters: [], beams: [], trails: [], lights: [], spin: {}, mirage: false, echo: false, dyn: null, ids: list.map(m => m.id) };
+  if (!list.length) return out;
+  const has = Object.fromEntries(list.map(m => [m.id, true]));
+  const dom = [...list].reverse().find(m => m.recolor) || null;
+  const bonePos = {}, parentOf = {}, hasChild = {};
+  for (const b of data.bones) { bonePos[b.n] = new THREE.Vector3(b.c[0], b.c[1], b.c[2]); if (b.p) { parentOf[b.n] = b.p; hasChild[b.p] = true; } }
+  // Contexte de peinture (même calcul que Mutations.buildCtx)
+  const lo = new THREE.Vector3(Infinity, Infinity, Infinity), hi = lo.clone().negate();
+  for (const p of data.parts) if (!isAura(p.b)) { const q = partPos(p), e = Math.hypot(...p.s) * 0.3; lo.min(q.clone().subScalar(e)); hi.max(q.clone().addScalar(e)); }
+  const size = hi.clone().sub(lo), center = lo.clone().add(hi).multiplyScalar(0.5);
+  const span = Math.max(size.x, size.y, size.z), cs = span / 7;
+  let seed = 0;
+  list.forEach((m, i) => { seed += (mutations.indexOf(m) + 1) * 97 * (i + 1); });
+  const rnd = rng32(seed * 7919 + 13);
+  const infos = data.parts.map((p, i) => {
+    const q = partPos(p);
+    const cell = Math.min(6, Math.max(1, Math.floor(hash1(Math.floor(q.x / cs) * 7.1 + Math.floor(q.y / cs) * 13.7 + Math.floor(q.z / cs) * 3.3) * 6) + 1));
+    return { p, q, neon: p.m === "Neon", lum: lumOf(p.col), aura: isAura(p.b), ctx: { along: Math.min(1, Math.max(0, (q.z - lo.z) / Math.max(size.z, 0.01))), height: Math.min(1, Math.max(0, (q.y - lo.y) / Math.max(size.y, 0.01))), h: hash1(i * 1.37 + seed), cell } };
+  });
+  const body = infos.filter(i => !i.aura);
+  // Peinture de la mutation dominante
+  let parts = data.parts;
+  if (dom) {
+    parts = infos.map(i => {
+      const r = PAINT[dom.id](i.lum, i.neon, i.ctx, 0);
+      return { ...i.p, col: r.col, m: r.m || i.p.m, t: i.neon ? i.p.t : Math.max(i.p.t, r.t || 0) };
+    });
+    if (dom.id === "Aurore" || dom.id === "Paradoxe") out.dyn = { id: dom.id, infos };
+  }
+  const extra = [], bones = [...data.bones];
+  const pick = (pool, n) => { const a = pool.slice(), r = []; while (r.length < n && a.length) r.push(a.splice(Math.floor(rnd() * a.length), 1)[0]); return r; };
+  const outward = i => { const bp = bonePos[i.p.b] || new THREE.Vector3(); const d = i.q.clone().sub(bp); return d.lengthSq() < 1e-6 ? new THREE.Vector3(0, 1, 0) : d.normalize(); };
+  const segment = (b, n, a, c, w, col, m = "SmoothPlastic") => { const d = c.clone().sub(a).length(); if (d > 1e-3) extra.push(mk(b, n, "Block", cfLook(a.clone().add(c).multiplyScalar(0.5), c), [w, w, d + w * 0.6], col, m)); };
+  const farthest = name => { let far = bonePos[name], best = -1; for (const i of body) if (i.p.b === name) { const d = i.q.distanceTo(bonePos[name]); if (d > best) { best = d; far = i.q; } } return [far, best]; };
+  const sparkle = (cols, rate) => out.emitters.push({ b: "Root", c: cfAt(center.x, center.y, center.z), s: [size.x * 0.9, size.y * 0.9, size.z * 0.9], tex: "sparkle", col: cols.map((c, k) => [k / Math.max(cols.length - 1, 1), c[0] / 255, c[1] / 255, c[2] / 255]), size: [[0, 0.24], [0.5, 0.15], [1, 0]], tr: [[0, 0.1], [0.5, 0.2], [1, 1]], life: [0.8, 1.6], rate, speed: [0.2, 0.6], spread: [180, 180], acc: [0, 0.4, 0], drag: 1, le: 1, dir: "Top" });
+  for (const m of list) sparkle([m.glow, ...(m.badge || [])].slice(0, 3), 6);
+
+  if (has.Mousse) {
+    const f = Math.min(1.4, Math.max(0.08, span * 0.028)), n = Math.min(24, Math.max(8, Math.floor(body.length / 40)));
+    const petals = [[255, 150, 200], [255, 250, 240], [200, 160, 255], [255, 230, 90]];
+    for (const i of pick(body.filter(i => i.ctx.height > 0.4 && !i.neon), n)) {
+      const top = i.q.clone().add(new THREE.Vector3(0, extentAlong(i.p, new THREE.Vector3(0, 1, 0)), 0));
+      const col = petals[Math.floor(rnd() * petals.length)];
+      extra.push(mk(i.p.b, "Flower", "Ball", cfAt(top.x, top.y + f * 0.12, top.z), [f * 0.45, f * 0.45, f * 0.45], [255, 214, 60]));
+      const a0 = rnd() * Math.PI;
+      for (let k = 0; k < 5; k++) { const a = a0 + k / 5 * Math.PI * 2; extra.push(mk(i.p.b, "Petal", "Ball", cfAt(top.x + Math.cos(a) * f * 0.36, top.y + 0.05 * f, top.z + Math.sin(a) * f * 0.36), [f * 0.4, f * 0.4, f * 0.4], col)); }
+      extra.push(mk(i.p.b, "MossTuft", "Ball", cfAt(top.x + f * 0.5, top.y - f * 0.1, top.z), [f * 0.5, f * 0.5, f * 0.5], [90, 140, 50], "Grass"));
+    }
+  }
+  if (has.Kintsugi) {
+    const n = Math.min(36, Math.max(10, Math.floor(body.length / 30))), w = Math.min(0.3, Math.max(0.03, span * 0.007));
+    for (const i of pick(body.filter(i => !i.neon && Math.hypot(...i.p.s) > span * 0.04), n)) {
+      const nrm = outward(i), base = i.q.clone().addScaledVector(nrm, extentAlong(i.p, nrm) * 0.92);
+      const t1 = new THREE.Vector3().crossVectors(nrm, new THREE.Vector3(rnd() * 2 - 1, rnd() * 2 - 1, rnd() * 2 - 1)).normalize();
+      const t2 = new THREE.Vector3().crossVectors(nrm, t1).normalize(), L = Math.max(...i.p.s) * 0.35;
+      const pts = [[-1.4, 0], [-0.45, 0.3], [0.45, -0.25], [1.4, 0.15]].map(([a, b]) => base.clone().addScaledVector(t1, a * L).addScaledVector(t2, b * L));
+      for (let k = 0; k < 3; k++) segment(i.p.b, "GoldCrack", pts[k], pts[k + 1], w, [255, 196, 60], "Neon");
+    }
+  }
+  if (has.Vitrail) [GLASS6[0], GLASS6[1], GLASS6[3]].forEach((col, k) => out.lights.push({ bone: "Root", p: [center.x, center.y, center.z + (k - 1) * size.z * 0.25], col, range: span * 0.5, b: 1.6 }));
+  if (has.Horloger) {
+    const count = {};
+    for (const i of body) if (i.p.b !== "Root" && !i.p.b.startsWith("Float") && !i.p.b.startsWith("Sway")) count[i.p.b] = (count[i.p.b] || 0) + 1;
+    const order = Object.entries(count).sort((a, b) => b[1] - a[1]).slice(0, 4).map(e => e[0]);
+    let g = 0;
+    const gear = (bone, c, r, dir) => {
+      g++;
+      const name = "Spin" + g;
+      const gm = new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(1, 0, 0)).setPosition(c);
+      bones.push({ n: name, p: bone, c: cfOf(gm) });
+      out.spin[name] = dir * 1.4 / Math.max(r, 0.2);
+      const th = r * 0.28, at = (...ms) => cfOf(ms.reduce((a, b) => a.multiply(b), gm.clone()));
+      const RY = new THREE.Matrix4().makeRotationY(Math.PI / 2);
+      extra.push(mk(name, "Gear", "Cylinder", at(RY), [th, r * 2, r * 2], [196, 140, 56], "Metal"));
+      extra.push(mk(name, "GearHub", "Cylinder", at(RY), [th * 1.5, r * 0.7, r * 0.7], [90, 58, 26], "Metal"));
+      const teeth = Math.max(8, Math.floor(r * 14));
+      for (let k = 0; k < teeth; k++) extra.push(mk(name, "GearTooth", "Block", at(new THREE.Matrix4().makeRotationZ(k / teeth * Math.PI * 2), new THREE.Matrix4().makeTranslation(0, r * 1.1, 0)), [r * 0.26, r * 0.3, th], [236, 186, 84], "Metal"));
+      for (let k = 0; k < 3; k++) extra.push(mk(name, "GearSpoke", "Block", at(new THREE.Matrix4().makeRotationZ(k / 3 * Math.PI)), [r * 0.12, r * 1.7, th * 1.2], [150, 100, 40], "Metal"));
+    };
+    order.forEach((b, k) => {
+      const bl = new THREE.Vector3(Infinity, Infinity, Infinity), bh = bl.clone().negate();
+      for (const i of body) if (i.p.b === b) { bl.min(i.q); bh.max(i.q); }
+      const mid = bl.clone().add(bh).multiplyScalar(0.5), ext = bh.clone().sub(bl);
+      const r = Math.min(span * 0.12, Math.max(0.12, Math.min(ext.y, Math.max(ext.z, ext.x)) * 0.22));
+      gear(b, mid, r, 1);
+      if (k === 0) { gear(b, mid.clone().add(new THREE.Vector3(0, r * 0.3, -r * 1.85)), r * 0.68, -1); gear(b, mid.clone().add(new THREE.Vector3(0, -r * 0.2, r * 1.8)), r * 0.78, -1); }
+    });
+  }
+  if (has.Mirage) {
+    out.mirage = true;
+    const big = body.slice().sort((a, b) => Math.hypot(...b.p.s) - Math.hypot(...a.p.s)).slice(0, 80);
+    big.forEach((i, k) => extra.push(mk("Root", "MirageShadow", "Block", cfAt(i.q.x + size.x * 0.45, 0.03 + k * 0.0005, i.q.z + size.z * 0.12), [extentAlong(i.p, new THREE.Vector3(1, 0, 0)) * 2, 0.02, extentAlong(i.p, new THREE.Vector3(0, 0, 1)) * 2], [70, 30, 50], "Glass", 0.55)));
+  }
+  if (has.Encre) {
+    const names = data.bones.map(b => b.n);
+    const tips = names.filter(n => /^(Leg|Wing|Arm)/.test(n));
+    const lastOf = pre => names.filter(n => new RegExp("^" + pre + "\\d+$").test(n)).sort((a, b) => Number(b.slice(pre.length)) - Number(a.slice(pre.length)))[0];
+    for (const pre of ["Tail", "Seg"]) { const l = lastOf(pre); if (l) tips.push(l); }
+    if (!tips.length) tips.push(names.includes("Body") ? "Body" : "Root");
+    const w = Math.min(0.8, Math.max(0.06, span * 0.02));
+    for (const n of tips) { const [far] = farthest(n); out.trails.push({ b: n, p0: [far.x, far.y + w, far.z], p1: [far.x, far.y - w, far.z], col: [[0, 0.06, 0.06, 0.09], [1, 0.06, 0.06, 0.09]], tr: [[0, 0.1], [1, 1]], life: 0.9 }); }
+  }
+  if (has.Aurore) {
+    [[[80, 255, 170], [60, 200, 255], [190, 90, 255]], [[190, 90, 255], [80, 255, 200], [60, 160, 255]]].forEach((cols, k) => {
+      const i = k + 1;
+      out.beams.push({ b0: "Root", b1: "Root", p0: cfAt(center.x - size.x * 0.1 * i, center.y + size.y * (0.35 + 0.1 * i), center.z - size.z * 0.48), p1: cfAt(center.x + size.x * 0.1 * i, center.y + size.y * (0.3 + 0.1 * i), center.z + size.z * 0.48), w: [size.x * 0.5, size.x * 0.5], curve: [size.y * 0.6 * (i === 1 ? 1 : -1), size.y * 0.4], col: cols.map((c, j) => [j / 2, c[0] / 255, c[1] / 255, c[2] / 255]), tr: [[0, 1], [0.3, 0.55], [0.7, 0.6], [1, 1]], le: 1 });
+    });
+  }
+  if (has.Fossile) {
+    const th = Math.min(0.7, Math.max(0.05, span * 0.022)), bone = [238, 230, 210];
+    const skip = n => n === "Root" || isAura(n) || /^(Float|Spin|Ear)/.test(n);
+    for (const b of data.bones) {
+      const n = b.n;
+      if (skip(n)) continue;
+      const pos = bonePos[n], par = parentOf[n];
+      if (par && !skip(par) && bonePos[par]) segment(par, "Bone", bonePos[par], pos, th, bone);
+      extra.push(mk(n, "Joint", "Ball", cfAt(pos.x, pos.y, pos.z), [th * 1.7, th * 1.7, th * 1.7], bone));
+      if (!hasChild[n]) { const [far, best] = farthest(n); if (best > th) segment(n, "Bone", pos, pos.clone().lerp(far, 0.85), th * 0.85, bone); }
+    }
+    const box = name => { const a = new THREE.Vector3(Infinity, Infinity, Infinity), z = a.clone().negate(); let any = false; for (const i of body) if (i.p.b === name) { a.min(i.q); z.max(i.q); any = true; } return any ? [a.clone().add(z).multiplyScalar(0.5), z.clone().sub(a)] : null; };
+    const bb = box("Body");
+    if (bb) {
+      const [mid, ext] = bb, ex = ext.x / 2, ey = ext.y / 2, ez = ext.z / 2;
+      for (let k = 0; k < 5; k++) {
+        const z = mid.z - ez * 0.45 + k * ez * 0.2;
+        for (const s of [1, -1]) {
+          const pts = [[0, ey * 0.45], [s * ex * 0.5, ey * 0.25], [s * ex * 0.55, -ey * 0.15], [s * ex * 0.3, -ey * 0.45]].map(([x, y]) => new THREE.Vector3(x, mid.y + y, z));
+          for (let j = 0; j < 3; j++) segment("Body", "Rib", pts[j], pts[j + 1], th * 0.7, bone);
+        }
+      }
+      segment("Body", "Spine", new THREE.Vector3(0, mid.y + ey * 0.45, mid.z - ez * 0.6), new THREE.Vector3(0, mid.y + ey * 0.45, mid.z + ez * 0.6), th, bone);
+    }
+    const hb = box("Head");
+    if (hb) {
+      const [hm, he] = hb, d = Math.min(he.x, he.y, he.z) * 0.75 + th;
+      extra.push(mk("Head", "Skull", "Ball", cfAt(hm.x, hm.y, hm.z), [d, d, d], bone));
+      for (const s of [1, -1]) extra.push(mk("Head", "EyeSocket", "Ball", cfAt(hm.x + s * d * 0.22, hm.y + d * 0.08, hm.z - d * 0.4), [d * 0.28, d * 0.28, d * 0.28], [40, 20, 10]));
+    }
+  }
+  if (has.Constellation) {
+    const pool = body.filter(i => !i.neon);
+    if (pool.length) {
+      const k = Math.min(22, Math.max(10, Math.floor(pool.length / 60)));
+      const chosen = [pool[Math.floor(rnd() * pool.length)]];
+      while (chosen.length < k) {
+        let best = null, bd = -1;
+        for (let j = 0; j < pool.length; j += 3) { const d = Math.min(...chosen.map(c => c.q.distanceTo(pool[j].q))); if (d > bd) { bd = d; best = pool[j]; } }
+        chosen.push(best);
+      }
+      const s = Math.min(1.2, Math.max(0.08, span * 0.03)), white = [235, 242, 255];
+      const stars = chosen.map(i => {
+        const nrm = outward(i), pos = i.q.clone().addScaledVector(nrm, extentAlong(i.p, nrm));
+        extra.push(mk(i.p.b, "Star", "Ball", cfAt(pos.x, pos.y, pos.z), [s * 0.55, s * 0.55, s * 0.55], white, "Neon"));
+        const rot = cfLook(pos, pos.clone().add(nrm));
+        extra.push(mk(i.p.b, "StarRay", "Block", rot, [s * 0.12, s * 1.3, s * 0.12], white, "Neon"));
+        extra.push(mk(i.p.b, "StarRay", "Block", rot, [s * 1.3, s * 0.12, s * 0.12], white, "Neon"));
+        return { pos, b: i.p.b };
+      });
+      for (let a = 1; a < stars.length; a++) {
+        let best = stars[0], bd = Infinity;
+        for (let j = 0; j < a; j++) { const d = stars[j].pos.distanceTo(stars[a].pos); if (d < bd) { bd = d; best = stars[j]; } }
+        segment(stars[a].b, "ConstellationLine", best.pos, stars[a].pos, s * 0.1, [200, 220, 255], "Neon");
+      }
+      for (const i of pick(pool, 40)) { const nrm = outward(i), pos = i.q.clone().addScaledVector(nrm, extentAlong(i.p, nrm)); extra.push(mk(i.p.b, "StarDot", "Ball", cfAt(pos.x, pos.y, pos.z), [s * 0.22, s * 0.22, s * 0.22], white, "Neon")); }
+    }
+  }
+  if (has.Echo) out.echo = true;
+  out.parts = parts.concat(extra);
+  out.bones = bones;
+  return out;
+}
+
+let mutation = params.get("mut") || "";
+const mutList = () => mutation.split(",").filter(Boolean);
 const mutSelect = document.getElementById("mut");
 fetch("mutations.json").then(r => r.json()).then(list => {
   mutations = list;
   for (const m of list) {
     const o = document.createElement("option");
     o.value = m.id;
-    o.textContent = `${m.label} x${m.multiplier}`;
+    o.textContent = `${m.label} x${String(m.multiplier).replace(".", ",")}`;
     mutSelect.appendChild(o);
   }
   mutSelect.value = mutation;
@@ -370,8 +584,7 @@ function load(json) {
   creature.clear();
   outlines.clear();
   parts = [];
-  for (const p0 of json.parts) {
-    const p = mutate(p0, (p0.c[2] - zMin) / Math.max(zMax - zMin, 0.01));
+  for (const p of mutateData(json, mutList()).parts) {
     const geo = GEO[p.k] || GEO.Block;
     const mesh = new THREE.Mesh(geo, material(p));
     mesh.matrixAutoUpdate = false;
@@ -396,8 +609,8 @@ function load(json) {
     `<b>${json.name}</b> · ${json.rarity} · ${json.parts.length} pièces · ${tris} tris · ` +
     `${(bounds.max.y - bounds.min.y).toFixed(1)} st de haut · ${(bounds.max.z - bounds.min.z).toFixed(1)} st de long`;
   document.getElementById("plate").textContent = json.name;
-  const mut = mutations.find(x => x.id === mutation);
-  document.getElementById("caption").innerHTML = `${json.name}<span>${mut ? mut.label + " x" + mut.multiplier : json.rarity.toUpperCase()}</span>`;
+  const ms = mutations.filter(x => mutList().includes(x.id));
+  document.getElementById("caption").innerHTML = `${json.name}<span>${ms.length ? ms.map(m => m.label).join(" + ") + " x" + String(ms.reduce((a, m) => a + m.multiplier, 0)).replace(".", ",") : json.rarity.toUpperCase()}</span>`;
   setView(view);
 }
 

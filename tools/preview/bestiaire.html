@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Bestiaire du Canyon</title>
+<title>Bestiaire du Tapis</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito+Sans:wght@400;600;700&display=swap">
 <style>
-/* Mise en page : liste des créatures par zone à gauche, scène 3D plein cadre à droite,
-   commandes flottantes en bas de scène. Un seul univers visuel sombre (nuit de canyon). */
+/* Mise en page : liste des créatures par rareté à gauche, scène 3D plein cadre à droite,
+   commandes flottantes en bas de scène. Un seul univers visuel sombre. */
 :root {
   --bg: #12111c;
   --panel: #1a1928;
@@ -60,6 +60,14 @@ body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 var(-
 .tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .tag { font: 700 11px/1 var(--body); letter-spacing: .08em; text-transform: uppercase; padding: 6px 9px; border-radius: 99px; background: var(--panel-2); color: var(--fg); border: 1px solid var(--line); }
 .tag.rarity { color: #14121f; border-color: transparent; }
+.tag.rarity.exotic, .pip.exotic { background-size: 200% 100% !important; animation: slide 3s linear infinite; }
+.tag.rarity.exclusive { color: #ffd166; border: 1px solid #ffd166; }
+.pip.exclusive { box-shadow: 0 0 0 1.5px #ffd166 inset; }
+.tag.rarity.chaotic, .pip.chaotic { color: #fff; background-size: 300% 100% !important; animation: glitch .9s steps(3) infinite; }
+@keyframes slide { to { background-position: 200% 0; } }
+@keyframes glitch { 0% { background-position: 0 0; transform: translate(0); } 33% { background-position: 100% 0; transform: translate(1px, -1px); } 66% { background-position: 200% 0; transform: translate(-1px, 1px); } }
+@media (prefers-reduced-motion: reduce) { .tag.rarity, .pip { animation: none !important; } }
+.income { font: 600 13px/1.3 var(--body); color: #ffd166; }
 .hud p { margin: 0; color: #d6d3ee; font-size: 14px; max-width: 46ch; text-shadow: 0 1px 6px rgba(0,0,0,.6); }
 .stats { display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .stats strong { color: var(--fg); font-weight: 700; }
@@ -97,8 +105,8 @@ body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 var(-
 <div class="app">
   <aside class="side" aria-label="Créatures">
     <div class="brand">
-      <h1>Bestiaire du Canyon</h1>
-      <p>21 créatures, 3 zones. Choisis une créature, son animation et sa mutation.</p>
+      <h1>Bestiaire du Tapis</h1>
+      <p>21 créatures, 8 raretés, 11 mutations cumulables, et 10 variantes du Néant Couronné à départager.</p>
     </div>
     <div id="zones"></div>
   </aside>
@@ -120,6 +128,7 @@ body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 var(-
         </div>
       </div>
       <div class="row"><span class="ability-name" id="abilityName"></span></div>
+      <div class="row"><span class="income" id="income"></span></div>
       <div class="row" id="mutations" role="group" aria-label="Mutation"></div>
       <div class="row">
         <button class="toggle" id="t-vfx" aria-pressed="true">Effets</button>
@@ -142,19 +151,20 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
 const RARITY = {
-  Common: { label: "Commun", color: "#b0b8c4" },
-  Uncommon: { label: "Inhabituel", color: "#62d270" },
-  Rare: { label: "Rare", color: "#4098ff" },
-  Epic: { label: "Épique", color: "#ac5cff" },
-  Legendary: { label: "Légendaire", color: "#ffba34" },
-  Mythic: { label: "Mythique", color: "#ff406c" },
+  Common: { label: "Commun", color: "#aab0bc", where: "Début du tapis · très fréquent" },
+  Rare: { label: "Rare", color: "#368cff", where: "Un peu plus loin · fréquent" },
+  Epic: { label: "Épique", color: "#a850ff", where: "Milieu du tapis · moyen" },
+  Legendary: { label: "Légendaire", color: "#ffbe28", where: "Loin · peu fréquent" },
+  Mythic: { label: "Mythique", color: "#ff283c", where: "Très loin · rare" },
+  Exotic: { label: "Exotique", color: "linear-gradient(90deg,#ff4646,#ffaa28,#fff046,#46e66e,#3caaff,#aa5aff)", where: "Tout au bout · 1 sur 5 000", cls: "exotic" },
+  Exclusive: { label: "Exclusif", color: "linear-gradient(90deg,#0a080c,#3a2a06,#0a080c)", where: "Tout au bout + roue · 1 sur 50 000", cls: "exclusive" },
+  Chaotic: { label: "Chaotique", color: "linear-gradient(90deg,#ff005a,#00ffe6,#7800ff,#ff005a)", where: "Tout au bout · 1 sur 1 000 000", cls: "chaotic" },
 };
-const ZONES = [
-  { id: "Surface", label: "1 · La Surface", sub: "Communs & Inhabituels" },
-  { id: "PenteBrumeuse", label: "2 · La Pente Brumeuse", sub: "Rares & Épiques" },
-  { id: "GrottesCristal", label: "3 · Les Grottes de Cristal", sub: "Légendaires & Mythiques" },
-];
-const GAIT = { Quadruped: "Quadrupède", Sprawler: "Rampant", Flyer: "Vol", Serpent: "Serpent", Hover: "Lévitation" };
+const ORDER = ["Common", "Rare", "Epic", "Legendary", "Mythic", "Exotic", "Exclusive", "Chaotic"];
+const SIZE = { Small: "Petit", Medium: "Moyen", Large: "Grand", Giant: "Géant", Colossal: "Colossal" };
+const SOURCE = { Tapis: "Sur le tapis", TapisEtRoue: "Tapis + roue", Roue: "Roue uniquement" };
+const money = n => { for (const [v, u] of [[1e12, "T"], [1e9, "B"], [1e6, "M"], [1e3, "K"]]) if (n >= v) { const x = n / v; return (x >= 100 ? Math.floor(x) : Math.round(x * 10) / 10).toString().replace(".", ",") + u; } return String(Math.round(n)); };
+const GAIT = { Quadruped: "Quadrupède", Sprawler: "Rampant", Flyer: "Vol", Serpent: "Serpent", Hover: "Lévitation", Biped: "Bipède" };
 const KIND = { Nova: "Nova", Breath: "Souffle", Stomp: "Onde de choc", Burst: "Explosion", Eruption: "Éruption" };
 
 // ---------------------------------------------------------------------------
@@ -197,6 +207,7 @@ const MAT = {
   neon: new THREE.MeshBasicMaterial({ vertexColors: true }),
   neonGlass: new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false }),
   outline: new THREE.MeshBasicMaterial({ color: 0x0c0b12, side: THREE.BackSide }),
+  ghost: new THREE.MeshBasicMaterial({ color: 0x78dcff, transparent: true, opacity: 0.28, depthWrite: false, blending: THREE.AdditiveBlending }),
 };
 
 // Géométries de base (non indexées, sans UV : fusionnables)
@@ -240,31 +251,242 @@ function linearRGB(rgb255) {
 }
 
 // ---------------------------------------------------------------------------
-// Mutations (même algorithme que src/shared/Mutations.luau)
+// Mutations (portage de src/shared/Mutations.luau) : peinture + pièces ajoutées + effets animés
 // ---------------------------------------------------------------------------
 let mutations = [];
 function hsv(h, s, v) {
   const i = Math.floor(h * 6), f = h * 6 - i, p = v * (1 - s), q = v * (1 - f * s), t = v * (1 - (1 - f) * s);
-  return [[v, t, p], [q, v, p], [p, v, t], [p, q, v], [t, p, v], [v, p, q]][i % 6];
+  return [[v, t, p], [q, v, p], [p, v, t], [p, q, v], [t, p, v], [v, p, q]][((i % 6) + 6) % 6];
 }
-function mutate(p, along, m) {
-  if (!m) return p;
-  const [r, g, b] = p.col.map(x => x / 255);
-  const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-  const neon = p.m === "Neon";
-  let col, mat = p.m, t = p.t;
-  if (m.rainbow) col = hsv((along * 0.85 + lum * 0.15) % 1, neon ? 0.45 : 0.78, 0.45 + 0.55 * Math.sqrt(lum)).map(x => x * 255);
-  else if (neon) col = m.glow;
-  else {
-    const x = Math.pow(lum, 0.85) * (m.ramp.length - 1), i = Math.min(Math.floor(x), m.ramp.length - 2), f = x - i;
-    col = m.ramp[i].map((c, k) => c + (m.ramp[i + 1][k] - c) * f);
+const hsv255 = (h, s, v) => hsv(((h % 1) + 1) % 1, s, v).map(x => x * 255);
+const RAMP = {
+  stone: [[70, 72, 68], [116, 118, 110], [160, 160, 150], [200, 198, 186]],
+  moss: [[40, 80, 30], [72, 118, 44], [112, 154, 60], [160, 192, 90]],
+  porcelain: [[26, 50, 130], [104, 136, 200], [230, 234, 244], [252, 252, 255]],
+  brass: [[70, 44, 18], [150, 100, 44], [214, 162, 80], [250, 220, 150]],
+  heat: [[150, 60, 50], [230, 120, 70], [255, 190, 120], [255, 236, 200]],
+  amber: [[110, 40, 8], [200, 100, 20], [250, 160, 40], [255, 214, 130]],
+  night: [[4, 4, 12], [10, 10, 28], [20, 20, 54], [40, 40, 92]],
+};
+const GLASS6 = [[220, 30, 50], [30, 90, 230], [30, 170, 80], [255, 180, 30], [150, 50, 210], [30, 200, 210]];
+function ramp(list, x) {
+  const f = Math.min(Math.max(x, 0), 1) * (list.length - 1), i = Math.min(Math.floor(f), list.length - 2), k = f - i;
+  return list[i].map((c, j) => c + (list[i + 1][j] - c) * k);
+}
+const auroraHue = (c, t) => 0.3 + 0.5 * (0.5 + 0.5 * Math.sin((c.along * 1.6 + c.height * 1.1) * Math.PI * 2 - t * 1.3));
+const PAINT = {
+  Mousse: (l, neon, c) => neon ? { col: [190, 255, 150] } : ((c.height > 0.48 && c.h < 0.62) || c.h < 0.14) ? { col: ramp(RAMP.moss, l ** 0.8), m: "Grass", t: 0 } : { col: ramp(RAMP.stone, l ** 0.8), m: "Slate", t: 0 },
+  Kintsugi: (l, neon) => neon ? { col: [255, 205, 80] } : { col: ramp(RAMP.porcelain, l ** 0.7), m: "SmoothPlastic", t: 0 },
+  Vitrail: (l, neon, c) => neon ? { col: [255, 250, 230] } : { col: GLASS6[c.cell - 1].map(x => x * (1 - 0.4 * (1 - l))), m: "Glass", t: 0.25 },
+  Horloger: (l, neon) => neon ? { col: [255, 170, 60] } : { col: ramp(RAMP.brass, l), m: "Glass", t: 0.45 },
+  Mirage: (l, neon) => neon ? { col: [255, 240, 210] } : { col: ramp(RAMP.heat, l), m: "SmoothPlastic", t: 0.2 },
+  Encre: (l, neon) => (neon || l < 0.4) ? { col: [16, 16, 22], m: "SmoothPlastic", t: 0 } : { col: l < 0.62 ? [212, 206, 192] : [246, 242, 230], m: "SmoothPlastic", t: 0 },
+  Aurore: (l, neon, c, t) => { const h = auroraHue(c, t); return neon ? { col: hsv255(h, 0.35, 1) } : { col: hsv255(h, 0.72, 0.3 + 0.7 * l), m: "SmoothPlastic", t: 0 }; },
+  Fossile: (l, neon) => neon ? { col: [255, 190, 80] } : { col: ramp(RAMP.amber, l), m: "Glass", t: 0.45 },
+  Constellation: (l, neon) => neon ? { col: [210, 225, 255] } : { col: ramp(RAMP.night, l), m: "SmoothPlastic", t: 0 },
+  Paradoxe: (l, neon, c, t) => { const h = (c.along * 0.7 + c.height * 0.3 + t * 0.15) % 1; return neon ? { col: hsv255(h, 0.25, 1) } : { col: hsv255(h, 0.85, 0.3 + 0.7 * l), m: "SmoothPlastic", t: 0 }; },
+};
+const PARADOX_CYCLE = ["Constellation", "Vitrail", "Encre", "Aurore", "Kintsugi", "Fossile", "Mousse", "Horloger", "Mirage"];
+const lumOf = col => (0.299 * col[0] + 0.587 * col[1] + 0.114 * col[2]) / 255;
+const fract = x => x - Math.floor(x);
+const hash1 = x => fract(Math.sin(x * 12.9898) * 43758.5453);
+function rng32(seed) {
+  let a = seed >>> 0;
+  return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+const isAura = b => b.startsWith("Aura") || b.startsWith("FX_");
+// CFrame Roblox <-> matrices
+const cfOf = m => { const e = m.elements; return [e[12], e[13], e[14], e[0], e[4], e[8], e[1], e[5], e[9], e[2], e[6], e[10]]; };
+const cfAt = (x, y, z) => [x, y, z, 1, 0, 0, 0, 1, 0, 0, 0, 1];
+function cfLook(pos, target) {
+  const look = target.clone().sub(pos).normalize();
+  let up = new THREE.Vector3(0, 1, 0);
+  if (Math.abs(look.dot(up)) > 0.95) up = new THREE.Vector3(1, 0, 0);
+  const right = new THREE.Vector3().crossVectors(look, up).normalize();
+  const up2 = new THREE.Vector3().crossVectors(right, look).normalize();
+  return [pos.x, pos.y, pos.z, right.x, up2.x, -look.x, right.y, up2.y, -look.y, right.z, up2.z, -look.z];
+}
+const partPos = p => new THREE.Vector3(p.c[0], p.c[1], p.c[2]);
+function extentAlong(p, n) {
+  const c = p.c;
+  return 0.5 * (Math.abs(c[3] * n.x + c[6] * n.y + c[9] * n.z) * p.s[0] + Math.abs(c[4] * n.x + c[7] * n.y + c[10] * n.z) * p.s[1] + Math.abs(c[5] * n.x + c[8] * n.y + c[11] * n.z) * p.s[2]);
+}
+const mk = (b, n, k, c, s, col, m = "SmoothPlastic", t = 0) => ({ b, n, k, c, s, col, m, t });
+
+/** Applique une liste de mutations aux données d'une créature (copie) : renvoie les pièces,
+ *  os, effets ajoutés et les infos d'animation. */
+function mutateData(data, ids) {
+  const list = mutations.filter(m => ids.includes(m.id));
+  const out = { parts: data.parts, bones: data.bones, emitters: [], beams: [], trails: [], lights: [], spin: {}, mirage: false, echo: false, dyn: null, ids: list.map(m => m.id) };
+  if (!list.length) return out;
+  const has = Object.fromEntries(list.map(m => [m.id, true]));
+  const dom = [...list].reverse().find(m => m.recolor) || null;
+  const bonePos = {}, parentOf = {}, hasChild = {};
+  for (const b of data.bones) { bonePos[b.n] = new THREE.Vector3(b.c[0], b.c[1], b.c[2]); if (b.p) { parentOf[b.n] = b.p; hasChild[b.p] = true; } }
+  // Contexte de peinture (même calcul que Mutations.buildCtx)
+  const lo = new THREE.Vector3(Infinity, Infinity, Infinity), hi = lo.clone().negate();
+  for (const p of data.parts) if (!isAura(p.b)) { const q = partPos(p), e = Math.hypot(...p.s) * 0.3; lo.min(q.clone().subScalar(e)); hi.max(q.clone().addScalar(e)); }
+  const size = hi.clone().sub(lo), center = lo.clone().add(hi).multiplyScalar(0.5);
+  const span = Math.max(size.x, size.y, size.z), cs = span / 7;
+  let seed = 0;
+  list.forEach((m, i) => { seed += (mutations.indexOf(m) + 1) * 97 * (i + 1); });
+  const rnd = rng32(seed * 7919 + 13);
+  const infos = data.parts.map((p, i) => {
+    const q = partPos(p);
+    const cell = Math.min(6, Math.max(1, Math.floor(hash1(Math.floor(q.x / cs) * 7.1 + Math.floor(q.y / cs) * 13.7 + Math.floor(q.z / cs) * 3.3) * 6) + 1));
+    return { p, q, neon: p.m === "Neon", lum: lumOf(p.col), aura: isAura(p.b), ctx: { along: Math.min(1, Math.max(0, (q.z - lo.z) / Math.max(size.z, 0.01))), height: Math.min(1, Math.max(0, (q.y - lo.y) / Math.max(size.y, 0.01))), h: hash1(i * 1.37 + seed), cell } };
+  });
+  const body = infos.filter(i => !i.aura);
+  // Peinture de la mutation dominante
+  let parts = data.parts;
+  if (dom) {
+    parts = infos.map(i => {
+      const r = PAINT[dom.id](i.lum, i.neon, i.ctx, 0);
+      return { ...i.p, col: r.col, m: r.m || i.p.m, t: i.neon ? i.p.t : Math.max(i.p.t, r.t || 0) };
+    });
+    if (dom.id === "Aurore" || dom.id === "Paradoxe") out.dyn = { id: dom.id, infos };
   }
-  if (m.material && !neon) {
-    mat = m.material;
-    const l2 = (0.299 * col[0] + 0.587 * col[1] + 0.114 * col[2]) / 255;
-    if (m.transparency && l2 > 0.55) t = Math.max(t, m.transparency);
+  const extra = [], bones = [...data.bones];
+  const pick = (pool, n) => { const a = pool.slice(), r = []; while (r.length < n && a.length) r.push(a.splice(Math.floor(rnd() * a.length), 1)[0]); return r; };
+  const outward = i => { const bp = bonePos[i.p.b] || new THREE.Vector3(); const d = i.q.clone().sub(bp); return d.lengthSq() < 1e-6 ? new THREE.Vector3(0, 1, 0) : d.normalize(); };
+  const segment = (b, n, a, c, w, col, m = "SmoothPlastic") => { const d = c.clone().sub(a).length(); if (d > 1e-3) extra.push(mk(b, n, "Block", cfLook(a.clone().add(c).multiplyScalar(0.5), c), [w, w, d + w * 0.6], col, m)); };
+  const farthest = name => { let far = bonePos[name], best = -1; for (const i of body) if (i.p.b === name) { const d = i.q.distanceTo(bonePos[name]); if (d > best) { best = d; far = i.q; } } return [far, best]; };
+  const sparkle = (cols, rate) => out.emitters.push({ b: "Root", c: cfAt(center.x, center.y, center.z), s: [size.x * 0.9, size.y * 0.9, size.z * 0.9], tex: "sparkle", col: cols.map((c, k) => [k / Math.max(cols.length - 1, 1), c[0] / 255, c[1] / 255, c[2] / 255]), size: [[0, 0.24], [0.5, 0.15], [1, 0]], tr: [[0, 0.1], [0.5, 0.2], [1, 1]], life: [0.8, 1.6], rate, speed: [0.2, 0.6], spread: [180, 180], acc: [0, 0.4, 0], drag: 1, le: 1, dir: "Top" });
+  for (const m of list) sparkle([m.glow, ...(m.badge || [])].slice(0, 3), 6);
+
+  if (has.Mousse) {
+    const f = Math.min(1.4, Math.max(0.08, span * 0.028)), n = Math.min(24, Math.max(8, Math.floor(body.length / 40)));
+    const petals = [[255, 150, 200], [255, 250, 240], [200, 160, 255], [255, 230, 90]];
+    for (const i of pick(body.filter(i => i.ctx.height > 0.4 && !i.neon), n)) {
+      const top = i.q.clone().add(new THREE.Vector3(0, extentAlong(i.p, new THREE.Vector3(0, 1, 0)), 0));
+      const col = petals[Math.floor(rnd() * petals.length)];
+      extra.push(mk(i.p.b, "Flower", "Ball", cfAt(top.x, top.y + f * 0.12, top.z), [f * 0.45, f * 0.45, f * 0.45], [255, 214, 60]));
+      const a0 = rnd() * Math.PI;
+      for (let k = 0; k < 5; k++) { const a = a0 + k / 5 * Math.PI * 2; extra.push(mk(i.p.b, "Petal", "Ball", cfAt(top.x + Math.cos(a) * f * 0.36, top.y + 0.05 * f, top.z + Math.sin(a) * f * 0.36), [f * 0.4, f * 0.4, f * 0.4], col)); }
+      extra.push(mk(i.p.b, "MossTuft", "Ball", cfAt(top.x + f * 0.5, top.y - f * 0.1, top.z), [f * 0.5, f * 0.5, f * 0.5], [90, 140, 50], "Grass"));
+    }
   }
-  return { ...p, col, m: mat, t };
+  if (has.Kintsugi) {
+    const n = Math.min(36, Math.max(10, Math.floor(body.length / 30))), w = Math.min(0.3, Math.max(0.03, span * 0.007));
+    for (const i of pick(body.filter(i => !i.neon && Math.hypot(...i.p.s) > span * 0.04), n)) {
+      const nrm = outward(i), base = i.q.clone().addScaledVector(nrm, extentAlong(i.p, nrm) * 0.92);
+      const t1 = new THREE.Vector3().crossVectors(nrm, new THREE.Vector3(rnd() * 2 - 1, rnd() * 2 - 1, rnd() * 2 - 1)).normalize();
+      const t2 = new THREE.Vector3().crossVectors(nrm, t1).normalize(), L = Math.max(...i.p.s) * 0.35;
+      const pts = [[-1.4, 0], [-0.45, 0.3], [0.45, -0.25], [1.4, 0.15]].map(([a, b]) => base.clone().addScaledVector(t1, a * L).addScaledVector(t2, b * L));
+      for (let k = 0; k < 3; k++) segment(i.p.b, "GoldCrack", pts[k], pts[k + 1], w, [255, 196, 60], "Neon");
+    }
+  }
+  if (has.Vitrail) [GLASS6[0], GLASS6[1], GLASS6[3]].forEach((col, k) => out.lights.push({ bone: "Root", p: [center.x, center.y, center.z + (k - 1) * size.z * 0.25], col, range: span * 0.5, b: 1.6 }));
+  if (has.Horloger) {
+    const count = {};
+    for (const i of body) if (i.p.b !== "Root" && !i.p.b.startsWith("Float") && !i.p.b.startsWith("Sway")) count[i.p.b] = (count[i.p.b] || 0) + 1;
+    const order = Object.entries(count).sort((a, b) => b[1] - a[1]).slice(0, 4).map(e => e[0]);
+    let g = 0;
+    const gear = (bone, c, r, dir) => {
+      g++;
+      const name = "Spin" + g;
+      const gm = new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(1, 0, 0)).setPosition(c);
+      bones.push({ n: name, p: bone, c: cfOf(gm) });
+      out.spin[name] = dir * 1.4 / Math.max(r, 0.2);
+      const th = r * 0.28, at = (...ms) => cfOf(ms.reduce((a, b) => a.multiply(b), gm.clone()));
+      const RY = new THREE.Matrix4().makeRotationY(Math.PI / 2);
+      extra.push(mk(name, "Gear", "Cylinder", at(RY), [th, r * 2, r * 2], [196, 140, 56], "Metal"));
+      extra.push(mk(name, "GearHub", "Cylinder", at(RY), [th * 1.5, r * 0.7, r * 0.7], [90, 58, 26], "Metal"));
+      const teeth = Math.max(8, Math.floor(r * 14));
+      for (let k = 0; k < teeth; k++) extra.push(mk(name, "GearTooth", "Block", at(new THREE.Matrix4().makeRotationZ(k / teeth * Math.PI * 2), new THREE.Matrix4().makeTranslation(0, r * 1.1, 0)), [r * 0.26, r * 0.3, th], [236, 186, 84], "Metal"));
+      for (let k = 0; k < 3; k++) extra.push(mk(name, "GearSpoke", "Block", at(new THREE.Matrix4().makeRotationZ(k / 3 * Math.PI)), [r * 0.12, r * 1.7, th * 1.2], [150, 100, 40], "Metal"));
+    };
+    order.forEach((b, k) => {
+      const bl = new THREE.Vector3(Infinity, Infinity, Infinity), bh = bl.clone().negate();
+      for (const i of body) if (i.p.b === b) { bl.min(i.q); bh.max(i.q); }
+      const mid = bl.clone().add(bh).multiplyScalar(0.5), ext = bh.clone().sub(bl);
+      const r = Math.min(span * 0.12, Math.max(0.12, Math.min(ext.y, Math.max(ext.z, ext.x)) * 0.22));
+      gear(b, mid, r, 1);
+      if (k === 0) { gear(b, mid.clone().add(new THREE.Vector3(0, r * 0.3, -r * 1.85)), r * 0.68, -1); gear(b, mid.clone().add(new THREE.Vector3(0, -r * 0.2, r * 1.8)), r * 0.78, -1); }
+    });
+  }
+  if (has.Mirage) {
+    out.mirage = true;
+    const big = body.slice().sort((a, b) => Math.hypot(...b.p.s) - Math.hypot(...a.p.s)).slice(0, 80);
+    big.forEach((i, k) => extra.push(mk("Root", "MirageShadow", "Block", cfAt(i.q.x + size.x * 0.45, 0.03 + k * 0.0005, i.q.z + size.z * 0.12), [extentAlong(i.p, new THREE.Vector3(1, 0, 0)) * 2, 0.02, extentAlong(i.p, new THREE.Vector3(0, 0, 1)) * 2], [70, 30, 50], "Glass", 0.55)));
+  }
+  if (has.Encre) {
+    const names = data.bones.map(b => b.n);
+    const tips = names.filter(n => /^(Leg|Wing|Arm)/.test(n));
+    const lastOf = pre => names.filter(n => new RegExp("^" + pre + "\\d+$").test(n)).sort((a, b) => Number(b.slice(pre.length)) - Number(a.slice(pre.length)))[0];
+    for (const pre of ["Tail", "Seg"]) { const l = lastOf(pre); if (l) tips.push(l); }
+    if (!tips.length) tips.push(names.includes("Body") ? "Body" : "Root");
+    const w = Math.min(0.8, Math.max(0.06, span * 0.02));
+    for (const n of tips) { const [far] = farthest(n); out.trails.push({ b: n, p0: [far.x, far.y + w, far.z], p1: [far.x, far.y - w, far.z], col: [[0, 0.06, 0.06, 0.09], [1, 0.06, 0.06, 0.09]], tr: [[0, 0.1], [1, 1]], life: 0.9 }); }
+  }
+  if (has.Aurore) {
+    [[[80, 255, 170], [60, 200, 255], [190, 90, 255]], [[190, 90, 255], [80, 255, 200], [60, 160, 255]]].forEach((cols, k) => {
+      const i = k + 1;
+      out.beams.push({ b0: "Root", b1: "Root", p0: cfAt(center.x - size.x * 0.1 * i, center.y + size.y * (0.35 + 0.1 * i), center.z - size.z * 0.48), p1: cfAt(center.x + size.x * 0.1 * i, center.y + size.y * (0.3 + 0.1 * i), center.z + size.z * 0.48), w: [size.x * 0.5, size.x * 0.5], curve: [size.y * 0.6 * (i === 1 ? 1 : -1), size.y * 0.4], col: cols.map((c, j) => [j / 2, c[0] / 255, c[1] / 255, c[2] / 255]), tr: [[0, 1], [0.3, 0.55], [0.7, 0.6], [1, 1]], le: 1 });
+    });
+  }
+  if (has.Fossile) {
+    const th = Math.min(0.7, Math.max(0.05, span * 0.022)), bone = [238, 230, 210];
+    const skip = n => n === "Root" || isAura(n) || /^(Float|Spin|Ear)/.test(n);
+    for (const b of data.bones) {
+      const n = b.n;
+      if (skip(n)) continue;
+      const pos = bonePos[n], par = parentOf[n];
+      if (par && !skip(par) && bonePos[par]) segment(par, "Bone", bonePos[par], pos, th, bone);
+      extra.push(mk(n, "Joint", "Ball", cfAt(pos.x, pos.y, pos.z), [th * 1.7, th * 1.7, th * 1.7], bone));
+      if (!hasChild[n]) { const [far, best] = farthest(n); if (best > th) segment(n, "Bone", pos, pos.clone().lerp(far, 0.85), th * 0.85, bone); }
+    }
+    const box = name => { const a = new THREE.Vector3(Infinity, Infinity, Infinity), z = a.clone().negate(); let any = false; for (const i of body) if (i.p.b === name) { a.min(i.q); z.max(i.q); any = true; } return any ? [a.clone().add(z).multiplyScalar(0.5), z.clone().sub(a)] : null; };
+    const bb = box("Body");
+    if (bb) {
+      const [mid, ext] = bb, ex = ext.x / 2, ey = ext.y / 2, ez = ext.z / 2;
+      for (let k = 0; k < 5; k++) {
+        const z = mid.z - ez * 0.45 + k * ez * 0.2;
+        for (const s of [1, -1]) {
+          const pts = [[0, ey * 0.45], [s * ex * 0.5, ey * 0.25], [s * ex * 0.55, -ey * 0.15], [s * ex * 0.3, -ey * 0.45]].map(([x, y]) => new THREE.Vector3(x, mid.y + y, z));
+          for (let j = 0; j < 3; j++) segment("Body", "Rib", pts[j], pts[j + 1], th * 0.7, bone);
+        }
+      }
+      segment("Body", "Spine", new THREE.Vector3(0, mid.y + ey * 0.45, mid.z - ez * 0.6), new THREE.Vector3(0, mid.y + ey * 0.45, mid.z + ez * 0.6), th, bone);
+    }
+    const hb = box("Head");
+    if (hb) {
+      const [hm, he] = hb, d = Math.min(he.x, he.y, he.z) * 0.75 + th;
+      extra.push(mk("Head", "Skull", "Ball", cfAt(hm.x, hm.y, hm.z), [d, d, d], bone));
+      for (const s of [1, -1]) extra.push(mk("Head", "EyeSocket", "Ball", cfAt(hm.x + s * d * 0.22, hm.y + d * 0.08, hm.z - d * 0.4), [d * 0.28, d * 0.28, d * 0.28], [40, 20, 10]));
+    }
+  }
+  if (has.Constellation) {
+    const pool = body.filter(i => !i.neon);
+    if (pool.length) {
+      const k = Math.min(22, Math.max(10, Math.floor(pool.length / 60)));
+      const chosen = [pool[Math.floor(rnd() * pool.length)]];
+      while (chosen.length < k) {
+        let best = null, bd = -1;
+        for (let j = 0; j < pool.length; j += 3) { const d = Math.min(...chosen.map(c => c.q.distanceTo(pool[j].q))); if (d > bd) { bd = d; best = pool[j]; } }
+        chosen.push(best);
+      }
+      const s = Math.min(1.2, Math.max(0.08, span * 0.03)), white = [235, 242, 255];
+      const stars = chosen.map(i => {
+        const nrm = outward(i), pos = i.q.clone().addScaledVector(nrm, extentAlong(i.p, nrm));
+        extra.push(mk(i.p.b, "Star", "Ball", cfAt(pos.x, pos.y, pos.z), [s * 0.55, s * 0.55, s * 0.55], white, "Neon"));
+        const rot = cfLook(pos, pos.clone().add(nrm));
+        extra.push(mk(i.p.b, "StarRay", "Block", rot, [s * 0.12, s * 1.3, s * 0.12], white, "Neon"));
+        extra.push(mk(i.p.b, "StarRay", "Block", rot, [s * 1.3, s * 0.12, s * 0.12], white, "Neon"));
+        return { pos, b: i.p.b };
+      });
+      for (let a = 1; a < stars.length; a++) {
+        let best = stars[0], bd = Infinity;
+        for (let j = 0; j < a; j++) { const d = stars[j].pos.distanceTo(stars[a].pos); if (d < bd) { bd = d; best = stars[j]; } }
+        segment(stars[a].b, "ConstellationLine", best.pos, stars[a].pos, s * 0.1, [200, 220, 255], "Neon");
+      }
+      for (const i of pick(pool, 40)) { const nrm = outward(i), pos = i.q.clone().addScaledVector(nrm, extentAlong(i.p, nrm)); extra.push(mk(i.p.b, "StarDot", "Ball", cfAt(pos.x, pos.y, pos.z), [s * 0.22, s * 0.22, s * 0.22], white, "Neon")); }
+    }
+  }
+  if (has.Echo) out.echo = true;
+  out.parts = parts.concat(extra);
+  out.bones = bones;
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -477,11 +699,11 @@ scene.add(holder, fxGroup);
 let creature = null;
 let showOutline = true;
 
-function buildCreature(data, mutationId) {
-  const mutation = mutations.find(m => m.id === mutationId);
+function buildCreature(data, mutationIds = [], opts = {}) {
+  const mut = mutateData(data, mutationIds);
   const root = new THREE.Group();
   const bones = {};
-  for (const b of data.bones) {
+  for (const b of mut.bones) {
     const g = new THREE.Group();
     g.matrixAutoUpdate = false;
     const rest = cfMatrix(b.c);
@@ -500,13 +722,10 @@ function buildCreature(data, mutationId) {
   const boneOf = name => bones[name] || bones.Root;
 
   // Seaux de géométrie par os
-  const zs = data.parts.map(p => p.c[2]);
-  const zMin = Math.min(...zs), zMax = Math.max(...zs);
   const buckets = new Map();
   const box = new THREE.Box3();
   const center = V(), body = new THREE.Box3();
-  for (const p0 of data.parts) {
-    const p = mutate(p0, (p0.c[2] - zMin) / Math.max(zMax - zMin, 0.01), mutation);
+  mut.parts.forEach((p, idx) => {
     const bone = boneOf(p.b);
     const world = partMatrix(p);
     const g = GEO[p.k] || GEO.Block;
@@ -517,25 +736,27 @@ function buildCreature(data, mutationId) {
     const n = geo.attributes.position.count, cols = new Float32Array(n * 4);
     for (let i = 0; i < n; i++) cols.set([rgb[0], rgb[1], rgb[2], alpha], i * 4);
     geo.setAttribute("color", new THREE.BufferAttribute(cols, 4));
-    const kind = neon ? (alpha < 0.98 ? "neonGlass" : "neon") : (alpha < 0.98 ? "glass" : "opaque");
+    const kind = opts.ghost ? "ghost" : neon ? (alpha < 0.98 ? "neonGlass" : "neon") : (alpha < 0.98 ? "glass" : "opaque");
     const key = p.b + "|" + kind;
-    if (!buckets.has(key)) buckets.set(key, { bone, kind, list: [] });
+    if (!buckets.has(key)) buckets.set(key, { bone, kind, list: [], entries: [] });
     buckets.get(key).list.push(geo);
+    buckets.get(key).entries.push({ n, alpha, neon, info: mut.dyn && idx < data.parts.length ? mut.dyn.infos[idx] : null });
     const pos = V().setFromMatrixPosition(world);
     box.expandByPoint(pos);
     if (!p.b.startsWith("Aura")) body.expandByPoint(pos);
-    if (p.t < 0.5) {
+    if (p.t < 0.5 && !opts.ghost) {
       const w = Math.min(0.03, 0.2 * Math.min(...p.s));
       const hull = g.clone().applyMatrix4(bone.restInv.clone().multiply(partMatrix(p, w)));
       const hk = p.b + "|outline";
       if (!buckets.has(hk)) buckets.set(hk, { bone, kind: "outline", list: [] });
       buckets.get(hk).list.push(hull);
     }
-  }
-  const outlines = [];
-  for (const { bone, kind, list } of buckets.values()) {
+  });
+  const outlines = [], dyn = [];
+  for (const { bone, kind, list, entries } of buckets.values()) {
     if (kind === "outline") for (const gg of list) gg.deleteAttribute("color");
     const mesh = new THREE.Mesh(mergeGeometries(list, false), MAT[kind]);
+    if (mut.dyn && kind !== "outline" && entries.some(e => e.info)) dyn.push({ attr: mesh.geometry.attributes.color, entries });
     mesh.castShadow = kind === "opaque";
     mesh.receiveShadow = kind === "opaque";
     if (kind === "outline") { mesh.visible = showOutline; outlines.push(mesh); }
@@ -547,25 +768,26 @@ function buildCreature(data, mutationId) {
   const fx = { emitters: [], beams: [], trails: [], lights: [] };
   const fxRoot = new THREE.Group();
   const local = (bone, c) => bone.restInv.clone().multiply(cfMatrix(c));
-  for (const e of arr(data.fx.emitters)) {
+  const noFx = !!opts.ghost;
+  for (const e of noFx ? [] : arr(data.fx.emitters).concat(mut.emitters)) {
     const bone = boneOf(e.b);
     const em = new Emitter(e, bone.g, local(bone, e.c));
     fx.emitters.push(em);
     fxRoot.add(em.obj);
   }
-  for (const b of arr(data.fx.beams)) {
+  for (const b of noFx ? [] : arr(data.fx.beams).concat(mut.beams)) {
     const b0 = boneOf(b.b0), b1 = boneOf(b.b1);
     const bm = new BeamFx(b, b0.g, local(b0, b.p0), b1.g, local(b1, b.p1));
     fx.beams.push(bm);
     fxRoot.add(bm.obj);
   }
-  for (const t of arr(data.fx.trails)) {
+  for (const t of noFx ? [] : arr(data.fx.trails).concat(mut.trails)) {
     const bone = boneOf(t.b);
     const tr = new TrailFx(t, bone.g, V().fromArray(t.p0).applyMatrix4(bone.restInv), V().fromArray(t.p1).applyMatrix4(bone.restInv));
     fx.trails.push(tr);
     fxRoot.add(tr.obj);
   }
-  for (const l of arr(data.fx.lights).slice(0, 6)) {
+  for (const l of noFx ? [] : arr(data.fx.lights).slice(0, 6).concat(mut.lights)) {
     const bone = boneOf(l.bone);
     tmpColor.setRGB(l.col[0] / 255, l.col[1] / 255, l.col[2] / 255, THREE.SRGBColorSpace);
     const pl = new THREE.PointLight(tmpColor.clone(), l.b * 2.5, l.range * 1.2, 1);
@@ -581,7 +803,7 @@ function buildCreature(data, mutationId) {
 
   const auras = Object.values(bones).filter(b => b.name.startsWith("Aura")).sort((a, b) => a.name.localeCompare(b.name));
   return {
-    data, root, bones, fx, fxRoot, outlines, box, center, abilityOrigin, auras,
+    data, root, bones, fx, fxRoot, outlines, box, center, abilityOrigin, auras, mut, dyn,
     profile: profileOf(data.anim || {}),
     st: { t: Math.random() * 50, move: 0, earTimer: 1, earSide: 1, sniffTimer: 2, tongueTimer: 1.5, abilityT: -1 },
   };
@@ -658,11 +880,21 @@ function stepAnim(cr, dt) {
       const kk = (k + 1) / Math.max(segs.length, 1);
       set(name, T(0, 0, 0, Math.sin(t * rate * 0.6 - (k + 1) * 0.4) * rad(2), Math.sin(t * rate - (k + 1) * 0.55) * amp * (0.3 + kk), 0));
     });
+  } else if (p.gait === "Biped") {
+    const step = Math.abs(Math.sin(gait)) * p.bob * mv;
+    set("Body", T(0, breathe + step, 0, 0, Math.sin(gait) * rad(4) * mv + Math.sin(t * 0.5) * rad(3) * idle, Math.sin(gait) * rad(3) * mv));
+    set("Leg_R", T(0, 0, 0, Math.sin(gait) * swing, 0, 0));
+    set("Leg_L", T(0, 0, 0, -Math.sin(gait) * swing, 0, 0));
+    set("Arm_R", T(0, 0, 0, -Math.sin(gait) * swing * 0.7 + Math.sin(t * 1.1) * rad(4) * idle, 0, Math.sin(t * 0.8) * rad(3)));
+    set("Arm_L", T(0, 0, 0, Math.sin(gait) * swing * 0.7 + Math.sin(t * 1.1 + 1) * rad(4) * idle, 0, -Math.sin(t * 0.8) * rad(3)));
   } else if (p.gait === "Hover") {
     const float = Math.sin(t * 1.3) * p.hover;
     set("Body", T(0, float, 0, -rad(10) * mv + Math.sin(t * 0.9) * rad(2), Math.sin(t * 0.5) * rad(4), 0));
     set("Arm_R", T(0, 0, 0, Math.sin(t * 1.1) * rad(8), 0, Math.sin(t * 0.8) * rad(6)));
     set("Arm_L", T(0, 0, 0, Math.sin(t * 1.1 + 1.4) * rad(8), 0, -Math.sin(t * 0.8 + 1) * rad(6)));
+    const w = Math.sin(t * 2.2) * rad(16) * (1 + mv * 0.5), w2 = Math.sin(t * 2.2 - 0.8) * rad(12) * (1 + mv * 0.5);
+    set("Wing_R", T(0, 0, 0, 0, 0, w)); set("Wing_L", T(0, 0, 0, 0, 0, -w));
+    set("Wing2_R", T(0, 0, 0, 0, 0, w2)); set("Wing2_L", T(0, 0, 0, 0, 0, -w2));
   } else {
     const bob = Math.abs(Math.sin(gait)) * p.bob * mv;
     set("Body", T(0, breathe + bob, 0, Math.sin(gait * 2) * 0.035 * mv, 0, 0));
@@ -707,6 +939,17 @@ function stepAnim(cr, dt) {
     set(name, T(0, 0, 0, Math.sin(t * rate * 0.7 - (i + 1) * 0.5) * rad(3), Math.sin(t * rate - (i + 1) * 0.6) * amp * (0.4 + k), 0));
   });
 
+  for (const name of Object.keys(B)) {
+    if (name.startsWith("Sway")) {
+      const k = Number(name.slice(4)) || 0;
+      set(name, T(0, 0, 0, Math.sin(t * 1.4 + k * 0.9) * rad(9), 0, Math.sin(t * 1.1 + k * 0.7) * rad(9)));
+    } else if (name.startsWith("Spin")) {
+      set(name, T(0, 0, 0, 0, 0, t * (cr.mut.spin[name] || 1)));
+    } else if (name.startsWith("Float")) {
+      const k = Number(name.slice(5)) || 0;
+      set(name, T(0, Math.sin(t * 1.6 + k * 2) * 0.15, 0, Math.sin(t * 0.9 + k) * rad(8), Math.sin(t * 0.7 + k) * rad(12), 0));
+    }
+  }
   cr.auras.forEach((b, i) => {
     if (b.name === "AuraGround") set(b.name, T(0, 0, 0, 0, t * 0.25, 0));
     else {
@@ -733,7 +976,33 @@ function stepAnim(cr, dt) {
     add("Jaw", T(0, 0, 0, -rad(22) * k, 0, 0));
     if (st.abilityT >= dur) { st.abilityT = -1; setAnim(animState === "Ability" ? "Idle" : animState); }
   }
+  if (cr.mut.mirage) {
+    let k = 0;
+    for (const name of Object.keys(B)) {
+      if (name === "Root" || name.startsWith("Aura") || name.startsWith("Spin")) continue;
+      k += 1.7;
+      tf[name] = (tf[name] || new THREE.Matrix4()).clone().multiply(T(Math.sin(t * 6 + k) * 0.035, 0, Math.cos(t * 4.5 + k) * 0.02));
+    }
+  }
   apply();
+  if (cr.dyn.length && t - (st.lastPaint ?? -1) > 0.12) {
+    st.lastPaint = t;
+    let id = cr.mut.dyn.id, tt = t;
+    if (id === "Paradoxe") { id = PARADOX_CYCLE[Math.floor(t / 3) % PARADOX_CYCLE.length]; tt = 0; }
+    const paint = PAINT[id];
+    for (const d of cr.dyn) {
+      const a = d.attr.array;
+      let o = 0;
+      for (const e of d.entries) {
+        if (e.info) {
+          const rgb = linearRGB(paint(e.info.lum, e.info.neon, e.info.ctx, tt).col).map(v => e.neon ? Math.min(1, v * 1.35) : v);
+          for (let v = 0; v < e.n; v++) { const j = (o + v) * 4; a[j] = rgb[0]; a[j + 1] = rgb[1]; a[j + 2] = rgb[2]; }
+        }
+        o += e.n;
+      }
+      d.attr.needsUpdate = true;
+    }
+  }
 
   const ampL = p.flicker > 0 ? p.flicker : 0.08;
   cr.fx.lights.forEach((L, i) => { L.light.intensity = L.base * (1 + ampL * 2 * noise(t * (p.flicker > 0 ? 7 : 1.5), i * 1.7)); });
@@ -840,7 +1109,7 @@ function stepTransient(dt) {
 // ---------------------------------------------------------------------------
 let index = [];
 const cache = new Map();
-let currentId = null, currentMutation = "";
+let currentId = null, currentMutations = [], concepts = [], ghost = null;
 let showFx = true;
 
 function pxScale() {
@@ -855,17 +1124,25 @@ function setAnim(name) {
 function renderList() {
   const zones = document.getElementById("zones");
   zones.innerHTML = "";
-  for (const z of ZONES) {
+  const groups = [];
+  if (concepts.length) groups.push({ label: "Variantes du Néant Couronné", sub: "10 styles : choisis ton préféré", items: concepts });
+  for (const r of ORDER) {
+    const items = index.filter(c => c.rarity === r);
+    if (items.length) groups.push({ label: RARITY[r].label, sub: RARITY[r].where, items });
+  }
+  for (const g of groups) {
     const sec = document.createElement("section");
     sec.className = "zone";
-    sec.innerHTML = `<h2>${z.label}<span>${z.sub}</span></h2>`;
+    sec.innerHTML = `<h2>${g.label}<span>${g.sub}</span></h2>`;
     const list = document.createElement("div");
     list.className = "list";
-    for (const c of index.filter(c => c.zone === z.id)) {
+    for (const c of g.items) {
+      const r = RARITY[c.rarity] || RARITY.Common;
       const b = document.createElement("button");
       b.className = "item";
       b.id = "item-" + c.id;
-      b.innerHTML = `<i class="pip" style="background:${RARITY[c.rarity].color}"></i><b>${c.name}</b><small>${RARITY[c.rarity].label} · ${GAIT[c.gait] || ""}</small>`;
+      const sub = c.zone === "Concepts" ? GAIT[c.gait] || "" : `${SIZE[c.size] || ""} · ${money(c.income)} $/s`;
+      b.innerHTML = `<i class="pip ${r.cls || ""}" style="background:${r.color}"></i><b>${c.name}</b><small>${sub}</small>`;
       b.onclick = () => { location.hash = c.id; };
       list.appendChild(b);
     }
@@ -877,15 +1154,22 @@ function renderList() {
 function renderMutations() {
   const row = document.getElementById("mutations");
   row.innerHTML = "";
-  const all = [{ id: "", label: "Normal", glow: [220, 220, 235] }, ...mutations];
+  const all = [{ id: "", label: "NORMAL", glow: [220, 220, 235] }, ...mutations];
   for (const m of all) {
     const b = document.createElement("button");
     b.className = "chip";
     b.id = "mut-" + (m.id || "none");
-    b.setAttribute("aria-pressed", String(m.id === currentMutation));
-    const c = m.rainbow ? "conic-gradient(#ff5a5a,#ffdc3c,#50dc78,#4696ff,#be5aff,#ff5a5a)" : `rgb(${m.glow.join(",")})`;
-    b.innerHTML = `<i style="background:${c}"></i>${m.label[0] + m.label.slice(1).toLowerCase()}${m.multiplier ? " ×" + m.multiplier : ""}`;
-    b.onclick = () => { currentMutation = m.id; renderMutations(); show(currentId, true); };
+    const on = m.id ? currentMutations.includes(m.id) : currentMutations.length === 0;
+    b.setAttribute("aria-pressed", String(on));
+    const c = m.badge && m.badge.length > 1 ? `linear-gradient(135deg,${m.badge.map(x => `rgb(${x.join(",")})`).join(",")})` : `rgb(${m.glow.join(",")})`;
+    b.title = m.effect ? `${m.effect} · 1 sur ${m.odds.toLocaleString("fr-FR")}` : "Sans mutation";
+    b.innerHTML = `<i style="background:${c}"></i>${m.label[0] + m.label.slice(1).toLowerCase()}${m.multiplier ? " ×" + String(m.multiplier).replace(".", ",") : ""}`;
+    b.onclick = () => {
+      if (!m.id) currentMutations = [];
+      else currentMutations = on ? currentMutations.filter(x => x !== m.id) : [...currentMutations, m.id];
+      renderMutations();
+      show(currentId, true);
+    };
     row.appendChild(b);
   }
 }
@@ -923,29 +1207,44 @@ async function show(id, keepCamera = false) {
     holder.remove(creature.root);
     fxGroup.remove(creature.fxRoot);
   }
-  creature = buildCreature(data, currentMutation);
+  if (ghost) { holder.remove(ghost.root); ghost = null; }
+  creature = buildCreature(data, currentMutations);
+  if (creature.mut.echo) {
+    // Écho : copie fantôme qui suit avec une seconde de retard
+    ghost = buildCreature(data, currentMutations.filter(x => x !== "Echo"), { ghost: true });
+    const sz = creature.box.getSize(V());
+    ghost.root.position.set(sz.x * 0.25, 0, sz.z * 0.4);
+    holder.add(ghost.root);
+  }
   holder.add(creature.root);
   creature.fxRoot.visible = showFx;
   fxGroup.add(creature.fxRoot);
   holder.updateMatrixWorld(true);
   for (let k = 0; k < 60; k++) for (const em of creature.fx.emitters) em.step(1 / 30);
   if (!keepCamera) fit(creature);
-  const meta = index.find(c => c.id === id) || {};
-  const rar = RARITY[data.rarity];
-  const h = creature.box.getSize(V()).y;
+  const meta = index.find(c => c.id === id) || concepts.find(c => c.id === id) || {};
+  const rar = RARITY[data.rarity] || RARITY.Common;
+  const concept = data.zone === "Concepts";
   document.getElementById("name").textContent = data.name;
   document.getElementById("desc").textContent = data.description || "";
   document.getElementById("tags").innerHTML =
-    `<span class="tag rarity" style="background:${rar.color}">${rar.label}</span>` +
-    `<span class="tag">${(ZONES.find(z => z.id === data.zone) || {}).label?.replace(/^\d · /, "") || ""}</span>` +
-    `<span class="tag">${GAIT[meta.gait] || ""}</span>`;
-  document.getElementById("stats").innerHTML =
-    `<span><strong>${data.parts.length.toLocaleString("fr-FR")}</strong> pièces</span>` +
-    `<span><strong>${(h * data.scale).toFixed(1)}</strong> studs de haut en jeu</span>` +
-    `<span><strong>${arr(data.fx.emitters).length + arr(data.fx.beams).length + arr(data.fx.trails).length}</strong> effets</span>`;
+    `<span class="tag rarity ${rar.cls || ""}" style="background:${rar.color}">${concept ? "Variante · Chaotique" : rar.label}</span>` +
+    (concept ? "" : `<span class="tag">${SIZE[data.size] || ""}</span><span class="tag">${SOURCE[data.source] || ""}</span>`) +
+    `<span class="tag">${GAIT[meta.gait] || GAIT[(data.anim || {}).gait] || ""}</span>`;
+  document.getElementById("stats").innerHTML = concept
+    ? `<span><strong>${data.parts.length.toLocaleString("fr-FR")}</strong> pièces</span><span>Couronne flottante, corps de vide et d'étoiles</span>`
+    : `<span><strong>${money(data.income)} $/s</strong> de base</span>` +
+      `<span><strong>+${Math.round(data.speed * 100)} %</strong> de vitesse en monture</span>` +
+      `<span><strong>${data.passenger ? "Oui" : "Non"}</strong> passager</span>` +
+      `<span><strong>${data.parts.length.toLocaleString("fr-FR")}</strong> pièces</span>`;
+  const muts = mutations.filter(m => currentMutations.includes(m.id));
+  const multi = muts.length ? muts.reduce((a, m) => a + m.multiplier, 0) : 1;
+  document.getElementById("income").textContent = concept ? "" : muts.length
+    ? `Revenu : ${money(data.income)} × (${muts.map(m => String(m.multiplier).replace(".", ",")).join(" + ")}) = ${money(data.income * multi)} $/s`
+    : `Revenu : ${money(data.income)} $/s (sans mutation)`;
   document.getElementById("abilityName").textContent = data.ability ? `Capacité : ${data.ability.name} (${KIND[data.ability.kind] || data.ability.kind})` : "";
   document.getElementById("loading").hidden = true;
-  document.title = `${data.name} · Bestiaire du Canyon`;
+  document.title = `${data.name} · Bestiaire du Tapis`;
 }
 
 document.querySelectorAll("[data-anim]").forEach(b => b.onclick = () => {
@@ -976,6 +1275,7 @@ renderer.setAnimationLoop(() => {
   controls.update();
   if (creature) {
     stepAnim(creature, dt);
+    if (ghost) { ghost.st.t = creature.st.t - 1; ghost.st.move = creature.st.move; stepAnim(ghost, 0); }
     holder.updateMatrixWorld(true);
     if (showFx) {
       const px = pxScale();
@@ -992,7 +1292,11 @@ renderer.setAnimationLoop(() => {
 window.addEventListener("hashchange", () => show(location.hash.slice(1)));
 (async () => {
   try {
-    [index, mutations] = await Promise.all([fetch("index.json").then(r => r.json()), fetch("mutations.json").then(r => r.json())]);
+    [index, mutations, concepts] = await Promise.all([
+      fetch("index.json").then(r => r.json()),
+      fetch("mutations.json").then(r => r.json()),
+      fetch("concepts.json").then(r => (r.ok ? r.json() : [])).catch(() => []),
+    ]);
   } catch (err) {
     document.getElementById("loading").textContent = "Impossible de charger le bestiaire. Recharge la page.";
     return;
@@ -1000,7 +1304,7 @@ window.addEventListener("hashchange", () => show(location.hash.slice(1)));
   renderList();
   renderMutations();
   const start = location.hash.slice(1);
-  await show(index.some(c => c.id === start) ? start : "LeviathanDesProfondeurs");
+  await show(index.some(c => c.id === start) || concepts.some(c => c.id === start) ? start : (concepts[0] || index[0]).id);
   window.__ready = true;
 })();
 </script>

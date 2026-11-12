@@ -232,15 +232,26 @@ function Vfx.abilityOrigin(rig: Rig, ability: Types.Ability)
 end
 
 local AURA = {
-	Common = { rings = 1, pillars = 0, rate = 5 },
-	Uncommon = { rings = 1, pillars = 2, rate = 7 },
-	Rare = { rings = 2, pillars = 4, rate = 10 },
-	Epic = { rings = 2, pillars = 6, rate = 13 },
-	Legendary = { rings = 3, pillars = 8, rate = 18 },
-	Mythic = { rings = 3, pillars = 10, rate = 24 },
+	Common = { rings = 1, pillars = 0, rate = 4 },
+	Rare = { rings = 1, pillars = 2, rate = 8 },
+	Epic = { rings = 2, pillars = 4, rate = 11 },
+	Legendary = { rings = 2, pillars = 6, rate = 15 },
+	Mythic = { rings = 3, pillars = 8, rate = 20 },
 	Exotic = { rings = 3, pillars = 12, rate = 26 },
 	Exclusive = { rings = 3, pillars = 12, rate = 26 },
+	Chaotic = { rings = 3, pillars = 14, rate = 32 },
 }
+
+--- Couleur n°i d'une rareté : arc-en-ciel (Exotique), noir et or (Exclusif), glitch (Chaotique).
+local function tierColor(tier: Rarity.Tier, i: number): Color3
+	if tier.rainbow then
+		return Rarity.RAINBOW[(i - 1) % #Rarity.RAINBOW + 1]
+	elseif tier.glitch then
+		local g = { Rarity.GLITCH[1], Rarity.GLITCH[2], Rarity.GLITCH[3], Rarity.GLITCH[4] }
+		return g[(i - 1) % #g + 1]
+	end
+	return tier.color
+end
 
 --- Aura de rareté autour des pieds de la créature (à appeler en fin de construction).
 function Vfx.rarityAura(rig: Rig, rarityId: string)
@@ -259,15 +270,23 @@ function Vfx.rarityAura(rig: Rig, rarityId: string)
 		rig:bone("AuraGround", "Root", cf(c))
 		local glow = Kit.style(tier.color, Enum.Material.Neon, { transparency = 0.35, castShadow = false })
 		local soft = Kit.style(tier.light, Enum.Material.Neon, { transparency = 0.6, castShadow = false })
+		if tier.gold then -- Exclusif : anneau noir serti d'or
+			soft = Kit.style(tier.dark, Enum.Material.SmoothPlastic, { castShadow = false })
+		end
 		for k = 1, cfg.rings do
 			local rr = r * (1 - (k - 1) * 0.16)
-			rig:ring("AuraGround", "AuraRing", cf(c) * CFrame.Angles(math.pi / 2, 0, 0), rr, 0.07 + 0.03 * (cfg.rings - k), 0.02, 36, if k == 1 then glow else soft)
+			local st = if k == 1 then glow else soft
+			if tier.rainbow or tier.glitch then
+				st = Kit.style(tierColor(tier, k * 2), Enum.Material.Neon, { transparency = 0.35, castShadow = false })
+			end
+			rig:ring("AuraGround", "AuraRing", cf(c) * CFrame.Angles(math.pi / 2, 0, 0), rr, 0.07 + 0.03 * (cfg.rings - k), 0.02, 36, st)
 		end
 		-- Graduations runiques
 		local ticks = if cfg.rings >= 2 then 12 else 6
 		for i = 1, ticks do
 			local a = i / ticks * math.pi * 2
-			rig:block("AuraGround", "AuraTick", cf(c) * CFrame.Angles(0, a, 0) * cf(0, 0, -r * 0.92), v3(0.05, 0.02, 0.22), glow)
+			local st = if tier.rainbow or tier.glitch then Kit.style(tierColor(tier, i), Enum.Material.Neon, { castShadow = false }) else glow
+			rig:block("AuraGround", "AuraTick", cf(c) * CFrame.Angles(0, a, 0) * cf(0, 0, -r * 0.92), v3(0.05, 0.02, 0.22), st)
 		end
 	end
 
@@ -275,7 +294,7 @@ function Vfx.rarityAura(rig: Rig, rarityId: string)
 	for i = 1, cfg.pillars do
 		local a = i / cfg.pillars * math.pi * 2 + 0.3
 		local h = (if i % 2 == 0 then 2.2 else 3.2) * (0.6 + r * 0.25)
-		Vfx.pillar(rig, "Root", c + v3(math.cos(a) * r, 0, math.sin(a) * r), h, 0.22 + r * 0.04, tier.color)
+		Vfx.pillar(rig, "Root", c + v3(math.cos(a) * r, 0, math.sin(a) * r), h, 0.22 + r * 0.04, tierColor(tier, i))
 	end
 
 	-- Particules ascendantes
@@ -283,7 +302,7 @@ function Vfx.rarityAura(rig: Rig, rarityId: string)
 	Fx.particles(disc, {
 		name = "RarityMotes",
 		texture = Fx.TEXTURES.sparkle,
-		colors = { tier.light, tier.color },
+		colors = if tier.rainbow or tier.glitch then { tierColor(tier, 1), tierColor(tier, 2), tierColor(tier, 3) } else { tier.light, tier.color },
 		sizes = { 0.16, 0.28, 0 },
 		transparencies = { 0.1, 0.25, 1 },
 		lifetime = NumberRange.new(1.6, 2.8),

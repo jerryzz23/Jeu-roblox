@@ -177,7 +177,11 @@ local function exportPreview(def, model, iconCard)
 		id = def.Id,
 		name = def.DisplayName,
 		rarity = def.Rarity,
-		zone = def.Zone,
+		size = def.Size,
+		income = def.Income,
+		speed = def.SpeedBonus,
+		passenger = def.Passenger,
+		source = def.Source or "Tapis",
 		parts = parts,
 		bones = bones,
 		anim = def.Animation,
@@ -197,6 +201,31 @@ local function exportPreview(def, model, iconCard)
 end
 
 local ids = table.clone(process.args)
+
+-- Variantes de concept (non enregistrées dans le jeu) : lune run tools/export --concepts
+if ids[1] == "--concepts" then
+	local variants = Sandbox.load("src/shared/Concepts/NeantCouronneVariantes")
+	local list = {}
+	for _, def in variants do
+		local model = def.build({ scale = 1 })
+		local gui = roblox.Instance.new("ScreenGui")
+		local card = Forge.Icon.build(def, gui, {})
+		local preview = exportPreview(def, model, card)
+		preview.zone = "Concepts"
+		preview.size = "Colossal"
+		preview.income = 100000000
+		preview.speed = 4
+		preview.passenger = true
+		fs.writeFile(`tools/preview/{def.Id}.json`, serde.encode("json", preview, false))
+		fs.writeFile(`dist/models/{def.Id}.rbxm`, roblox.serializeModel({ model }))
+		table.insert(list, { id = def.Id, name = def.DisplayName, rarity = def.Rarity, zone = "Concepts", ability = def.Ability and def.Ability.name, gait = def.Animation.gait })
+		local _, size = Forge.Kit.visibleBounds(model)
+		print(string.format("%-12s %5d pièces | %.1f x %.1f x %.1f", def.Id, #preview.parts, size.Y, size.X, size.Z))
+	end
+	fs.writeFile("tools/preview/concepts.json", serde.encode("json", list, false))
+	return
+end
+
 local all = #ids == 0
 if all then
 	for _, def in Forge.list() do
@@ -208,25 +237,41 @@ fs.writeDir("dist/models")
 fs.writeDir("dist/icons")
 fs.writeDir("tools/preview")
 
--- Données des mutations pour l'aperçu web
+-- Données des mutations et des raretés pour l'aperçu web
 local muts = {}
 for _, m in Forge.Mutations.List do
-	local ramp = {}
-	for _, c in m.ramp do
-		table.insert(ramp, c3(c))
+	local badge = {}
+	for _, c in m.badge do
+		table.insert(badge, c3(c))
 	end
 	table.insert(muts, {
 		id = m.id,
 		label = m.label,
+		effect = m.effect,
+		odds = m.odds,
 		multiplier = m.multiplier,
-		chance = m.chance,
-		ramp = ramp,
 		glow = c3(m.glow),
-		rainbow = m.rainbow == true,
-		material = if m.material then m.material.Name else nil,
-		transparency = m.transparency,
+		badge = badge,
+		recolor = m.recolor,
 	})
 end
+local tiers = {}
+for _, id in Forge.Rarity.Order do
+	local t = Forge.Rarity.Tiers[id]
+	table.insert(tiers, {
+		id = id,
+		label = t.label,
+		color = c3(t.color),
+		light = c3(t.light),
+		dark = c3(t.dark),
+		where = t.where,
+		odds = t.odds,
+		rainbow = t.rainbow == true,
+		glitch = t.glitch == true,
+		gold = t.gold ~= nil,
+	})
+end
+fs.writeFile("tools/preview/rarities.json", serde.encode("json", tiers, false))
 fs.writeFile("tools/preview/mutations.json", serde.encode("json", muts, false))
 
 local index = {}
@@ -252,7 +297,19 @@ for _, id in ids do
 	total += #preview.parts
 
 	local _, size = Forge.Kit.visibleBounds(model)
-	print(string.format("%-26s %-10s %5d pièces | %.1f x %.1f x %.1f studs (scale 1, défaut x%.1f)", id, def.Rarity, #preview.parts, size.Y, size.X, size.Z, def.Scale or 1))
+	-- Taille du corps seul (sans orbites ni aura) pour régler Scale selon la taille visée
+	local lo, hi = roblox.Vector3.new(1e9, 1e9, 1e9), roblox.Vector3.new(-1e9, -1e9, -1e9)
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") and d.Transparency < 0.95 and d.Parent and d.Parent.Name ~= "Bones" and string.sub(d.Parent.Name, 1, 4) ~= "Aura" and d.Name ~= "AuraRing" and d.Name ~= "AuraTick" then
+			local p = d.CFrame.Position
+			lo = roblox.Vector3.new(math.min(lo.X, p.X), math.min(lo.Y, p.Y), math.min(lo.Z, p.Z))
+			hi = roblox.Vector3.new(math.max(hi.X, p.X), math.max(hi.Y, p.Y), math.max(hi.Z, p.Z))
+		end
+	end
+	local body = hi - lo
+	local span = math.max(body.X, body.Y, body.Z)
+	local target = Forge.Rarity.Sizes[def.Size] and Forge.Rarity.Sizes[def.Size].span or span
+	print(string.format("%-24s %-9s %-8s %5d pièces | %.1f x %.1f x %.1f (scale 1) | Scale %.2f -> conseillé %.2f", id, def.Rarity, def.Size or "?", #preview.parts, body.Y, body.X, body.Z, def.Scale or 1, target / span))
 end
 
 if all then
@@ -261,7 +318,11 @@ if all then
 			id = def.Id,
 			name = def.DisplayName,
 			rarity = def.Rarity,
-			zone = def.Zone,
+			size = def.Size,
+			income = def.Income,
+			speed = def.SpeedBonus,
+			passenger = def.Passenger,
+			source = def.Source or "Tapis",
 			ability = if def.Ability then def.Ability.name else nil,
 			gait = def.Animation.gait,
 		})

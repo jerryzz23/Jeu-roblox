@@ -294,6 +294,33 @@ function A.flame(rig: Rig, bone: string, base: CFrame, h: number, w: number, out
 	rig:thorn(bone, "FlameCore", base * cf(0, h * 0.1, 0), w * 0.36, h * 0.55, core)
 end
 
+--- Triangle quelconque (2 WedgeParts) : membranes d'ailes, voiles, éclats plats.
+function A.triangle(rig: Rig, bone: string, name: string, a: Vector3, b: Vector3, c: Vector3, thickness: number, style: Style)
+	-- La base est l'arête la plus longue ; on abaisse la hauteur depuis le sommet opposé.
+	local pts = { { a, b, c }, { b, c, a }, { c, a, b } }
+	local best = pts[1]
+	for _, p in pts do
+		if (p[2] - p[1]).Magnitude > (best[2] - best[1]).Magnitude then
+			best = p
+		end
+	end
+	local p0, p1, apex = best[1], best[2], best[3]
+	local base = p1 - p0
+	local t = (apex - p0):Dot(base) / base:Dot(base)
+	local foot = p0 + base * t
+	local h = (apex - foot).Magnitude
+	if h < 1e-3 then
+		return
+	end
+	local up = (apex - foot).Unit
+	for _, q in { p0, p1 } do
+		local leg = (q - foot).Magnitude
+		if leg > 1e-3 then
+			rig:wedgeTri(bone, name, foot, up, (q - foot).Unit, h, leg, thickness, style)
+		end
+	end
+end
+
 -- ---------------------------------------------------------------------------
 -- Plumes et ailes
 -- ---------------------------------------------------------------------------
@@ -317,13 +344,15 @@ export type WingSpec = {
 	rows: { { Style } }, -- rangées : { rémiges }, { couvertures }, { petites couvertures }
 	tip: Style?,
 	armStyle: Style,
+	pose: CFrame?, -- transformation appliquée à toute l'aile (ex. aile relevée), en espace modèle
 }
 
 --- Aile déployée (côté `side`) : bras en tube + 3 rangées de plumes imbriquées.
 function A.wing(rig: Rig, bone: string, side: number, spec: WingSpec)
+	local pose = spec.pose or CFrame.identity
 	local pts = {}
 	for _, p in spec.arm do
-		table.insert(pts, A.mx(p, side))
+		table.insert(pts, pose * A.mx(p, side))
 	end
 	local sections = {}
 	for i, p in pts do
@@ -347,13 +376,14 @@ function A.wing(rig: Rig, bone: string, side: number, spec: WingSpec)
 		for i = 1, n do
 			local t = (i - 1) / (n - 1)
 			local u = 1 + t * (#pts - 1)
-			local p = arm:pos(u) + v3(0, 0.02 * (r - 1), 0)
-			local outward = v3(side, 0, 0)
+			local p = arm:pos(u)
+			local outward = pose:VectorToWorldSpace(v3(side, 0, 0))
 			local sweep = rad(spec.sweep) * t
-			local dir = (back * math.cos(sweep) + outward * math.sin(sweep)).Unit
+			local dir = (pose:VectorToWorldSpace(back) * math.cos(sweep) + outward * math.sin(sweep)).Unit
 			local len = (spec.length[1] + (spec.length[2] - spec.length[1]) * (t ^ 1.4)) * scale
-			local right = dir:Cross(Vector3.yAxis).Unit
-			local base = CFrame.fromMatrix(p, right, dir, Vector3.yAxis) * ang(0, 0, 0)
+			local normal = pose:VectorToWorldSpace(Vector3.yAxis)
+			local right = dir:Cross(normal).Unit
+			local base = CFrame.fromMatrix(p + normal * 0.02 * (r - 1), right, dir, right:Cross(dir))
 			local style = row[(i % #row) + 1]
 			A.feather(rig, bone, base, len, spec.width * (0.85 + 0.3 * scale), style, if r == 1 then spec.tip else nil)
 		end

@@ -42,8 +42,11 @@ export type Ability = {
 	duration: number?, -- durée (secondes)
 }
 
---- Zones de la carte (du haut du canyon vers le fond).
-export type Zone = "Surface" | "PenteBrumeuse" | "GrottesCristal" | "Abysse"
+--- Taille (voir Rarity.Sizes) : plus une créature est grosse, plus elle rapporte.
+export type Size = "Small" | "Medium" | "Large" | "Giant" | "Colossal"
+
+--- Où la créature s'obtient : sur le tapis, sur le tapis ET dans la roue, ou seulement dans la roue.
+export type Source = "Tapis" | "TapisEtRoue" | "Roue"
 
 --- Habillage de l'icône d'inventaire.
 export type IconTheme = {
@@ -59,8 +62,12 @@ export type IconTheme = {
 export type CreatureDef = {
 	Id: string,
 	DisplayName: string,
-	Rarity: string,
-	Zone: Zone, -- zone de la carte où la créature apparaît
+	Rarity: string, -- "Common" | "Rare" | "Epic" | "Legendary" | "Mythic" | "Exotic" | "Exclusive" | "Chaotic"
+	Size: Size,
+	Income: number, -- argent de base par seconde ($/s) dans l'enclos
+	SpeedBonus: number, -- bonus de vitesse en monture (0.05 = +5 %)
+	Passenger: boolean, -- peut porter un passager (selle passager)
+	Source: Source?, -- défaut : "Tapis"
 	Scale: number?, -- échelle par défaut à l'apparition (taille en jeu)
 	Category: string,
 	Description: string,

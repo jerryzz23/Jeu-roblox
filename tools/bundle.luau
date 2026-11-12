@@ -3,7 +3,7 @@
 	de Roblox Studio (aucun ModuleScript requis) :
 	  dist/<Id>.commandbar.luau
 
-	Le script embarque Kit, Fx, Rarity, Types, Icon + la créature, construit le modèle
+	Le script embarque Kit, Fx, Rarity, Types, Icon, Mutations + la créature, construit le modèle
 	devant la caméra, le sélectionne et ajoute son icône dans StarterGui.
 
 	Usage : lune run tools/bundle [Id ...]   (sans argument : toutes les créatures)
@@ -15,7 +15,7 @@ local process = require("@lune/process")
 local SHARED = "src/shared"
 
 local function modulePath(name: string): string
-	for _, p in { `{SHARED}/{name}.luau`, `{SHARED}/Creatures/{name}.luau` } do
+	for _, p in { `{SHARED}/{name}.luau`, `{SHARED}/Creatures/{name}.luau`, `{SHARED}/Concepts/{name}.luau` } do
 		if fs.isFile(p) then
 			return p
 		end
@@ -89,9 +89,9 @@ local function bundle(id: string): string
 -- Entrée
 -- ============================================================================
 do
-	-- Réglages : mutation éventuelle ("Gold", "Diamond", "Toxic", "Infernal", "Void", "Rainbow")
-	-- et échelle (nil = taille par défaut de la créature).
-	local MUTATION = nil
+	-- Réglages : mutations cumulées, ex. { "Kintsugi", "Vitrail" } (Mousse, Kintsugi, Vitrail, Horloger,
+	-- Mirage, Encre, Aurore, Fossile, Constellation, Echo, Paradoxe) et échelle (nil = taille par défaut).
+	local MUTATIONS = nil
 	local SCALE = nil
 
 	local def = __require("%s")
@@ -112,8 +112,8 @@ do
 	local hit = workspace:Raycast(pos + Vector3.new(0, 50, 0), Vector3.new(0, -300, 0))
 	local ground = if hit then hit.Position else Vector3.new(pos.X, 0, pos.Z)
 	local model = def.build({ cframe = CFrame.lookAt(ground, ground - look), scale = SCALE or def.Scale })
-	if MUTATION then
-		Mutations.apply(model, MUTATION)
+	if MUTATIONS then
+		Mutations.apply(model, MUTATIONS)
 	end
 	model.Parent = workspace
 
@@ -145,7 +145,7 @@ do
 	if old then
 		old:Destroy()
 	end
-	Icon.build(def, tray, { mutation = MUTATION })
+	Icon.build(def, tray, { mutations = MUTATIONS })
 
 	pcall(function()
 		game:GetService("Selection"):Set({ model })

@@ -34,7 +34,8 @@ export type BuildOptions = {
 	effects: boolean?, -- particules + lumières — défaut : true
 	animated: boolean?, -- tag "CreatureForge" pour l'animateur client — défaut : true
 	detail: number?, -- densité des écailles/fourrures (1 = complète, 0.5 = moitié) — défaut : 1
-	mutation: string?, -- id de mutation (appliquée par CreatureForge.spawn / Icon.build)
+	mutation: string?, -- une mutation (raccourci de `mutations`)
+	mutations: { string }?, -- mutations cumulées (appliquées par CreatureForge.spawn / Icon.build)
 }
 
 export type PartKind = "Block" | "Wedge" | "Ball" | "Cylinder"

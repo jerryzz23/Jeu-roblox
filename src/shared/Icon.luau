@@ -27,6 +27,7 @@ export type IconOptions = {
 	showName: boolean?, -- défaut : true
 	showRarity: boolean?, -- défaut : true
 	mutation: string?, -- affiche la variante mutée + sa pastille
+	mutations: { string }?, -- plusieurs mutations cumulées
 	detail: number?, -- densité du modèle 3D (défaut : 0.55, plus léger)
 }
 
@@ -175,9 +176,10 @@ function Icon.build(def: Types.CreatureDef, parent: Instance?, opts: IconOptions
 	cam.Parent = vf
 	vf.CurrentCamera = cam
 	local model = def.build({ effects = false, outline = false, animated = false, detail = o.detail or 0.55 })
-	local mutation = if o.mutation then Mutations.get(o.mutation) else nil
+	local mutList = Mutations.normalize(o.mutations or o.mutation)
+	local mutation = Mutations.dominant(mutList)
 	if mutation then
-		Mutations.apply(model, mutation.id)
+		Mutations.apply(model, mutList)
 		for _, d in model:GetDescendants() do
 			if d:IsA("ParticleEmitter") or d:IsA("Light") then
 				d:Destroy()
@@ -213,7 +215,8 @@ function Icon.build(def: Types.CreatureDef, parent: Instance?, opts: IconOptions
 		corner(tag, 0.5)
 		gradient(tag, mutation.badge, 0)
 		stroke(tag, BLACK, 1.5, 0.2)
-		local t = label("Label", tag, `{mutation.label} x{mutation.multiplier}`, WHITE, 14)
+		local text = if #mutList > 1 then `{mutation.label} +{#mutList - 1}` else mutation.label
+		local t = label("Label", tag, `{text} x{Mutations.multiplier(mutList)}`, WHITE, 14)
 		t.Size = UDim2.fromScale(0.9, 0.72)
 		stroke(t, BLACK, 1.2)
 	end

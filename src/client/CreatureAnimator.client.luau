@@ -80,6 +80,7 @@ type State = {
 	sniffTimer: number,
 	tongueTimer: number,
 	frozen: boolean,
+	mutations: any,
 	connections: { RBXScriptConnection },
 }
 
@@ -130,6 +131,9 @@ local function untrack(model: Model)
 	for _, m in st.motors do
 		m.Transform = CFrame.identity
 	end
+	if st.mutations then
+		st.mutations:destroy()
+	end
 	states[model] = nil
 end
 
@@ -168,6 +172,11 @@ local function track(inst: Instance)
 		end
 	end
 	local seed = math.floor((root.Position.X * 73 + root.Position.Z * 19) % 100000)
+	local ok, rt = pcall(CreatureForge.Mutations.runtime, model, motors)
+	if not ok then
+		warn("[CreatureAnimator] mutations :", rt)
+		rt = nil
+	end
 	local st: State = {
 		model = model,
 		root = root,
@@ -189,6 +198,7 @@ local function track(inst: Instance)
 		sniffTimer = 2,
 		tongueTimer = 1.5,
 		frozen = false,
+		mutations = rt,
 		connections = {},
 	}
 	table.insert(
@@ -267,12 +277,28 @@ local function step(st: State, dt: number)
 			local k = i / math.max(#st.segs, 1)
 			m.Transform = CFrame.Angles(math.sin(t * rate * 0.6 - i * 0.4) * rad(2), math.sin(t * rate - i * 0.55) * amp * (0.3 + k), 0)
 		end
+	elseif p.gait == "Biped" then
+		-- Géant debout : pas lourds, balancier des bras, buste qui roule
+		local ph = gait
+		local step = math.abs(math.sin(ph)) * p.bob * mv
+		set(st, "Body", CFrame.new(0, (breathe + step) * sc, 0) * CFrame.Angles(0, math.sin(ph) * rad(4) * mv + math.sin(t * 0.5) * rad(3) * idle, math.sin(ph) * rad(3) * mv))
+		set(st, "Leg_R", CFrame.Angles(math.sin(ph) * swing, 0, 0))
+		set(st, "Leg_L", CFrame.Angles(-math.sin(ph) * swing, 0, 0))
+		set(st, "Arm_R", CFrame.Angles(-math.sin(ph) * swing * 0.7 + math.sin(t * 1.1) * rad(4) * idle, 0, math.sin(t * 0.8) * rad(3)))
+		set(st, "Arm_L", CFrame.Angles(math.sin(ph) * swing * 0.7 + math.sin(t * 1.1 + 1) * rad(4) * idle, 0, -math.sin(t * 0.8) * rad(3)))
 	elseif p.gait == "Hover" then
 		-- Lévitation : flottement lent, légère inclinaison en mouvement
 		local float = math.sin(t * 1.3) * p.hover
 		set(st, "Body", CFrame.new(0, float * sc, 0) * CFrame.Angles(-rad(10) * mv + math.sin(t * 0.9) * rad(2), math.sin(t * 0.5) * rad(4), 0))
 		set(st, "Arm_R", CFrame.Angles(math.sin(t * 1.1) * rad(8), 0, math.sin(t * 0.8) * rad(6)))
 		set(st, "Arm_L", CFrame.Angles(math.sin(t * 1.1 + 1.4) * rad(8), 0, -math.sin(t * 0.8 + 1) * rad(6)))
+		-- Ailes éventuelles : battements lents et majestueux (deux paires possibles)
+		local w = math.sin(t * 2.2) * rad(16) * (1 + mv * 0.5)
+		local w2 = math.sin(t * 2.2 - 0.8) * rad(12) * (1 + mv * 0.5)
+		set(st, "Wing_R", CFrame.Angles(0, 0, w))
+		set(st, "Wing_L", CFrame.Angles(0, 0, -w))
+		set(st, "Wing2_R", CFrame.Angles(0, 0, w2))
+		set(st, "Wing2_L", CFrame.Angles(0, 0, -w2))
 	else
 		-- Quadrupède : rebond au trot, pattes en balancier (avant-droite avec arrière-gauche)
 		local bob = math.abs(math.sin(gait)) * p.bob * mv
@@ -334,6 +360,20 @@ local function step(st: State, dt: number)
 		m.Transform = CFrame.Angles(math.sin(t * rate * 0.7 - i * 0.5) * rad(3), math.sin(t * rate - i * 0.6) * amp * (0.4 + k), 0)
 	end
 
+	-- Os "SwayN" (tentacules, voiles) : ondulation douce, cumulée le long des chaînes ;
+	-- os "FloatN" (mains, poings flottants) : flottement et légère rotation
+	for name, m in st.motors do
+		local prefix = string.sub(name, 1, 4)
+		if prefix == "Sway" then
+			local k = tonumber(string.sub(name, 5)) or 0
+			m.Transform = CFrame.Angles(math.sin(t * 1.4 + k * 0.9) * rad(9), 0, math.sin(t * 1.1 + k * 0.7) * rad(9))
+		elseif prefix == "Floa" then
+			local k = tonumber(string.sub(name, 6)) or 0
+			m.Transform = CFrame.new(0, math.sin(t * 1.6 + k * 2) * 0.15 * sc, 0)
+				* CFrame.Angles(math.sin(t * 0.9 + k) * rad(8), math.sin(t * 0.7 + k) * rad(12), 0)
+		end
+	end
+
 	-- Orbites : chaque anneau tourne (sens alterné) et ondule doucement ; l'aura au sol tourne lentement
 	for i, m in st.auras do
 		if m.Name == "AuraGround" then
@@ -383,6 +423,11 @@ local function step(st: State, dt: number)
 		if st.abilityT >= dur then
 			st.abilityT = -1
 		end
+	end
+
+	-- Mutations animées (engrenages, mirage, aurore, écho, paradoxe)
+	if st.mutations then
+		st.mutations:step(t, dt)
 	end
 
 	-- Lumières : vacillement (feu) ou légère pulsation

@@ -1,14 +1,13 @@
 --!strict
 --[[
-	LE RENARD DES CENDRES — Inhabituel · La Surface
-	===============================================
-	Canidé élégant à la fourrure flamboyante (orange/rouge), braises et marquages dorés.
-
-	• Fourrure en mèches orange → rouge à pointes jaune-or, plastron et joues blancs.
-	• Grande queue touffue dont le bout devient cendre grise et s'embrase (flammes Neon).
-	• Yeux ambrés à pupille fendue, oreilles à pointes noires, chaussettes sombres.
-	• Marquages dorés au front et sur les joues, bracelets dorés aux pattes.
-	• 3 braises en orbite ; effets : braises qui s'envolent, lueur chaude.
+	RENARD DES CENDRES — Commun · Petit
+	===================================
+	Renard gris avec des braises qui rougeoient dans la fourrure.
+	
+	• Fourrure grise en mèches, pointes de braise Neon orange qui rougeoient.
+	• Plastron et joues gris clair, chaussettes anthracite, marques de braise au front.
+	• Grande queue grise dont le bout devient cendre puis flammes.
+	• Effets : braises qui s'envolent, lueur chaude au bout de la queue.
 ]]
 
 local Kit = require(script.Parent.Parent.Kit)
@@ -28,18 +27,20 @@ local ang = CFrame.Angles
 local ID = "RenardDesCendres"
 
 local P = {
-	core = S(rgb(170, 60, 24)),
-	fur = { S(rgb(255, 156, 60)), S(rgb(246, 116, 36)), S(rgb(214, 76, 26)), S(rgb(164, 46, 22)) },
-	tip = S(rgb(255, 214, 96)),
-	white = { S(rgb(255, 250, 240)), S(rgb(240, 230, 220)) },
-	ash = { S(rgb(150, 144, 150)), S(rgb(110, 104, 112)), S(rgb(80, 76, 84)) },
-	sock = S(rgb(52, 30, 30)),
-	black = S(rgb(30, 22, 24)),
-	gold = S(rgb(255, 204, 60)),
-	eye = S(rgb(255, 184, 40)),
-	socket = S(rgb(40, 16, 10)),
+	core = S(rgb(58, 54, 60)),
+	fur = { S(rgb(176, 172, 178)), S(rgb(146, 142, 150)), S(rgb(116, 112, 122)), S(rgb(86, 82, 92)) },
+	tip = S(rgb(70, 66, 72)),
+	ember = S(rgb(255, 110, 30), M.Neon),
+	emberHot = S(rgb(255, 200, 80), M.Neon),
+	white = { S(rgb(232, 230, 234)), S(rgb(206, 204, 210)) },
+	ash = { S(rgb(120, 114, 118)), S(rgb(88, 84, 90)), S(rgb(62, 58, 64)) },
+	sock = S(rgb(46, 42, 48)),
+	black = S(rgb(26, 24, 28)),
+	gold = S(rgb(255, 120, 40), M.Neon),
+	eye = S(rgb(255, 150, 40), M.Neon),
+	socket = S(rgb(30, 14, 10)),
 	pupil = S(rgb(20, 10, 8)),
-	inner = S(rgb(255, 226, 200)),
+	inner = S(rgb(230, 170, 160)),
 	flameOut = S(rgb(255, 90, 20), M.Neon),
 	flameMid = S(rgb(255, 170, 40), M.Neon),
 	flameCore = S(rgb(255, 245, 180), M.Neon),
@@ -116,12 +117,25 @@ local function build(opts: Kit.BuildOptions?): Model
 	-- Plastron blanc
 	A.tuftBurst(rig, "Body", cf(0, 1.25, -0.82) * ang(rad(-110), 0, 0), 10, 0.36, 0.16, P.white, nil, 40, 3)
 
+	-- Braises qui rougeoient au fond de la fourrure
+	do
+		local rng = Random.new(3)
+		for i = 1, 26 do
+			local u = rng:NextNumber(1.5, 5.7)
+			rig:ball("Body", "Ember", BODY:surface(u, rng:NextNumber(-125, 125), 0.24).Position, rng:NextNumber(0.07, 0.14), if i % 3 == 0 then P.emberHot else P.ember)
+		end
+		for i = 1, 10 do
+			local u = rng:NextNumber(1.5, 4.2)
+			rig:ball(tail[math.clamp(math.floor(u), 1, #tail)], "Ember", TAIL:surface(u, rng:NextNumber(-180, 180), 0.26).Position, rng:NextNumber(0.07, 0.12), if i % 3 == 0 then P.emberHot else P.ember)
+		end
+	end
+
 	rig:tube(HEAD, {
 		name = "Head",
 		bone = const("Head"),
 		core = P.core,
 		coreStep = 0.15,
-		cover = { A.fur(P.fur, P.tip, v3(0.14, 0.2, 0.2), 0.12, { arc = 130, from = 2.4, refRadius = 0.26, seed = 4 }) },
+		cover = { A.fur(P.fur, P.white[2], v3(0.14, 0.2, 0.2), 0.12, { arc = 130, from = 2.4, refRadius = 0.26, seed = 4 }) },
 	})
 	rig:ball("Head", "Nose", v3(0, 1.62, -1.78), 0.11, P.black)
 	rig:prismBetween("Head", "Muzzle", v3(0, 1.55, -1.25), v3(0, 1.56, -1.7), 0.2, 0.1, 0.04, P.white[1])
@@ -138,7 +152,7 @@ local function build(opts: Kit.BuildOptions?): Model
 		local s = string.sub(sfx, 2)
 		for key, L in { F = { v3(0.25, 1.15, -0.5), v3(0.27, 0.6, -0.52), v3(0.27, 0.14, -0.58), 0.14 }, B = { v3(0.28, 1.2, 0.5), v3(0.32, 0.7, 0.68), v3(0.3, 0.14, 0.6), 0.24 } } do
 			local bone = "Leg_" .. key .. s
-			A.limb(rig, bone, side, { { L[1], L[4], L[4] * 1.15 }, { L[2], 0.09, 0.09 }, { L[3], 0.065, 0.065 } }, P.sock, A.fur(P.fur, P.tip, v3(0.16, 0.26, 0.24), 0.14, { arc = 180, to = 1.8, refRadius = 0.18, seed = 10 + side }))
+			A.limb(rig, bone, side, { { L[1], L[4], L[4] * 1.15 }, { L[2], 0.09, 0.09 }, { L[3], 0.065, 0.065 } }, P.sock, A.fur(P.fur, P.white[2], v3(0.16, 0.26, 0.24), 0.14, { arc = 180, to = 1.8, refRadius = 0.18, seed = 10 + side }))
 			A.paw(rig, bone, A.mx((L[3] :: Vector3) - v3(0, 0.14, 0.06), side), v3(0, 0, -1), 0.2, 3, P.sock, P.black, P.white[2])
 			rig:ring(bone, "GoldAnklet", cf(A.mx((L[2] :: Vector3):Lerp(L[3] :: Vector3, 0.55), side)) * ang(math.pi / 2, 0, 0), 0.085, 0.035, 0.05, 10, P.gold)
 		end
@@ -182,21 +196,24 @@ local function build(opts: Kit.BuildOptions?): Model
 		local tip = TAIL:pos(6)
 		Vfx.trail(rig, tail[5], tip + v3(0, 0.08, 0), tip - v3(0, 0.08, 0), { colors = { rgb(255, 210, 90), rgb(255, 70, 20) }, lifetime = 0.5 })
 		Vfx.abilityOrigin(rig, ABILITY)
-		Vfx.rarityAura(rig, "Uncommon")
+		Vfx.rarityAura(rig, "Common")
 	end
 
-	return rig:finish({ Rarity = "Uncommon" })
+	return rig:finish({ Rarity = "Common" })
 end
 
 local Def: Types.CreatureDef = {
 	Id = ID,
-	DisplayName = "Renard des Cendres",
-	Rarity = "Uncommon",
-	Zone = "Surface",
-	Scale = 1.5,
-	Category = "Créature Inhabituelle",
-	Description = "Canidé élégant à la fourrure flamboyante. Le bout de sa queue n'est que braises et cendres.",
-	Icon = { top = rgb(150, 50, 24), bottom = rgb(40, 12, 8), glow = rgb(255, 180, 80), motif = rgb(255, 210, 90), yaw = 34, pitch = 14, zoom = 1.1 },
+	DisplayName = "Renard des cendres",
+	Rarity = "Common",
+	Size = "Small",
+	Income = 5,
+	SpeedBonus = 0.05,
+	Passenger = false,
+	Scale = 1.4,
+	Category = "Créature Commune",
+	Description = "Renard gris des cendres : des braises rougeoient au fond de sa fourrure et le bout de sa queue brûle encore.",
+	Icon = { top = rgb(90, 70, 70), bottom = rgb(24, 18, 20), glow = rgb(255, 140, 60), motif = rgb(255, 120, 40), yaw = 34, pitch = 14, zoom = 1.1 },
 	Animation = { flicker = 0.3, gait = "Quadruped", breathe = 0.03, bob = 0.12, stride = 32, strideRate = 12, tailSway = 14, tailRate = 1.8, headLook = 22, sniff = true, earTwitch = true },
 	Ability = ABILITY,
 	build = build,

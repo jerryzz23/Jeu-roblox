@@ -3,10 +3,10 @@
 	CreatureShowcase (ServerScriptService)
 	--------------------------------------
 	Démo : fait apparaître toutes les créatures devant le point d'apparition, une rangée par
-	zone de la carte (Surface, Pente Brumeuse, Grottes de Cristal), puis les fait se promener
+	rareté (Commun, Rare, Épique... Chaotique), puis les fait se promener
 	(états "Move" / "Idle" lus par CreatureAnimator côté client) et déclencher de temps en
 	temps leur capacité spéciale (CreatureForge.playAbility : effets joués par les clients).
-	Une créature sur quatre reçoit une mutation au hasard pour la démonstration.
+	Environ une créature sur trois reçoit une ou deux mutations au hasard pour la démonstration.
 	Désactivez ce script (Enabled = false) dans votre vrai jeu.
 ]]
 
@@ -16,7 +16,7 @@ local TweenService = game:GetService("TweenService")
 local CreatureForge = require(ReplicatedStorage:WaitForChild("CreatureForge"))
 
 local GAP = 4 -- studs entre deux créatures d'une même rangée
-local ROW_GAP = 10 -- studs entre deux rangées (zones)
+local ROW_GAP = 10 -- studs entre deux rangées (raretés)
 local DISTANCE = 18 -- distance de la première rangée devant le point d'apparition
 local SPEED = 8 -- studs/s (multiplié par l'échelle)
 local MUTATION_DEMO = true
@@ -80,20 +80,22 @@ local right = forward:Cross(Vector3.yAxis)
 local rng = Random.new()
 
 local rowOffset = DISTANCE
-for _, zone in CreatureForge.Rarity.Zones do
-	local defs = CreatureForge.inZone(zone.id)
+for _, rarity in CreatureForge.Rarity.Order do
+	local defs = CreatureForge.ofRarity(rarity)
 	if #defs == 0 then
 		continue
 	end
 	-- Construit la rangée hors de Workspace pour mesurer les tailles, puis la centre
 	local models, widths, depth, total = {}, {}, 0, 0
 	for _, def in defs do
-		local mutation = nil
-		if MUTATION_DEMO and rng:NextNumber() < 0.25 then
+		local mutations = {}
+		if MUTATION_DEMO and rng:NextNumber() < 0.3 then
 			local list = CreatureForge.Mutations.List
-			mutation = list[rng:NextInteger(1, #list)].id
+			for _ = 1, rng:NextInteger(1, 2) do
+				table.insert(mutations, list[rng:NextInteger(1, #list)].id)
+			end
 		end
-		local model = CreatureForge.spawn(def.Id, CFrame.identity, { parent = folder, mutation = mutation })
+		local model = CreatureForge.spawn(def.Id, CFrame.identity, { parent = folder, mutations = mutations })
 		local size = model:GetExtentsSize()
 		table.insert(models, model)
 		table.insert(widths, size.X)

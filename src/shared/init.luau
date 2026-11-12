@@ -5,9 +5,10 @@
 	Point d'entrée : registre des créatures + fabrique de modèles et d'icônes.
 
 	    local CreatureForge = require(ReplicatedStorage.CreatureForge)
-	    local rat = CreatureForge.spawn("RatDesCavernes", CFrame.new(0, 0, -10))
-	    CreatureForge.setAnimState(rat, "Move")            -- "Idle" | "Move" | "Still"
-	    CreatureForge.buildIcon("RatDesCavernes", someFrame) -- carte d'inventaire
+	    local renard = CreatureForge.spawn("RenardDesCendres", CFrame.new(0, 0, -10), { mutations = { "Kintsugi" } })
+	    CreatureForge.setAnimState(renard, "Move")             -- "Idle" | "Move" | "Still"
+	    CreatureForge.buildIcon("RenardDesCendres", someFrame) -- carte d'inventaire
+	    local def, mutations = CreatureForge.rollSpawn(0.8)    -- apparition sur le tapis
 
 	Ajouter une créature = déposer un ModuleScript dans CreatureForge/Creatures
 	(voir Types.CreatureDef). Elle est enregistrée automatiquement.
@@ -21,6 +22,7 @@ local Anatomy = require(script.Anatomy)
 local Mutations = require(script.Mutations)
 local Vfx = require(script.Vfx)
 local Types = require(script.Types)
+local Spawning = require(script.Spawning)
 
 export type CreatureDef = Types.CreatureDef
 export type AnimState = "Idle" | "Move" | "Still" | "Ability"
@@ -33,6 +35,7 @@ local CreatureForge = {
 	Anatomy = Anatomy,
 	Mutations = Mutations,
 	Vfx = Vfx,
+	Spawning = Spawning,
 	TAG = Kit.TAG,
 }
 
@@ -72,6 +75,71 @@ function CreatureForge.list(): { Types.CreatureDef }
 	return out
 end
 
+--- Selles : chaque créature est une monture ("Saddle") ; les grandes ont une selle passager
+--- ("PassengerSeat") juste derrière (débloquée en jeu par la selle passager).
+local function ensureSeats(model: Model, def: Types.CreatureDef)
+	local root = model.PrimaryPart
+	if not root then
+		return
+	end
+	local scale = (model:GetAttribute("Scale") :: number?) or 1
+	local saddle = model:FindFirstChild("Saddle")
+	if not (saddle and saddle:IsA("Seat")) then
+		-- Point le plus haut du dos, près de l'axe du corps
+		local bones = model:FindFirstChild("Bones")
+		local body = if bones then bones:FindFirstChild("Body") else nil
+		local bodyFolder = model:FindFirstChild("Body")
+		if not (body and body:IsA("BasePart")) then
+			return
+		end
+		local top = (body :: BasePart).CFrame.Position.Y
+		if bodyFolder then
+			for _, d in bodyFolder:GetChildren() do
+				if d:IsA("BasePart") and d.Transparency < 0.95 then
+					local lp = root.CFrame:PointToObjectSpace(d.CFrame.Position)
+					local bp = root.CFrame:PointToObjectSpace((body :: BasePart).CFrame.Position)
+					if math.abs(lp.X) < 0.35 * scale and math.abs(lp.Z - bp.Z) < 0.6 * scale then
+						top = math.max(top, d.CFrame.Position.Y + d.Size.Y * 0.3)
+					end
+				end
+			end
+		end
+		local bpos = (body :: BasePart).CFrame.Position
+		local seat = Instance.new("Seat")
+		seat.Name = "Saddle"
+		seat.Size = Vector3.new(0.8, 0.2, 0.8) * scale
+		seat.Transparency = 1
+		seat.CanCollide = false
+		seat.Massless = true
+		seat.CFrame = (root.CFrame - root.CFrame.Position) + Vector3.new(bpos.X, top, bpos.Z)
+		local w = Instance.new("Weld")
+		w.Part0 = body :: BasePart
+		w.Part1 = seat
+		w.C0 = (body :: BasePart).CFrame:ToObjectSpace(seat.CFrame)
+		w.Parent = seat
+		seat.Parent = model
+		saddle = seat
+	end
+	if def.Passenger and not model:FindFirstChild("PassengerSeat") then
+		local s = saddle :: Seat
+		local weld = s:FindFirstChildOfClass("Weld")
+		local p = s:Clone()
+		p.Name = "PassengerSeat"
+		for _, c in p:GetChildren() do
+			c:Destroy()
+		end
+		p.CFrame = s.CFrame * CFrame.new(0, 0, s.Size.Z * 1.1)
+		if weld and weld.Part0 then
+			local w = Instance.new("Weld")
+			w.Part0 = weld.Part0
+			w.Part1 = p
+			w.C0 = weld.Part0.CFrame:ToObjectSpace(p.CFrame)
+			w.Parent = p
+		end
+		p.Parent = model
+	end
+end
+
 --- Construit la créature `id` au pivot `cframe` (au sol) et la parente à Workspace par défaut.
 --- opts.scale (défaut : def.Scale), opts.mutation (ex. "Gold"), voir Kit.BuildOptions.
 function CreatureForge.spawn(id: string, cframe: CFrame?, opts: Kit.BuildOptions?): Model
@@ -82,22 +150,49 @@ function CreatureForge.spawn(id: string, cframe: CFrame?, opts: Kit.BuildOptions
 	local parent = if o.parent == nil then workspace else o.parent
 	o.parent = nil
 	local model = def.build(o)
-	if o.mutation then
-		Mutations.apply(model, o.mutation)
+	local muts = o.mutations or (if o.mutation then { o.mutation } else nil)
+	if muts and #muts > 0 then
+		Mutations.apply(model, muts)
 	end
+	ensureSeats(model, def)
+	model:SetAttribute("Income", CreatureForge.income(id, muts))
+	model:SetAttribute("SpeedBonus", def.SpeedBonus)
+	model:SetAttribute("Passenger", def.Passenger)
 	model.Parent = parent
 	return model
 end
 
---- Créatures d'une zone de la carte (voir Rarity.Zones).
-function CreatureForge.inZone(zone: string): { Types.CreatureDef }
+--- Créatures d'une rareté (voir Rarity.Order).
+function CreatureForge.ofRarity(rarity: string): { Types.CreatureDef }
 	local out = {}
 	for _, def in CreatureForge.list() do
-		if def.Zone == zone then
+		if def.Rarity == rarity then
 			table.insert(out, def)
 		end
 	end
 	return out
+end
+
+--- Revenu par seconde d'une créature : base × (somme des multiplicateurs de mutation).
+function CreatureForge.income(id: string, mutations: { string }?): number
+	return CreatureForge.get(id).Income * Mutations.multiplier(mutations)
+end
+
+--- Tirage d'une apparition sur le tapis à la distance `distance` (0 = début, 1 = tout au bout).
+--- Renvoie la créature et ses mutations. `luck` = 2 pendant le boost « Chance x2 ».
+function CreatureForge.rollSpawn(distance: number, rng: Random?, luck: number?): (Types.CreatureDef?, { string })
+	local r = rng or Random.new()
+	local rarity = Spawning.rollRarity(distance, r, luck)
+	local pool = {}
+	for _, def in CreatureForge.ofRarity(rarity) do
+		if (def.Source or "Tapis") ~= "Roue" then
+			table.insert(pool, def)
+		end
+	end
+	if #pool == 0 then
+		return nil, {}
+	end
+	return pool[r:NextInteger(1, #pool)], Mutations.roll(r)
 end
 
 --- Construit la carte d'icône UI de la créature `id`.
