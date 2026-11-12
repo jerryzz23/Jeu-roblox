@@ -15,6 +15,7 @@
 local Kit = require(script.Parent.Parent.Kit)
 local A = require(script.Parent.Parent.Anatomy)
 local Fx = require(script.Parent.Parent.Fx)
+local Vfx = require(script.Parent.Parent.Vfx)
 local Types = require(script.Parent.Parent.Types)
 
 local S = Kit.style
@@ -61,6 +62,15 @@ local HEAD = Kit.spine({
 	{ pos = v3(0, 1.1, -1.5), rx = 0.44, ry = 0.4 },
 	{ pos = v3(0, 1.24, -1.18), rx = 0.5, ry = 0.48 },
 })
+
+-- Capacité spéciale (CreatureForge.playAbility)
+local ABILITY: Types.Ability = {
+	name = "Colère ancestrale",
+	kind = "Stomp",
+	colors = { rgb(255, 170, 40), rgb(140, 90, 30), rgb(255, 240, 180) },
+	texture = "spark",
+	radius = 7,
+}
 
 local function build(opts: Kit.BuildOptions?): Model
 	local rig = Kit.newRig(ID, opts)
@@ -173,6 +183,14 @@ local function build(opts: Kit.BuildOptions?): Model
 		Fx.particles(dust, Fx.mist("AncientDust", { rgb(170, 160, 140), rgb(110, 104, 90) }, 5, 0.9), sc)
 	end
 
+
+	-- Effets avancés : signature, origine de la capacité, aura de rareté
+	if rig.effects then
+		Vfx.orbitTethers(rig, "Aura1", Vfx.orbitPoints(v3(0, 1.6, 0), 2.6, 4, 0.3), "Body", v3(0, 2.1, -0.4), { colors = { rgb(255, 200, 90), rgb(255, 140, 30) }, transparency = { 0.3, 0.85 }, width0 = 0.09, width1 = 0.02, curve0 = 0.6 })
+		Vfx.abilityOrigin(rig, ABILITY)
+		Vfx.rarityAura(rig, "Epic")
+	end
+
 	return rig:finish({ Rarity = "Epic" })
 end
 
@@ -186,6 +204,7 @@ local Def: Types.CreatureDef = {
 	Description = "Sanglier géant des temps anciens. Ses défenses d'ivoire sont serties d'or, ses épaules couvertes de pierre.",
 	Icon = { top = rgb(110, 80, 40), bottom = rgb(26, 18, 10), glow = rgb(255, 190, 100), motif = rgb(255, 170, 40), yaw = 38, pitch = 14, zoom = 1.1 },
 	Animation = { gait = "Quadruped", breathe = 0.04, bob = 0.07, stride = 22, strideRate = 7, tailSway = 18, tailRate = 3, headLook = 14, sniff = true, earTwitch = true, auraSpeed = 0.35 },
+	Ability = ABILITY,
 	build = build,
 }
 

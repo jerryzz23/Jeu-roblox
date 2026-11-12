@@ -15,6 +15,7 @@
 local Kit = require(script.Parent.Parent.Kit)
 local A = require(script.Parent.Parent.Anatomy)
 local Fx = require(script.Parent.Parent.Fx)
+local Vfx = require(script.Parent.Parent.Vfx)
 local Types = require(script.Parent.Parent.Types)
 
 local S = Kit.style
@@ -56,6 +57,15 @@ local HEAD = Kit.spine({
 	{ pos = v3(0, 1.82, -0.92), rx = 0.26, ry = 0.25 },
 	{ pos = v3(0, 1.7, -0.74), rx = 0.22, ry = 0.22 },
 })
+
+-- Capacité spéciale (CreatureForge.playAbility)
+local ABILITY: Types.Ability = {
+	name = "Tempête de cristal",
+	kind = "Burst",
+	colors = { rgb(140, 230, 255), rgb(80, 160, 255), rgb(255, 255, 255) },
+	texture = "sparkle",
+	radius = 6,
+}
 
 local function build(opts: Kit.BuildOptions?): Model
 	local rig = Kit.newRig(ID, opts)
@@ -136,6 +146,15 @@ local function build(opts: Kit.BuildOptions?): Model
 		Fx.light(rig.bones.Body, { color = rgb(120, 210, 255), range = 10, brightness = 1.4 }, sc)
 	end
 
+
+	-- Effets avancés : signature, origine de la capacité, aura de rareté
+	if rig.effects then
+		Vfx.wingTrails(rig, v3(2.45, 1.98, -0.08), v3(0.1, 0, 0.32), { colors = { rgb(170, 240, 255), rgb(80, 160, 255) }, transparency = { 0.2, 1 }, lifetime = 0.45 })
+		Vfx.orbitRing(rig, "Aura1", Vfx.orbitPoints(v3(0, 1.6, 0), 2.1, 6, 0.3), { colors = { rgb(170, 240, 255), rgb(90, 170, 255) }, transparency = { 0.4, 0.7 }, width0 = 0.05 })
+		Vfx.abilityOrigin(rig, ABILITY)
+		Vfx.rarityAura(rig, "Rare")
+	end
+
 	return rig:finish({ Rarity = "Rare" })
 end
 
@@ -149,6 +168,7 @@ local Def: Types.CreatureDef = {
 	Description = "Grand rapace aux ailes et à la queue de cristal bleu translucide.",
 	Icon = { top = rgb(40, 90, 180), bottom = rgb(10, 18, 50), glow = rgb(170, 230, 255), motif = rgb(140, 230, 255), yaw = 28, pitch = 16, zoom = 1.15 },
 	Animation = { gait = "Flyer", flap = 30, flapRate = 5, hover = 0.14, headLook = 25, tailSway = 4, tailRate = 1.5, auraSpeed = 0.8 },
+	Ability = ABILITY,
 	build = build,
 }
 

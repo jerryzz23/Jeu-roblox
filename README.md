@@ -11,6 +11,14 @@ a son **icône UI** (UICorner + UIGradient + ViewportFrame) et accepte les **6 m
 > sur chaque pièce, comme ton visualiseur de référence). Dans Roblox, seul le contour extérieur
 > est dessiné (Highlight) et l'éclairage dépend de ta carte.
 
+## Bestiaire animé
+
+`tools/preview/bestiaire.html` affiche les 21 créatures en 3D, **animées** (repos, marche,
+capacité spéciale, figé), avec les mutations, les particules, les rayons et les traînées. C'est le
+même animateur que dans le jeu, porté en JavaScript. En local :
+`cd tools/preview && python3 -m http.server 8000` puis http://localhost:8000/bestiaire.html
+(une version en ligne a aussi été publiée en Artifact sur claude.ai).
+
 ## Zone 1 — La Surface (Communs & Inhabituels)
 
 ![La Surface](docs/previews/zone1-surface.png)
@@ -39,6 +47,55 @@ a son **icône UI** (UICorner + UIGradient + ViewportFrame) et accepte les **6 m
 La recoloration suit la luminosité de chaque pièce (les ombres restent des ombres), les parties
 Neon (yeux, cristaux, flammes) prennent la lueur de la mutation, et un halo de particules + une
 lumière sont ajoutés. `Mutations.roll()` fait le tirage (18,5 % de chances d'avoir une mutation).
+
+## Effets visuels (VFX)
+
+![VFX — La Surface](docs/previews/vfx-surface.png)
+![VFX — La Pente Brumeuse](docs/previews/vfx-pente-brumeuse.png)
+![VFX — Les Grottes de Cristal](docs/previews/vfx-grottes-cristal.png)
+
+Chaque créature combine :
+
+- **Aura de rareté** (automatique, `Vfx.rarityAura`) : anneaux Neon au sol qui tournent lentement
+  avec graduations runiques, colonnes de lumière (Beam) et particules ascendantes, de plus en plus
+  intenses de Commun (particules seules) à Mythique (3 anneaux, 8 colonnes, lumière).
+- **Effets signature** : particules propres à la créature (braises, flocons, spores, bulles, vapeur,
+  brume du néant...), **traînées** (Trail) au bout des ailes et des queues quand elles bougent,
+  **liens d'énergie** (Beam) entre les objets en orbite et la créature (ils suivent la rotation),
+  arcs entre les cristaux ou les bois du Cerf, colonnes de chaleur de la Tortue.
+- **Lumières vivantes** : les lumières vacillent pour les créatures de feu et pulsent doucement
+  pour les autres (animées côté client).
+- **Capacité spéciale** (`CreatureForge.playAbility(model)`, état d'animation `"Ability"`) : effets
+  joués localement par chaque client (onde de choc en ForceField, dôme d'énergie, souffle de
+  particules depuis la gueule, gerbe d'éclats, éruption, éclair de lumière) + pose de rugissement.
+  Dans la démo, les créatures lancent leur capacité de temps en temps.
+
+| Créature | Capacité | Type |
+| --- | --- | --- |
+| Rat des Cavernes | Éclat de cristal | Explosion d'éclats |
+| Lézard Mousseux | Nuage de pollen | Souffle |
+| Corbeau des Brumes | Bourrasque des brumes | Nova |
+| Pousse-Pierre | Séisme | Onde de choc au sol |
+| Lapin Solaire | Éruption solaire | Nova |
+| Renard des Cendres | Souffle de cendres | Souffle de feu |
+| Sanglier Runique | Charge runique | Onde de choc au sol |
+| Serpent d'Améthyste | Pluie d'améthyste | Explosion d'éclats |
+| Hibou des Glaces | Blizzard | Nova |
+| Tortue de Magma | Éruption | Éruption |
+| Loup des Fagnes | Hurlement des marais | Nova |
+| Faucon de Cristal | Tempête de cristal | Explosion d'éclats |
+| Ours Runique | Frappe runique | Onde de choc au sol |
+| Salamandre de Feu | Souffle de lave | Souffle de feu |
+| Cerf Céleste | Pluie d'étoiles | Nova |
+| Chat des Abysses | Vague du néant | Nova |
+| Sanglier Ancestral | Colère ancestrale | Onde de choc au sol |
+| Léviathan des Profondeurs | Raz-de-marée | Souffle d'eau |
+| Phénix Cendré | Renaissance | Nova de feu |
+| Mammouth Steampunk | Séisme mécanique | Onde de choc au sol |
+| Néant Couronné | Jugement écarlate | Nova |
+
+> Les aperçus montrent particules, rayons et lumières simulés par le visualiseur ; les traînées
+> et les capacités n'apparaissent qu'en mouvement, dans Roblox.
 
 ## Les 21 créatures
 
@@ -97,6 +154,7 @@ local CreatureForge = require(game.ReplicatedStorage.CreatureForge)
 -- Taille par défaut de la créature ; mutation optionnelle
 local loup = CreatureForge.spawn("LoupDesFagnes", CFrame.new(0, 0, -20), { mutation = "Void" })
 CreatureForge.setAnimState(loup, "Move")             -- "Idle" | "Move" | "Still"
+CreatureForge.playAbility(loup)                      -- capacité spéciale (effets sur tous les clients)
 
 local m = CreatureForge.Mutations.roll()             -- tirage d'une mutation (ou nil)
 CreatureForge.buildIcon("PhenixCendre", frame, { mutation = m and m.id })
@@ -128,15 +186,17 @@ src/shared/                 -> ReplicatedStorage.CreatureForge
   Anatomy.luau              pattes, sabots, yeux, oreilles, cornes, dents, crêtes, flammes,
                             plumes, ailes, cristaux, engrenages, runes, orbites
   Mutations.luau            6 mutations (recoloration + particules + multiplicateur)
+  Vfx.luau                  aura de rareté, rayons (Beam), traînées (Trail), capacités spéciales
   Fx.luau                   particules et lumières (textures moteur, aucun asset à téléverser)
   Icon.luau                 carte d'icône (UICorner, UIGradient, UIStroke, ViewportFrame)
   Rarity.luau               raretés (Commun -> Exclusif) + zones de la carte
   Types.luau                contrat CreatureDef / AnimProfile / IconTheme
   Creatures/                une créature = un ModuleScript (auto-enregistré)
 src/client/                 CreatureAnimator (démarches Quadruped, Sprawler, Flyer, Serpent,
-                            Hover + orbites), CreatureBestiary (UI)
+                            Hover + orbites + capacités + lumières), CreatureBestiary (UI)
 src/server/                 CreatureShowcase (démo par zones)
-tools/                      export.luau, bundle.luau, build_place.luau, preview/viewer.html
+tools/                      export.luau, bundle.luau, build_place.luau,
+                            preview/bestiaire.html (bestiaire animé), preview/viewer.html (aperçus)
 ```
 
 ### Régénérer `dist/` et les aperçus
@@ -148,5 +208,6 @@ lune run tools/export        # dist/models, dist/icons, données d'aperçu
 lune run tools/bundle        # dist/<Créature>.commandbar.luau
 lune run tools/build_place   # dist/CreatureForge.rbxl
 cd tools/preview && python3 -m http.server 8000
-# http://localhost:8000/viewer.html?id=MammouthSteampunk   (mutations, vues, export GLB/OBJ)
+# http://localhost:8000/viewer.html?id=MammouthSteampunk   (mutations, VFX, vues, export GLB/OBJ ;
+# ajoute &bg=dark pour un fond sombre)
 ```

@@ -15,6 +15,7 @@
 local Kit = require(script.Parent.Parent.Kit)
 local A = require(script.Parent.Parent.Anatomy)
 local Fx = require(script.Parent.Parent.Fx)
+local Vfx = require(script.Parent.Parent.Vfx)
 local Types = require(script.Parent.Parent.Types)
 
 local S = Kit.style
@@ -58,6 +59,15 @@ local HEAD = Kit.spine({
 	{ pos = v3(0, 0.82, -1.3), rx = 0.27, ry = 0.25 },
 	{ pos = v3(0, 0.82, -0.95), rx = 0.3, ry = 0.28 },
 })
+
+-- Capacité spéciale (CreatureForge.playAbility)
+local ABILITY: Types.Ability = {
+	name = "Éruption",
+	kind = "Eruption",
+	colors = { rgb(255, 120, 30), rgb(200, 40, 10), rgb(255, 230, 120) },
+	texture = "fire",
+	radius = 5,
+}
 
 local function build(opts: Kit.BuildOptions?): Model
 	local rig = Kit.newRig(ID, opts)
@@ -140,6 +150,17 @@ local function build(opts: Kit.BuildOptions?): Model
 		Fx.light(rig.bones.Body, { color = rgb(255, 120, 40), range = 9, brightness = 1.4 }, rig.scale)
 	end
 
+
+	-- Effets avancés : signature, origine de la capacité, aura de rareté
+	if rig.effects then
+		-- Colonnes de chaleur au-dessus des cheminées
+		for _, spot in { { 3.6, -30 }, { 4.3, 25 }, { 4.9, -10 } } do
+			Vfx.pillar(rig, "Body", (SHELL:surface(spot[1], spot[2], 0.1) * cf(0, 0.45, 0)).Position, 1.6, 0.3, rgb(255, 120, 40))
+		end
+		Vfx.abilityOrigin(rig, ABILITY)
+		Vfx.rarityAura(rig, "Uncommon")
+	end
+
 	return rig:finish({ Rarity = "Uncommon" })
 end
 
@@ -152,7 +173,8 @@ local Def: Types.CreatureDef = {
 	Category = "Créature Inhabituelle",
 	Description = "Tortue massive dont la carapace volcanique est fendue de coulées de lave.",
 	Icon = { top = rgb(120, 40, 20), bottom = rgb(30, 10, 8), glow = rgb(255, 150, 60), motif = rgb(255, 106, 24), yaw = 36, pitch = 22, zoom = 1.1 },
-	Animation = { gait = "Sprawler", breathe = 0.02, sway = 4, stride = 20, strideRate = 4, tailSway = 6, tailRate = 1, headLook = 14, auraSpeed = 0.4 },
+	Animation = { flicker = 0.35, gait = "Sprawler", breathe = 0.02, sway = 4, stride = 20, strideRate = 4, tailSway = 6, tailRate = 1, headLook = 14, auraSpeed = 0.4 },
+	Ability = ABILITY,
 	build = build,
 }
 

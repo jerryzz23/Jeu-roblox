@@ -19,10 +19,11 @@ local Rarity = require(script.Rarity)
 local Icon = require(script.Icon)
 local Anatomy = require(script.Anatomy)
 local Mutations = require(script.Mutations)
+local Vfx = require(script.Vfx)
 local Types = require(script.Types)
 
 export type CreatureDef = Types.CreatureDef
-export type AnimState = "Idle" | "Move" | "Still"
+export type AnimState = "Idle" | "Move" | "Still" | "Ability"
 
 local CreatureForge = {
 	Kit = Kit,
@@ -31,6 +32,7 @@ local CreatureForge = {
 	Icon = Icon,
 	Anatomy = Anatomy,
 	Mutations = Mutations,
+	Vfx = Vfx,
 	TAG = Kit.TAG,
 }
 
@@ -106,6 +108,27 @@ end
 --- Change l'état d'animation lu par CreatureAnimator (client).
 function CreatureForge.setAnimState(model: Model, state: AnimState)
 	model:SetAttribute("AnimState", state)
+end
+
+--- Déclenche la capacité spéciale de la créature (serveur ou client) : les clients jouent
+--- les effets (Vfx.playAbility) et la pose, puis la créature revient à son état précédent.
+--- Renvoie la durée de la capacité (0 si la créature n'en a pas).
+function CreatureForge.playAbility(model: Model): number
+	local id = model:GetAttribute("CreatureId")
+	local def = if typeof(id) == "string" and registry[id] then registry[id] else nil
+	if not def or not def.Ability then
+		return 0
+	end
+	local duration = def.Ability.duration or 1.6
+	local previous = model:GetAttribute("AnimState")
+	model:SetAttribute("AbilitySeq", ((model:GetAttribute("AbilitySeq") :: number?) or 0) + 1)
+	model:SetAttribute("AnimState", "Ability")
+	task.delay(duration, function()
+		if model.Parent and model:GetAttribute("AnimState") == "Ability" then
+			model:SetAttribute("AnimState", if previous == "Move" then "Move" else "Idle")
+		end
+	end)
+	return duration
 end
 
 return CreatureForge

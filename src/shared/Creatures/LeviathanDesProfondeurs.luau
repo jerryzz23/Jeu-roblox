@@ -17,6 +17,7 @@
 local Kit = require(script.Parent.Parent.Kit)
 local A = require(script.Parent.Parent.Anatomy)
 local Fx = require(script.Parent.Parent.Fx)
+local Vfx = require(script.Parent.Parent.Vfx)
 local Types = require(script.Parent.Parent.Types)
 
 local S = Kit.style
@@ -108,6 +109,18 @@ local function segBone(u: number): string
 	end
 	return "Body"
 end
+
+-- Capacité spéciale (CreatureForge.playAbility)
+local ABILITY: Types.Ability = {
+	name = "Raz-de-marée",
+	kind = "Breath",
+	colors = { rgb(120, 240, 255), rgb(30, 140, 200), rgb(255, 255, 255) },
+	texture = "smoke",
+	radius = 8,
+	origin = v3(0, 4.25, -2.85),
+	direction = v3(0, -0.25, -1),
+	duration = 2,
+}
 
 local function build(opts: Kit.BuildOptions?): Model
 	local rig = Kit.newRig(ID, opts)
@@ -229,6 +242,15 @@ local function build(opts: Kit.BuildOptions?): Model
 		Fx.light(rig.bones.Head, { color = rgb(90, 230, 255), range = 14, brightness = 1.6 }, sc)
 	end
 
+
+	-- Effets avancés : signature, origine de la capacité, aura de rareté
+	if rig.effects then
+		-- Courants d'eau reliant les piliers d'or
+		Vfx.orbitRing(rig, "Aura1", Vfx.orbitPoints(v3(0, 1.6, 1.0), 4.0, 8, 0.6), { colors = { rgb(140, 250, 255), rgb(255, 220, 120) }, transparency = { 0.4, 0.75 }, width0 = 0.12, curve0 = 0.8, curve1 = -0.8 })
+		Vfx.abilityOrigin(rig, ABILITY)
+		Vfx.rarityAura(rig, "Legendary")
+	end
+
 	return rig:finish({ Rarity = "Legendary" })
 end
 
@@ -242,6 +264,7 @@ local Def: Types.CreatureDef = {
 	Description = "Dragon aquatique géant enroulé en spirale, ceint d'or, gardien des eaux souterraines.",
 	Icon = { top = rgb(20, 110, 140), bottom = rgb(4, 24, 40), glow = rgb(140, 250, 240), motif = rgb(255, 200, 60), yaw = 32, pitch = 14, zoom = 1.1 },
 	Animation = { gait = "Serpent", breathe = 0.04, sway = 8, tailRate = 1.1, headLook = 14, auraSpeed = 0.25 },
+	Ability = ABILITY,
 	build = build,
 }
 

@@ -14,6 +14,7 @@
 local Kit = require(script.Parent.Parent.Kit)
 local A = require(script.Parent.Parent.Anatomy)
 local Fx = require(script.Parent.Parent.Fx)
+local Vfx = require(script.Parent.Parent.Vfx)
 local Types = require(script.Parent.Parent.Types)
 
 local S = Kit.style
@@ -75,6 +76,15 @@ local TAIL = Kit.spine({
 	{ pos = v3(0.05, 0.7, 1.82), rx = 0.18, ry = 0.18 },
 	{ pos = v3(0.08, 0.55, 1.92), rx = 0.03, ry = 0.03 },
 })
+
+-- Capacité spéciale (CreatureForge.playAbility)
+local ABILITY: Types.Ability = {
+	name = "Hurlement des marais",
+	kind = "Nova",
+	colors = { rgb(170, 255, 100), rgb(60, 160, 60), rgb(240, 255, 200) },
+	texture = "smoke",
+	radius = 5,
+}
 
 local function build(opts: Kit.BuildOptions?): Model
 	local rig = Kit.newRig(ID, opts)
@@ -197,6 +207,14 @@ local function build(opts: Kit.BuildOptions?): Model
 		}, sc)
 	end
 
+
+	-- Effets avancés : signature, origine de la capacité, aura de rareté
+	if rig.effects then
+		Vfx.orbitTethers(rig, "Aura1", Vfx.orbitPoints(v3(0, 1.8, 0), 1.9, 3, 0.3), "Body", v3(0, 1.75, -0.95), { colors = { rgb(170, 255, 140), rgb(80, 200, 80) }, transparency = { 0.4, 0.9 }, width0 = 0.06, width1 = 0.02, curve0 = 0.5 })
+		Vfx.abilityOrigin(rig, ABILITY)
+		Vfx.rarityAura(rig, "Uncommon")
+	end
+
 	return rig:finish({ Rarity = "Uncommon" })
 end
 
@@ -209,7 +227,8 @@ local Def: Types.CreatureDef = {
 	Category = "Créature Inhabituelle",
 	Description = "Prédateur des marais au pelage trempé de boue. Son collier runique luit dans la brume.",
 	Icon = { top = rgb(54, 80, 50), bottom = rgb(14, 18, 14), glow = rgb(200, 255, 120), motif = rgb(110, 255, 120), yaw = 34, pitch = 12, zoom = 1.1 },
-	Animation = { gait = "Quadruped", breathe = 0.035, bob = 0.12, stride = 34, strideRate = 12, tailSway = 10, tailRate = 1.6, headLook = 18, sniff = true, earTwitch = true, auraSpeed = 0.5 },
+	Animation = { flicker = 0.15, gait = "Quadruped", breathe = 0.035, bob = 0.12, stride = 34, strideRate = 12, tailSway = 10, tailRate = 1.6, headLook = 18, sniff = true, earTwitch = true, auraSpeed = 0.5 },
+	Ability = ABILITY,
 	build = build,
 }
 

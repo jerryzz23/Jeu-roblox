@@ -117,6 +117,12 @@ local function makeEnv(scriptNode)
 		end,
 		task = require("@lune/task"),
 		Random = RandomShim,
+		-- Services factices : seules les fonctions de construction sont exécutées hors de Studio
+		game = {
+			GetService = function(_, name)
+				return { Name = name }
+			end,
+		},
 	}
 	for _, name in GLOBAL_NAMES do
 		env[name] = (roblox :: any)[name]

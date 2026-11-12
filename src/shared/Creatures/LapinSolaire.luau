@@ -14,6 +14,7 @@
 local Kit = require(script.Parent.Parent.Kit)
 local A = require(script.Parent.Parent.Anatomy)
 local Fx = require(script.Parent.Parent.Fx)
+local Vfx = require(script.Parent.Parent.Vfx)
 local Types = require(script.Parent.Parent.Types)
 
 local S = Kit.style
@@ -66,6 +67,15 @@ local function sun(rig: Kit.Rig, bone: string, c: CFrame, r: number)
 		rig:spike(bone, "SunRay", c * ang(0, 0, a) * cf(0, r * 1.05, 0), r * 0.7, r * (if i % 2 == 0 then 1.3 else 0.9), r * 0.3, P.sun)
 	end
 end
+
+-- Capacité spéciale (CreatureForge.playAbility)
+local ABILITY: Types.Ability = {
+	name = "Éruption solaire",
+	kind = "Nova",
+	colors = { rgb(255, 220, 80), rgb(255, 150, 40), rgb(255, 255, 220) },
+	texture = "sparkle",
+	radius = 4.5,
+}
 
 local function build(opts: Kit.BuildOptions?): Model
 	local rig = Kit.newRig(ID, opts)
@@ -141,6 +151,15 @@ local function build(opts: Kit.BuildOptions?): Model
 		Fx.light(glow, { color = rgb(255, 210, 110), range = 8, brightness = 1.3 }, sc)
 	end
 
+
+	-- Effets avancés : signature, origine de la capacité, aura de rareté
+	if rig.effects then
+		-- Rayons dorés reliant les petits soleils au lapin
+		Vfx.orbitTethers(rig, "Aura1", Vfx.orbitPoints(v3(0, 1.3, 0), 1.25, 3, 0.15), "Body", v3(0, 1.1, 0), { colors = { rgb(255, 230, 120), rgb(255, 170, 60) }, transparency = { 0.3, 0.8 }, width0 = 0.08, width1 = 0.02 })
+		Vfx.abilityOrigin(rig, ABILITY)
+		Vfx.rarityAura(rig, "Common")
+	end
+
 	return rig:finish({ Rarity = "Common" })
 end
 
@@ -154,6 +173,7 @@ local Def: Types.CreatureDef = {
 	Description = "Créature vive à la fourrure dorée. Ses anneaux lumineux s'allument au soleil.",
 	Icon = { top = rgb(255, 170, 70), bottom = rgb(130, 50, 20), glow = rgb(255, 240, 150), motif = rgb(255, 250, 200), yaw = 32, pitch = 14, zoom = 1.05 },
 	Animation = { gait = "Quadruped", breathe = 0.03, bob = 0.3, stride = 26, strideRate = 9, tailSway = 4, tailRate = 3, headLook = 20, sniff = true, earTwitch = true, auraSpeed = 1 },
+	Ability = ABILITY,
 	build = build,
 }
 

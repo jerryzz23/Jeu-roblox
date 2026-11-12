@@ -14,6 +14,7 @@
 local Kit = require(script.Parent.Parent.Kit)
 local A = require(script.Parent.Parent.Anatomy)
 local Fx = require(script.Parent.Parent.Fx)
+local Vfx = require(script.Parent.Parent.Vfx)
 local Types = require(script.Parent.Parent.Types)
 
 local S = Kit.style
@@ -69,6 +70,16 @@ local TAIL = Kit.spine({
 	{ pos = v3(0.35, 1.55, 2.5), rx = 0.16, ry = 0.16 },
 	{ pos = v3(0.38, 1.75, 2.62), rx = 0.04, ry = 0.04 },
 })
+
+-- Capacité spéciale (CreatureForge.playAbility)
+local ABILITY: Types.Ability = {
+	name = "Souffle de cendres",
+	kind = "Breath",
+	colors = { rgb(255, 140, 40), rgb(255, 60, 20), rgb(255, 240, 160) },
+	texture = "fire",
+	origin = v3(0, 1.6, -1.82),
+	direction = v3(0, -0.05, -1),
+}
 
 local function build(opts: Kit.BuildOptions?): Model
 	local rig = Kit.newRig(ID, opts)
@@ -165,6 +176,15 @@ local function build(opts: Kit.BuildOptions?): Model
 		Fx.particles(body, Fx.embers("Embers", { rgb(255, 220, 120), rgb(255, 100, 30) }, 6, 0.16), sc)
 	end
 
+
+	-- Effets avancés : signature, origine de la capacité, aura de rareté
+	if rig.effects then
+		local tip = TAIL:pos(6)
+		Vfx.trail(rig, tail[5], tip + v3(0, 0.08, 0), tip - v3(0, 0.08, 0), { colors = { rgb(255, 210, 90), rgb(255, 70, 20) }, lifetime = 0.5 })
+		Vfx.abilityOrigin(rig, ABILITY)
+		Vfx.rarityAura(rig, "Uncommon")
+	end
+
 	return rig:finish({ Rarity = "Uncommon" })
 end
 
@@ -177,7 +197,8 @@ local Def: Types.CreatureDef = {
 	Category = "Créature Inhabituelle",
 	Description = "Canidé élégant à la fourrure flamboyante. Le bout de sa queue n'est que braises et cendres.",
 	Icon = { top = rgb(150, 50, 24), bottom = rgb(40, 12, 8), glow = rgb(255, 180, 80), motif = rgb(255, 210, 90), yaw = 34, pitch = 14, zoom = 1.1 },
-	Animation = { gait = "Quadruped", breathe = 0.03, bob = 0.12, stride = 32, strideRate = 12, tailSway = 14, tailRate = 1.8, headLook = 22, sniff = true, earTwitch = true },
+	Animation = { flicker = 0.3, gait = "Quadruped", breathe = 0.03, bob = 0.12, stride = 32, strideRate = 12, tailSway = 14, tailRate = 1.8, headLook = 22, sniff = true, earTwitch = true },
+	Ability = ABILITY,
 	build = build,
 }
 

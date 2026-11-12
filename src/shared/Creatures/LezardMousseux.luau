@@ -24,6 +24,7 @@
 
 local Kit = require(script.Parent.Parent.Kit)
 local Fx = require(script.Parent.Parent.Fx)
+local Vfx = require(script.Parent.Parent.Vfx)
 local Types = require(script.Parent.Parent.Types)
 
 local S = Kit.style
@@ -129,6 +130,16 @@ local function trunkBone(u: number): string
 	end
 	return "Tail" .. math.clamp(math.floor(u - TAIL_START) + 1, 1, 6)
 end
+
+-- Capacité spéciale (CreatureForge.playAbility)
+local ABILITY: Types.Ability = {
+	name = "Nuage de pollen",
+	kind = "Breath",
+	colors = { rgb(200, 240, 96), rgb(120, 200, 60), rgb(255, 255, 200) },
+	texture = "smoke",
+	origin = v3(0, 0.6, -2.5),
+	direction = v3(0, 0.15, -1),
+}
 
 local function build(opts: Kit.BuildOptions?): Model
 	local rig = Kit.newRig(ID, opts)
@@ -437,6 +448,16 @@ local function build(opts: Kit.BuildOptions?): Model
 		}, sc)
 	end
 
+
+	-- Effets avancés : signature, origine de la capacité, aura de rareté
+	if rig.effects then
+		-- Traînée verte au bout de la queue
+		local tip = SPINE:pos(12)
+		Vfx.trail(rig, "Tail6", tip + v3(0, 0.05, 0), tip - v3(0, 0.05, 0), { colors = { rgb(200, 255, 120) }, lifetime = 0.35 })
+		Vfx.abilityOrigin(rig, ABILITY)
+		Vfx.rarityAura(rig, "Common")
+	end
+
 	return rig:finish({ Rarity = "Common" })
 end
 
@@ -468,6 +489,7 @@ local LezardMousseux: Types.CreatureDef = {
 		headLook = 18,
 		tongueFlick = true,
 	},
+	Ability = ABILITY,
 	build = build,
 }
 

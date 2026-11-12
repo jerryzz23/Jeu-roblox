@@ -15,6 +15,7 @@
 local Kit = require(script.Parent.Parent.Kit)
 local A = require(script.Parent.Parent.Anatomy)
 local Fx = require(script.Parent.Parent.Fx)
+local Vfx = require(script.Parent.Parent.Vfx)
 local Types = require(script.Parent.Parent.Types)
 
 local S = Kit.style
@@ -63,6 +64,15 @@ local function star(rig: Kit.Rig, bone: string, c: CFrame, size: number, style: 
 	rig:thorn(bone, "Star", c, size, size * 1.3, style)
 	rig:thorn(bone, "Star", c * ang(math.pi, 0, 0), size, size * 0.6, style)
 end
+
+-- Capacité spéciale (CreatureForge.playAbility)
+local ABILITY: Types.Ability = {
+	name = "Pluie d'étoiles",
+	kind = "Nova",
+	colors = { rgb(140, 240, 255), rgb(80, 100, 220), rgb(255, 255, 255) },
+	texture = "sparkle",
+	radius = 6,
+}
 
 local function build(opts: Kit.BuildOptions?): Model
 	local rig = Kit.newRig(ID, opts)
@@ -162,6 +172,16 @@ local function build(opts: Kit.BuildOptions?): Model
 		Fx.light(rig.bones.Head, { color = rgb(130, 230, 255), range = 12, brightness = 1.6 }, sc)
 	end
 
+
+	-- Effets avancés : signature, origine de la capacité, aura de rareté
+	if rig.effects then
+		-- Constellation reliant les étoiles en orbite + arc lumineux entre les bois
+		Vfx.orbitRing(rig, "Aura1", Vfx.orbitPoints(v3(0, 2.4, 0), 2.2, 6, 0.4), { colors = { rgb(200, 250, 255), rgb(120, 200, 255) }, transparency = { 0.35, 0.7 }, width0 = 0.04 })
+		Vfx.beam(rig, "Head", v3(0.62, 4.15, -0.5), "Head", v3(-0.62, 4.15, -0.5), { colors = { rgb(160, 245, 255), rgb(255, 255, 255) }, transparency = { 0.2, 0.5 }, width0 = 0.08, curve0 = 0.6, curve1 = -0.6 }, v3(0, 1, 0))
+		Vfx.abilityOrigin(rig, ABILITY)
+		Vfx.rarityAura(rig, "Epic")
+	end
+
 	return rig:finish({ Rarity = "Epic" })
 end
 
@@ -175,6 +195,7 @@ local Def: Types.CreatureDef = {
 	Description = "Cerf majestueux aux bois géométriques lumineux. Des étoiles brillent dans sa robe.",
 	Icon = { top = rgb(40, 40, 120), bottom = rgb(8, 8, 30), glow = rgb(160, 230, 255), motif = rgb(255, 255, 255), yaw = 32, pitch = 10, zoom = 1.05 },
 	Animation = { gait = "Quadruped", breathe = 0.03, bob = 0.1, stride = 30, strideRate = 9, tailSway = 8, tailRate = 3, headLook = 16, earTwitch = true, auraSpeed = 0.35 },
+	Ability = ABILITY,
 	build = build,
 }
 

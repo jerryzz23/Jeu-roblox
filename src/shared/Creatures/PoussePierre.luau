@@ -16,6 +16,7 @@
 local Kit = require(script.Parent.Parent.Kit)
 local A = require(script.Parent.Parent.Anatomy)
 local Fx = require(script.Parent.Parent.Fx)
+local Vfx = require(script.Parent.Parent.Vfx)
 local Types = require(script.Parent.Parent.Types)
 
 local S = Kit.style
@@ -69,6 +70,15 @@ local TAIL = Kit.spine({
 	{ pos = v3(0, 0.6, 1.3), rx = 0.11, ry = 0.1 },
 	{ pos = v3(0, 0.45, 1.5), rx = 0.05, ry = 0.05 },
 })
+
+-- Capacité spéciale (CreatureForge.playAbility)
+local ABILITY: Types.Ability = {
+	name = "Séisme",
+	kind = "Stomp",
+	colors = { rgb(210, 200, 180), rgb(130, 120, 110), rgb(255, 210, 130) },
+	texture = "spark",
+	radius = 5,
+}
 
 local function build(opts: Kit.BuildOptions?): Model
 	local rig = Kit.newRig(ID, opts)
@@ -173,6 +183,13 @@ local function build(opts: Kit.BuildOptions?): Model
 		}, sc)
 	end
 
+
+	-- Effets avancés : signature, origine de la capacité, aura de rareté
+	if rig.effects then
+		Vfx.abilityOrigin(rig, ABILITY)
+		Vfx.rarityAura(rig, "Common")
+	end
+
 	return rig:finish({ Rarity = "Common" })
 end
 
@@ -186,6 +203,7 @@ local Def: Types.CreatureDef = {
 	Description = "Mammifère trapu à carapace de roche cerclée d'acier. Il pousse les rochers pour creuser son terrier.",
 	Icon = { top = rgb(118, 96, 74), bottom = rgb(34, 26, 20), glow = rgb(255, 210, 140), motif = rgb(176, 176, 188), yaw = 38, pitch = 20, zoom = 1.15 },
 	Animation = { gait = "Quadruped", breathe = 0.025, bob = 0.06, stride = 26, strideRate = 9, tailSway = 8, tailRate = 2, headLook = 14, sniff = true, earTwitch = true },
+	Ability = ABILITY,
 	build = build,
 }
 

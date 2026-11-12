@@ -18,6 +18,7 @@
 local Kit = require(script.Parent.Parent.Kit)
 local A = require(script.Parent.Parent.Anatomy)
 local Fx = require(script.Parent.Parent.Fx)
+local Vfx = require(script.Parent.Parent.Vfx)
 local Types = require(script.Parent.Parent.Types)
 
 local S = Kit.style
@@ -63,6 +64,16 @@ local HEAD = Kit.spine({
 	{ pos = v3(0, 4.74, 0.12), rx = 0.46, ry = 0.46 },
 	{ pos = v3(0, 4.55, 0.35), rx = 0.3, ry = 0.3 },
 })
+
+-- Capacité spéciale (CreatureForge.playAbility)
+local ABILITY: Types.Ability = {
+	name = "Jugement écarlate",
+	kind = "Nova",
+	colors = { rgb(255, 40, 60), rgb(120, 0, 20), rgb(220, 140, 255) },
+	texture = "smoke",
+	radius = 8,
+	duration = 2,
+}
 
 local function build(opts: Kit.BuildOptions?): Model
 	local rig = Kit.newRig(ID, opts)
@@ -160,6 +171,16 @@ local function build(opts: Kit.BuildOptions?): Model
 		Fx.light(aura, { color = rgb(255, 40, 60), range = 18, brightness = 2 }, sc)
 	end
 
+
+	-- Effets avancés : signature, origine de la capacité, aura de rareté
+	if rig.effects then
+		-- Fragments rouges reliés à la couronne, cristaux reliés en anneau
+		Vfx.orbitTethers(rig, "Aura2", Vfx.orbitPoints(v3(0, 3.8, 0.1), 2.1, 10, 0.5), "Head", v3(0, 5.2, -0.12), { colors = { rgb(255, 60, 80), rgb(140, 0, 30) }, transparency = { 0.25, 0.85 }, width0 = 0.05, width1 = 0.015, curve0 = 0.8 })
+		Vfx.orbitRing(rig, "Aura1", Vfx.orbitPoints(v3(0, 3.3, 0.1), 3.0, 8, 0.6), { colors = { rgb(200, 120, 255), rgb(110, 40, 200) }, transparency = { 0.35, 0.7 }, width0 = 0.07, curve0 = 0.7, curve1 = -0.7 })
+		Vfx.abilityOrigin(rig, ABILITY)
+		Vfx.rarityAura(rig, "Mythic")
+	end
+
 	return rig:finish({ Rarity = "Mythic" })
 end
 
@@ -172,7 +193,8 @@ local Def: Types.CreatureDef = {
 	Category = "Créature Mythique",
 	Description = "Créature suprême venue du néant. Une aura rouge sang l'entoure et des cristaux gravitent autour de sa couronne.",
 	Icon = { top = rgb(110, 10, 30), bottom = rgb(10, 0, 8), glow = rgb(255, 60, 90), motif = rgb(170, 80, 255), yaw = 24, pitch = 8, zoom = 1.05 },
-	Animation = { gait = "Hover", hover = 0.25, headLook = 14, auraSpeed = 0.5 },
+	Animation = { flicker = 0.2, gait = "Hover", hover = 0.25, headLook = 14, auraSpeed = 0.5 },
+	Ability = ABILITY,
 	build = build,
 }
 

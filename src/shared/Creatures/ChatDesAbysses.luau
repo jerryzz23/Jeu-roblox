@@ -14,6 +14,7 @@
 local Kit = require(script.Parent.Parent.Kit)
 local A = require(script.Parent.Parent.Anatomy)
 local Fx = require(script.Parent.Parent.Fx)
+local Vfx = require(script.Parent.Parent.Vfx)
 local Types = require(script.Parent.Parent.Types)
 
 local S = Kit.style
@@ -69,6 +70,15 @@ local TAIL = Kit.spine({
 	{ pos = v3(0.55, 2.4, 1.15), rx = 0.07, ry = 0.07 },
 	{ pos = v3(0.5, 2.25, 0.95), rx = 0.03, ry = 0.03 },
 })
+
+-- Capacité spéciale (CreatureForge.playAbility)
+local ABILITY: Types.Ability = {
+	name = "Vague du néant",
+	kind = "Nova",
+	colors = { rgb(170, 80, 255), rgb(40, 10, 80), rgb(255, 210, 90) },
+	texture = "smoke",
+	radius = 5,
+}
 
 local function build(opts: Kit.BuildOptions?): Model
 	local rig = Kit.newRig(ID, opts)
@@ -165,6 +175,16 @@ local function build(opts: Kit.BuildOptions?): Model
 		Fx.light(m, { color = rgb(160, 70, 255), range = 9, brightness = 1.2 }, sc)
 	end
 
+
+	-- Effets avancés : signature, origine de la capacité, aura de rareté
+	if rig.effects then
+		local tip = TAIL:pos(6)
+		Vfx.trail(rig, tail[5], tip + v3(0, 0.06, 0), tip - v3(0, 0.06, 0), { colors = { rgb(200, 120, 255), rgb(80, 20, 160) }, lifetime = 0.5 })
+		Vfx.orbitTethers(rig, "Aura1", Vfx.orbitPoints(v3(0, 1.5, 0), 1.9, 4, 0.35), "Body", v3(0, 1.3, 0), { colors = { rgb(190, 110, 255), rgb(80, 20, 160) }, transparency = { 0.4, 0.9 }, width0 = 0.05, width1 = 0.02, curve0 = 0.5 })
+		Vfx.abilityOrigin(rig, ABILITY)
+		Vfx.rarityAura(rig, "Epic")
+	end
+
 	return rig:finish({ Rarity = "Epic" })
 end
 
@@ -178,6 +198,7 @@ local Def: Types.CreatureDef = {
 	Description = "Félin aux formes fluides, enveloppé d'une brume noire et violette. Ses yeux dorés percent l'obscurité.",
 	Icon = { top = rgb(70, 30, 120), bottom = rgb(8, 4, 16), glow = rgb(200, 120, 255), motif = rgb(255, 200, 60), yaw = 34, pitch = 12, zoom = 1.1 },
 	Animation = { gait = "Quadruped", breathe = 0.025, bob = 0.08, stride = 30, strideRate = 11, tailSway = 12, tailRate = 1.4, headLook = 24, earTwitch = true, auraSpeed = 0.6 },
+	Ability = ABILITY,
 	build = build,
 }
 

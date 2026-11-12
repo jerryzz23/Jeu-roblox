@@ -15,6 +15,7 @@
 local Kit = require(script.Parent.Parent.Kit)
 local A = require(script.Parent.Parent.Anatomy)
 local Fx = require(script.Parent.Parent.Fx)
+local Vfx = require(script.Parent.Parent.Vfx)
 local Types = require(script.Parent.Parent.Types)
 
 local S = Kit.style
@@ -82,6 +83,15 @@ local TAIL = Kit.spine({
 local function earBase(side: number): CFrame
 	return cf(side * 0.3, 1.52, -1.08) * ang(rad(12), -side * rad(26), -side * rad(26))
 end
+
+-- Capacité spéciale (CreatureForge.playAbility)
+local ABILITY: Types.Ability = {
+	name = "Éclat de cristal",
+	kind = "Burst",
+	colors = { rgb(110, 240, 255), rgb(190, 120, 255), rgb(255, 255, 255) },
+	texture = "sparkle",
+	radius = 4,
+}
 
 local function build(opts: Kit.BuildOptions?): Model
 	local rig = Kit.newRig(ID, opts)
@@ -247,6 +257,19 @@ local function build(opts: Kit.BuildOptions?): Model
 		Fx.light(eyes, { color = rgb(110, 255, 236), range = 6, brightness = 1.2 }, sc)
 	end
 
+
+	-- Effets avancés : signature, origine de la capacité, aura de rareté
+	if rig.effects then
+		-- Arcs d'énergie entre les cristaux, traînée cyan au bout de la queue
+		local rk = BODY:surface(3.3, 8, 0.05)
+		Vfx.beam(rig, "Body", (rk * cf(-0.28, 0.55, 0.05)).Position, "Body", (rk * cf(0.3, 0.7, -0.05)).Position, { colors = { rgb(140, 250, 255), rgb(200, 140, 255) }, transparency = { 0.1, 0.5 }, width0 = 0.06, curve0 = 0.5, curve1 = -0.5 }, v3(0, 1, 0))
+		Vfx.beam(rig, "Body", (rk * cf(0.05, 0.8, 0.1)).Position, "Body", (rk * cf(-0.32, 0.45, -0.1)).Position, { colors = { rgb(200, 140, 255), rgb(140, 250, 255) }, transparency = { 0.1, 0.5 }, width0 = 0.05, curve0 = 0.4, curve1 = -0.4 }, v3(0, 1, 0))
+		local tip = TAIL:pos(7)
+		Vfx.trail(rig, tailBones[6], tip + v3(0, 0.05, 0), tip - v3(0, 0.05, 0), { colors = { rgb(140, 250, 255) }, lifetime = 0.4 })
+		Vfx.abilityOrigin(rig, ABILITY)
+		Vfx.rarityAura(rig, "Common")
+	end
+
 	return rig:finish({ Rarity = "Common" })
 end
 
@@ -271,6 +294,7 @@ local RatDesCavernes: Types.CreatureDef = {
 		sniff = true,
 		earTwitch = true,
 	},
+	Ability = ABILITY,
 	build = build,
 }
 

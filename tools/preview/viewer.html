@@ -18,6 +18,9 @@
   #caption { display: none; position: fixed; left: 0; right: 0; bottom: 14px; text-align: center; font: 700 20px system-ui; color: var(--ink); z-index: 2; }
   #caption span { display: block; font: 600 13px system-ui; color: var(--muted); letter-spacing: .08em; }
   body.clean #bar { display: none; }
+  body.dark { background: radial-gradient(circle at 50% 40%, #33304a 0%, #14131f 75%); }
+  body.dark #caption { color: #f2f0ff; }
+  body.dark #caption span { color: #b9b4d6; }
   body.clean #caption { display: block; }
   #icon { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; }
   #card { position: relative; width: min(80vw, 80vh); aspect-ratio: 1; border-radius: 16%; overflow: hidden; box-shadow: 0 0 0 4px #b0b8c4 inset; }
@@ -37,6 +40,7 @@
   <button data-view="icon">Icône</button>
   <span class="sep"></span>
   <button id="outline" class="on">Contours</button>
+  <button id="vfx" class="on">VFX</button>
   <select id="mut"><option value="">Normal</option></select>
   <button id="glb">GLB</button>
   <button id="obj">OBJ</button>
@@ -59,6 +63,7 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
 const params = new URLSearchParams(location.search);
 if (params.get("ui") === "0") document.body.classList.add("clean");
+if (params.get("bg") === "dark") document.body.classList.add("dark");
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -176,6 +181,188 @@ fetch("mutations.json").then(r => r.json()).then(list => {
 }).catch(() => {});
 mutSelect.onchange = () => { mutation = mutSelect.value; if (data) load(data); };
 
+// ---- VFX : particules, rayons (Beam), lumières ----
+const fxGroup = new THREE.Group();
+scene.add(fxGroup);
+let fx = { emitters: [], beams: [], lights: [] };
+const clock = new THREE.Clock();
+const toLinear = v => Math.pow(v, 2.2);
+
+function makeTex(kind) {
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const g = c.getContext("2d");
+  const grad = stops => {
+    const r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    stops.forEach(([o, col]) => r.addColorStop(o, col));
+    g.fillStyle = r;
+    g.fillRect(0, 0, 64, 64);
+  };
+  if (kind === "sparkle") {
+    grad([[0, "rgba(255,255,255,1)"], [0.22, "rgba(255,255,255,0.45)"], [1, "rgba(255,255,255,0)"]]);
+    g.fillStyle = "rgba(255,255,255,0.95)";
+    g.beginPath();
+    g.moveTo(32, 2); g.lineTo(35, 29); g.lineTo(62, 32); g.lineTo(35, 35);
+    g.lineTo(32, 62); g.lineTo(29, 35); g.lineTo(2, 32); g.lineTo(29, 29);
+    g.closePath();
+    g.fill();
+  } else if (kind === "spark") {
+    grad([[0, "rgba(255,255,255,1)"], [0.3, "rgba(255,255,255,0.7)"], [1, "rgba(255,255,255,0)"]]);
+  } else if (kind === "fire") {
+    grad([[0, "rgba(255,255,255,0.95)"], [0.45, "rgba(255,255,255,0.5)"], [1, "rgba(255,255,255,0)"]]);
+  } else {
+    grad([[0, "rgba(255,255,255,0.65)"], [0.55, "rgba(255,255,255,0.3)"], [1, "rgba(255,255,255,0)"]]);
+  }
+  return new THREE.CanvasTexture(c);
+}
+const PTEX = {};
+for (const k of ["sparkle", "spark", "fire", "smoke"]) PTEX[k] = makeTex(k);
+
+const PVERT = `attribute float psize; attribute vec4 pcolor; varying vec4 vColor; uniform float pxScale;
+void main() { vColor = pcolor; vec4 mv = modelViewMatrix * vec4(position, 1.0);
+gl_PointSize = psize * pxScale / max(-mv.z, 0.01); gl_Position = projectionMatrix * mv; }`;
+const PFRAG = `uniform sampler2D map; varying vec4 vColor;
+void main() { vec4 t = texture2D(map, gl_PointCoord); gl_FragColor = vec4(vColor.rgb * t.rgb, vColor.a * t.a); }`;
+
+function evalSeq(seq, t) {
+  for (let i = 0; i < seq.length - 1; i++) {
+    const a = seq[i], b = seq[i + 1];
+    if (t <= b[0]) {
+      const f = (t - a[0]) / Math.max(b[0] - a[0], 1e-6);
+      return a.slice(1).map((v, k) => v + (b[k + 1] - v) * f);
+    }
+  }
+  return seq[seq.length - 1].slice(1);
+}
+// Les listes vides sont exportées en {} : on les normalise
+const toList = x => (Array.isArray(x) ? x : []);
+function cfMatrix(c) {
+  return new THREE.Matrix4().set(c[3], c[4], c[5], c[0], c[6], c[7], c[8], c[1], c[9], c[10], c[11], c[2], 0, 0, 0, 1);
+}
+const DIRS = { Top: [0, 1, 0], Bottom: [0, -1, 0], Front: [0, 0, -1], Back: [0, 0, 1], Right: [1, 0, 0], Left: [-1, 0, 0] };
+
+class Emitter {
+  constructor(e) {
+    this.e = e;
+    this.m = cfMatrix(e.c);
+    this.max = Math.max(2, Math.min(700, Math.ceil(e.rate * e.life[1] * 1.3) + 2));
+    this.p = [];
+    this.acc = 0;
+    this.pos = new Float32Array(this.max * 3);
+    this.col = new Float32Array(this.max * 4);
+    this.size = new Float32Array(this.max);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(this.pos, 3));
+    geo.setAttribute("pcolor", new THREE.BufferAttribute(this.col, 4));
+    geo.setAttribute("psize", new THREE.BufferAttribute(this.size, 1));
+    this.mat = new THREE.ShaderMaterial({
+      uniforms: { map: { value: PTEX[e.tex] || PTEX.sparkle }, pxScale: { value: 600 } },
+      vertexShader: PVERT, fragmentShader: PFRAG, transparent: true, depthWrite: false,
+      blending: e.le >= 0.5 ? THREE.AdditiveBlending : THREE.NormalBlending,
+    });
+    this.obj = new THREE.Points(geo, this.mat);
+    this.obj.frustumCulled = false;
+    this.dir = new THREE.Vector3(...(DIRS[e.dir] || DIRS.Top)).transformDirection(this.m);
+    const ax = new THREE.Vector3(1, 0, 0).transformDirection(this.m);
+    const a1 = Math.abs(this.dir.dot(ax)) > 0.9 ? new THREE.Vector3(0, 1, 0).transformDirection(this.m) : ax;
+    this.b2 = new THREE.Vector3().crossVectors(this.dir, a1).normalize();
+    this.b1 = new THREE.Vector3().crossVectors(this.b2, this.dir).normalize();
+  }
+  spawn() {
+    const e = this.e;
+    const pos = new THREE.Vector3((Math.random() - 0.5) * e.s[0], (Math.random() - 0.5) * e.s[1], (Math.random() - 0.5) * e.s[2]).applyMatrix4(this.m);
+    const d = this.dir.clone()
+      .applyAxisAngle(this.b1, THREE.MathUtils.degToRad(e.spread[0]) * (Math.random() * 2 - 1))
+      .applyAxisAngle(this.b2, THREE.MathUtils.degToRad(e.spread[1]) * (Math.random() * 2 - 1));
+    const speed = e.speed[0] + Math.random() * (e.speed[1] - e.speed[0]);
+    this.p.push({ pos, vel: d.multiplyScalar(speed), age: 0, life: e.life[0] + Math.random() * (e.life[1] - e.life[0]) });
+  }
+  step(dt) {
+    const e = this.e;
+    this.acc += e.rate * dt;
+    while (this.acc >= 1 && this.p.length < this.max) { this.spawn(); this.acc -= 1; }
+    if (this.p.length >= this.max) this.acc = 0;
+    const acc = new THREE.Vector3(...e.acc), drag = Math.pow(0.5, e.drag * dt);
+    this.p = this.p.filter(q => (q.age += dt) < q.life);
+    for (const q of this.p) { q.vel.addScaledVector(acc, dt).multiplyScalar(drag); q.pos.addScaledVector(q.vel, dt); }
+  }
+  write(pxScale) {
+    const e = this.e;
+    this.mat.uniforms.pxScale.value = pxScale;
+    for (let i = 0; i < this.max; i++) {
+      const q = this.p[i];
+      if (!q) { this.size[i] = 0; this.col[i * 4 + 3] = 0; continue; }
+      const t = q.age / q.life;
+      const c = evalSeq(e.col, t);
+      this.pos.set([q.pos.x, q.pos.y, q.pos.z], i * 3);
+      this.col.set([c[0], c[1], c[2], 1 - evalSeq(e.tr, t)[0]], i * 4);
+      this.size[i] = evalSeq(e.size, t)[0];
+    }
+    const g = this.obj.geometry;
+    g.attributes.position.needsUpdate = g.attributes.pcolor.needsUpdate = g.attributes.psize.needsUpdate = true;
+  }
+}
+
+class BeamFx {
+  constructor(b) {
+    const P = c => new THREE.Vector3(c[0], c[1], c[2]);
+    const axis = c => new THREE.Vector3(c[3], c[6], c[9]);
+    const p0 = P(b.p0), p1 = P(b.p1);
+    this.curve = new THREE.CubicBezierCurve3(p0, p0.clone().addScaledVector(axis(b.p0), b.curve[0]), p1.clone().addScaledVector(axis(b.p1), -b.curve[1]), p1);
+    this.n = b.curve[0] || b.curve[1] ? 24 : 2;
+    this.b = b;
+    const geo = new THREE.BufferGeometry();
+    this.pos = new Float32Array(this.n * 6);
+    this.col = new Float32Array(this.n * 8);
+    const idx = [];
+    for (let i = 0; i < this.n - 1; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+    geo.setIndex(idx);
+    geo.setAttribute("position", new THREE.BufferAttribute(this.pos, 3));
+    geo.setAttribute("color", new THREE.BufferAttribute(this.col, 4));
+    for (let i = 0; i < this.n; i++) {
+      const t = i / (this.n - 1), c = evalSeq(b.col, t), a = 1 - evalSeq(b.tr, t)[0];
+      for (const k of [0, 1]) this.col.set([toLinear(c[0]), toLinear(c[1]), toLinear(c[2]), a], (i * 2 + k) * 4);
+    }
+    this.obj = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+      vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+      blending: b.le >= 0.5 ? THREE.AdditiveBlending : THREE.NormalBlending,
+    }));
+    this.obj.frustumCulled = false;
+  }
+  update(cam) {
+    for (let i = 0; i < this.n; i++) {
+      const t = i / (this.n - 1);
+      const p = this.curve.getPoint(t), tan = this.curve.getTangent(t);
+      const side = new THREE.Vector3().crossVectors(tan, cam.position.clone().sub(p)).normalize()
+        .multiplyScalar((this.b.w[0] + (this.b.w[1] - this.b.w[0]) * t) / 2);
+      this.pos.set([p.x + side.x, p.y + side.y, p.z + side.z, p.x - side.x, p.y - side.y, p.z - side.z], i * 6);
+    }
+    this.obj.geometry.attributes.position.needsUpdate = true;
+  }
+}
+
+function buildFx(data) {
+  fxGroup.clear();
+  fx = { emitters: [], beams: [], lights: [] };
+  if (!data) return;
+  for (const e of toList(data.emitters)) { const em = new Emitter(e); fx.emitters.push(em); fxGroup.add(em.obj); }
+  for (const b of toList(data.beams)) { const bm = new BeamFx(b); fx.beams.push(bm); fxGroup.add(bm.obj); }
+  for (const l of toList(data.lights).slice(0, 6)) {
+    const pl = new THREE.PointLight(srgb(l.col), l.b * 2.5, l.range * 1.2, 1);
+    pl.position.set(...l.p);
+    fx.lights.push(pl);
+    fxGroup.add(pl);
+  }
+  for (let k = 0; k < 90; k++) for (const em of fx.emitters) em.step(1 / 30); // préchauffage
+}
+function stepFx(dt) {
+  if (!fxGroup.visible) return;
+  const h = renderer.domElement.height;
+  const pxScale = h / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
+  for (const em of fx.emitters) { em.step(dt); em.write(pxScale); }
+  for (const bm of fx.beams) bm.update(camera);
+}
+
 function load(json) {
   data = json;
   const zs = json.parts.map(p => p.c[2]);
@@ -202,6 +389,7 @@ function load(json) {
     }
   }
   creature.updateMatrixWorld(true);
+  buildFx(json.fx);
   bounds = new THREE.Box3().setFromObject(creature);
   const tris = json.parts.reduce((n, p) => n + ({ Block: 12, Wedge: 8, Ball: 80, Cylinder: 48 }[p.k] || 12), 0);
   document.getElementById("info").innerHTML =
@@ -271,6 +459,10 @@ function resize() {
 }
 addEventListener("resize", resize);
 document.querySelectorAll("#bar button[data-view]").forEach(b => b.onclick = () => setView(b.dataset.view));
+document.getElementById("vfx").onclick = e => {
+  fxGroup.visible = !fxGroup.visible;
+  e.target.classList.toggle("on", fxGroup.visible);
+};
 document.getElementById("outline").onclick = e => {
   outlines.visible = !outlines.visible;
   e.target.classList.toggle("on", outlines.visible);
@@ -322,6 +514,7 @@ addEventListener("drop", async e => {
 
 renderer.setAnimationLoop(() => {
   if (view !== "icon") controls.update();
+  stepFx(Math.min(clock.getDelta(), 0.05));
   renderer.render(scene, camera);
 });
 

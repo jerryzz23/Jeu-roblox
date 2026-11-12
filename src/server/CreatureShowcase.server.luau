@@ -4,7 +4,8 @@
 	--------------------------------------
 	Démo : fait apparaître toutes les créatures devant le point d'apparition, une rangée par
 	zone de la carte (Surface, Pente Brumeuse, Grottes de Cristal), puis les fait se promener
-	(états "Move" / "Idle" lus par CreatureAnimator côté client).
+	(états "Move" / "Idle" lus par CreatureAnimator côté client) et déclencher de temps en
+	temps leur capacité spéciale (CreatureForge.playAbility : effets joués par les clients).
 	Une créature sur quatre reçoit une mutation au hasard pour la démonstration.
 	Désactivez ce script (Enabled = false) dans votre vrai jeu.
 ]]
@@ -19,6 +20,7 @@ local ROW_GAP = 10 -- studs entre deux rangées (zones)
 local DISTANCE = 18 -- distance de la première rangée devant le point d'apparition
 local SPEED = 8 -- studs/s (multiplié par l'échelle)
 local MUTATION_DEMO = true
+local ABILITY_CHANCE = 0.3 -- probabilité de lancer sa capacité au lieu de se déplacer
 
 local folder = Instance.new("Folder")
 folder.Name = "Creatures"
@@ -41,6 +43,13 @@ local function wander(model: Model, home: Vector3, radius: number)
 		task.wait(rng:NextNumber(2, 5))
 		if not model.Parent then
 			break
+		end
+		if rng:NextNumber() < ABILITY_CHANCE then
+			local d = CreatureForge.playAbility(model)
+			if d > 0 then
+				task.wait(d + 0.5)
+				continue
+			end
 		end
 		local angle = rng:NextNumber(0, math.pi * 2)
 		local target = groundAt(home + Vector3.new(math.cos(angle), 0, math.sin(angle)) * rng:NextNumber(radius * 0.3, radius))

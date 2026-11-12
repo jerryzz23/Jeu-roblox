@@ -15,6 +15,7 @@
 local Kit = require(script.Parent.Parent.Kit)
 local A = require(script.Parent.Parent.Anatomy)
 local Fx = require(script.Parent.Parent.Fx)
+local Vfx = require(script.Parent.Parent.Vfx)
 local Types = require(script.Parent.Parent.Types)
 
 local S = Kit.style
@@ -62,6 +63,15 @@ local HEAD = Kit.spine({
 	{ pos = v3(0, 2.05, -1.5), rx = 0.5, ry = 0.48 },
 	{ pos = v3(0, 2.0, -1.2), rx = 0.44, ry = 0.46 },
 })
+
+-- Capacité spéciale (CreatureForge.playAbility)
+local ABILITY: Types.Ability = {
+	name = "Frappe runique",
+	kind = "Stomp",
+	colors = { rgb(90, 200, 255), rgb(40, 100, 200), rgb(255, 255, 255) },
+	texture = "spark",
+	radius = 7,
+}
 
 local function build(opts: Kit.BuildOptions?): Model
 	local rig = Kit.newRig(ID, opts)
@@ -167,6 +177,14 @@ local function build(opts: Kit.BuildOptions?): Model
 		Fx.particles(dust, Fx.mist("Dust", { rgb(170, 150, 120), rgb(120, 104, 84) }, 4, 0.8), sc)
 	end
 
+
+	-- Effets avancés : signature, origine de la capacité, aura de rareté
+	if rig.effects then
+		Vfx.orbitTethers(rig, "Aura1", Vfx.orbitPoints(v3(0, 2.2, 0), 2.6, 4, 0.3), "Body", v3(0, 2.9, 0.2), { colors = { rgb(120, 220, 255), rgb(60, 140, 255) }, transparency = { 0.3, 0.85 }, width0 = 0.09, width1 = 0.02, curve0 = 0.6 })
+		Vfx.abilityOrigin(rig, ABILITY)
+		Vfx.rarityAura(rig, "Rare")
+	end
+
 	return rig:finish({ Rarity = "Rare" })
 end
 
@@ -180,6 +198,7 @@ local Def: Types.CreatureDef = {
 	Description = "Colosse capable de porter des passagers. Sa selle est sculptée et ses brassards de pierre gravés de runes.",
 	Icon = { top = rgb(40, 70, 120), bottom = rgb(14, 18, 30), glow = rgb(120, 210, 255), motif = rgb(255, 200, 60), yaw = 36, pitch = 16, zoom = 1.1 },
 	Animation = { gait = "Quadruped", breathe = 0.05, bob = 0.1, stride = 24, strideRate = 7, tailSway = 4, tailRate = 2, headLook = 16, sniff = true, earTwitch = true, auraSpeed = 0.45 },
+	Ability = ABILITY,
 	build = build,
 }
 

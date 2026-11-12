@@ -15,6 +15,7 @@
 local Kit = require(script.Parent.Parent.Kit)
 local A = require(script.Parent.Parent.Anatomy)
 local Fx = require(script.Parent.Parent.Fx)
+local Vfx = require(script.Parent.Parent.Vfx)
 local Types = require(script.Parent.Parent.Types)
 
 local S = Kit.style
@@ -71,6 +72,16 @@ local function boneAt(u: number): string
 	end
 	return "Tail" .. math.clamp(math.floor(u - TAIL_START) + 1, 1, 4)
 end
+
+-- Capacité spéciale (CreatureForge.playAbility)
+local ABILITY: Types.Ability = {
+	name = "Souffle de lave",
+	kind = "Breath",
+	colors = { rgb(255, 150, 40), rgb(255, 60, 20), rgb(255, 250, 180) },
+	texture = "fire",
+	origin = v3(0, 0.6, -2.3),
+	direction = v3(0, 0.05, -1),
+}
 
 local function build(opts: Kit.BuildOptions?): Model
 	local rig = Kit.newRig(ID, opts)
@@ -178,6 +189,15 @@ local function build(opts: Kit.BuildOptions?): Model
 		Fx.light(back, { color = rgb(255, 130, 40), range = 10, brightness = 1.5 }, sc)
 	end
 
+
+	-- Effets avancés : signature, origine de la capacité, aura de rareté
+	if rig.effects then
+		local tip = SPINE:pos(10)
+		Vfx.trail(rig, "Tail4", tip + v3(0, 0.1, 0), tip - v3(0, 0.1, 0), { colors = { rgb(255, 220, 100), rgb(255, 80, 20) }, lifetime = 0.5 })
+		Vfx.abilityOrigin(rig, ABILITY)
+		Vfx.rarityAura(rig, "Rare")
+	end
+
 	return rig:finish({ Rarity = "Rare" })
 end
 
@@ -190,7 +210,8 @@ local Def: Types.CreatureDef = {
 	Category = "Créature Rare",
 	Description = "Amphibien de lave orange fluo. Ses plaques dorsales brûlent et sa queue s'embrase.",
 	Icon = { top = rgb(170, 40, 20), bottom = rgb(40, 8, 6), glow = rgb(255, 190, 80), motif = rgb(255, 120, 30), yaw = 36, pitch = 24, zoom = 1.15 },
-	Animation = { gait = "Sprawler", breathe = 0.02, sway = 12, stride = 30, strideRate = 9, tailSway = 14, tailRate = 1.8, headLook = 18, auraSpeed = 1 },
+	Animation = { flicker = 0.35, gait = "Sprawler", breathe = 0.02, sway = 12, stride = 30, strideRate = 9, tailSway = 14, tailRate = 1.8, headLook = 18, auraSpeed = 1 },
+	Ability = ABILITY,
 	build = build,
 }
 

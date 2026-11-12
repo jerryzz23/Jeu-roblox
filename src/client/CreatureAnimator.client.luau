@@ -12,6 +12,9 @@
 	            Flyer     -> battements d'ailes rapides      Serpent  -> ondulation de tout le corps
 	            Hover     -> lévitation inclinée vers l'avant
 	  "Still" : pose figée (vitrines, captures d'écran)
+	  "Ability" : capacité spéciale (CreatureForge.playAbility) — effets Vfx.playAbility + pose
+	              de rugissement / battements puissants, déclenchée à chaque incrément de
+	              l'attribut "AbilitySeq"
 
 	Conventions de nommage des os (Motor6D) : Body, Chest, Head, Jaw, Tongue, Ear_R/L,
 	Leg_FR/FL/BR/BL, Leg_R/L (oiseaux), Wing_R/L, Tail1..n, Seg1..n (serpents), Aura1..n (orbites).
@@ -53,6 +56,7 @@ type Profile = {
 	flapRate: number,
 	hover: number,
 	auraSpeed: number,
+	flicker: number,
 }
 
 type State = {
@@ -64,6 +68,10 @@ type State = {
 	tail: { Motor6D },
 	segs: { Motor6D },
 	auras: { Motor6D },
+	lights: { { light: Light, base: number } },
+	ability: any,
+	abilitySeq: any,
+	abilityT: number,
 	t: number,
 	move: number,
 	rng: Random,
@@ -97,6 +105,7 @@ local function readProfile(id: string?): Profile
 		flapRate = p.flapRate or 6,
 		hover = p.hover or 0.15,
 		auraSpeed = p.auraSpeed or 0.6,
+		flicker = p.flicker or 0,
 	}
 end
 
@@ -142,6 +151,22 @@ local function track(inst: Instance)
 	end
 
 	local id = model:GetAttribute("CreatureId")
+	local def = if typeof(id) == "string" and CreatureForge.has(id) then CreatureForge.get(id) else nil
+	local auras = {}
+	for name, m in motors do
+		if string.sub(name, 1, 4) == "Aura" then
+			table.insert(auras, m)
+		end
+	end
+	table.sort(auras, function(a, b)
+		return a.Name < b.Name
+	end)
+	local lights = {}
+	for _, d in model:GetDescendants() do
+		if d:IsA("Light") then
+			table.insert(lights, { light = d, base = d.Brightness })
+		end
+	end
 	local seed = math.floor((root.Position.X * 73 + root.Position.Z * 19) % 100000)
 	local st: State = {
 		model = model,
@@ -151,7 +176,11 @@ local function track(inst: Instance)
 		motors = motors,
 		tail = chain(motors, "Tail"),
 		segs = chain(motors, "Seg"),
-		auras = chain(motors, "Aura"),
+		auras = auras,
+		lights = lights,
+		ability = if def then def.Ability else nil,
+		abilitySeq = model:GetAttribute("AbilitySeq"),
+		abilityT = -1,
 		t = seed % 100,
 		move = 0,
 		rng = Random.new(seed),
@@ -305,10 +334,63 @@ local function step(st: State, dt: number)
 		m.Transform = CFrame.Angles(math.sin(t * rate * 0.7 - i * 0.5) * rad(3), math.sin(t * rate - i * 0.6) * amp * (0.4 + k), 0)
 	end
 
-	-- Orbites : chaque anneau tourne (sens alterné) et ondule doucement
+	-- Orbites : chaque anneau tourne (sens alterné) et ondule doucement ; l'aura au sol tourne lentement
 	for i, m in st.auras do
-		local dir = if i % 2 == 0 then -1 else 1
-		m.Transform = CFrame.new(0, math.sin(t * 1.1 + i) * 0.08 * sc, 0) * CFrame.Angles(0, t * p.auraSpeed * dir * (1 + i * 0.25), 0)
+		if m.Name == "AuraGround" then
+			m.Transform = CFrame.Angles(0, t * 0.25, 0)
+		else
+			local dir = if i % 2 == 0 then -1 else 1
+			m.Transform = CFrame.new(0, math.sin(t * 1.1 + i) * 0.08 * sc, 0) * CFrame.Angles(0, t * p.auraSpeed * dir * (1 + i * 0.25), 0)
+		end
+	end
+
+	-- Capacité spéciale : effets (une fois par déclenchement) + pose
+	local seq = st.model:GetAttribute("AbilitySeq")
+	if seq ~= st.abilitySeq then
+		st.abilitySeq = seq
+		if st.ability then
+			st.abilityT = 0
+			local ok, err = pcall(CreatureForge.Vfx.playAbility, st.model, st.ability)
+			if not ok then
+				warn("[CreatureAnimator] capacité :", err)
+			end
+		end
+	end
+	if st.abilityT >= 0 and st.ability then
+		local dur = st.ability.duration or 1.6
+		st.abilityT += dt
+		local k = math.sin(math.pi * math.min(1, st.abilityT / dur))
+		local function add(name: string, extra: CFrame)
+			local m = st.motors[name]
+			if m then
+				m.Transform = m.Transform * extra
+			end
+		end
+		if p.gait == "Flyer" then
+			local f = math.sin(st.abilityT * 22) * rad(p.flap) * 0.6 * k
+			add("Wing_R", CFrame.Angles(0, 0, f))
+			add("Wing_L", CFrame.Angles(0, 0, -f))
+			add("Body", CFrame.Angles(rad(18) * k, 0, 0))
+		elseif p.gait == "Quadruped" then
+			add("Body", CFrame.new(0, 0.1 * k * sc, 0) * CFrame.Angles(rad(12) * k, 0, 0))
+		elseif p.gait == "Hover" then
+			add("Body", CFrame.new(0, 0.3 * k * sc, 0))
+			add("Arm_R", CFrame.Angles(0, 0, rad(35) * k))
+			add("Arm_L", CFrame.Angles(0, 0, -rad(35) * k))
+		end
+		add("Head", CFrame.Angles(rad(22) * k, 0, 0))
+		add("Jaw", CFrame.Angles(-rad(22) * k, 0, 0))
+		if st.abilityT >= dur then
+			st.abilityT = -1
+		end
+	end
+
+	-- Lumières : vacillement (feu) ou légère pulsation
+	if #st.lights > 0 then
+		local amp = if p.flicker > 0 then p.flicker else 0.08
+		for i, L in st.lights do
+			L.light.Brightness = L.base * (1 + amp * 2 * math.noise(t * (if p.flicker > 0 then 7 else 1.5), i * 1.7))
+		end
 	end
 end
 

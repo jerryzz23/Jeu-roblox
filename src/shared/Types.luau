@@ -26,6 +26,20 @@ export type AnimProfile = {
 	flapRate: number?, -- vitesse des battements (rad/s)
 	hover: number?, -- amplitude du flottement (studs, Flyer / Hover)
 	auraSpeed: number?, -- vitesse de rotation des objets en orbite (rad/s)
+	flicker: number?, -- vacillement des lumières (0 = fixe, 0.3 = feu)
+}
+
+--- Capacité spéciale jouée par Vfx.playAbility (état d'animation "Ability").
+export type Ability = {
+	name: string, -- nom affiché (ex. "Souffle ardent")
+	kind: "Nova" | "Breath" | "Stomp" | "Burst" | "Eruption",
+	colors: { Color3 }, -- couleur principale, secondaire, (tertiaire)
+	texture: string?, -- "sparkle" | "fire" | "smoke" | "spark" (voir Fx.TEXTURES)
+	bone: string?, -- os d'origine (souffle) — défaut : Head
+	origin: Vector3?, -- point d'origine en espace modèle (avant échelle)
+	direction: Vector3?, -- direction du souffle (espace modèle)
+	radius: number?, -- rayon de l'onde de choc (studs, avant échelle)
+	duration: number?, -- durée (secondes)
 }
 
 --- Zones de la carte (du haut du canyon vers le fond).
@@ -52,6 +66,7 @@ export type CreatureDef = {
 	Description: string,
 	Icon: IconTheme,
 	Animation: AnimProfile,
+	Ability: Ability?,
 	build: (opts: Kit.BuildOptions?) -> Model,
 }
 

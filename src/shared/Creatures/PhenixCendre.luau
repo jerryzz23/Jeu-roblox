@@ -16,6 +16,7 @@
 local Kit = require(script.Parent.Parent.Kit)
 local A = require(script.Parent.Parent.Anatomy)
 local Fx = require(script.Parent.Parent.Fx)
+local Vfx = require(script.Parent.Parent.Vfx)
 local Types = require(script.Parent.Parent.Types)
 
 local S = Kit.style
@@ -58,6 +59,16 @@ local HEAD = Kit.spine({
 	{ pos = v3(0, 2.58, -1.15), rx = 0.3, ry = 0.3 },
 	{ pos = v3(0, 2.4, -0.95), rx = 0.27, ry = 0.27 },
 })
+
+-- Capacité spéciale (CreatureForge.playAbility)
+local ABILITY: Types.Ability = {
+	name = "Renaissance",
+	kind = "Nova",
+	colors = { rgb(255, 170, 40), rgb(255, 70, 20), rgb(255, 250, 190) },
+	texture = "fire",
+	radius = 8,
+	duration = 2,
+}
 
 local function build(opts: Kit.BuildOptions?): Model
 	local rig = Kit.newRig(ID, opts)
@@ -170,6 +181,18 @@ local function build(opts: Kit.BuildOptions?): Model
 		Fx.light(rig.bones.Body, { color = rgb(255, 150, 50), range = 14, brightness = 2 }, sc)
 	end
 
+
+	-- Effets avancés : signature, origine de la capacité, aura de rareté
+	if rig.effects then
+		Vfx.wingTrails(rig, v3(3.05, 2.9, -0.05), v3(0.12, 0, 0.4), { colors = { rgb(255, 230, 120), rgb(255, 90, 20) }, transparency = { 0.15, 1 }, lifetime = 0.6 })
+		for _, k in { -1, 1 } do
+			local p = v3(k * 0.9, 1.5, 4.2)
+			Vfx.trail(rig, "Tail1", p + v3(0, 0.07, 0), p - v3(0, 0.07, 0), { colors = { rgb(255, 220, 110), rgb(255, 80, 20) }, lifetime = 0.6 })
+		end
+		Vfx.abilityOrigin(rig, ABILITY)
+		Vfx.rarityAura(rig, "Legendary")
+	end
+
 	return rig:finish({ Rarity = "Legendary" })
 end
 
@@ -182,7 +205,8 @@ local Def: Types.CreatureDef = {
 	Category = "Créature Légendaire",
 	Description = "Oiseau légendaire aux plumes d'or. Il renaît de ses cendres dans une traînée de flammes.",
 	Icon = { top = rgb(180, 60, 20), bottom = rgb(40, 8, 4), glow = rgb(255, 210, 100), motif = rgb(255, 200, 60), yaw = 26, pitch = 14, zoom = 1.12 },
-	Animation = { gait = "Flyer", flap = 26, flapRate = 3.8, hover = 0.2, headLook = 20, tailSway = 6, tailRate = 1.2, auraSpeed = 0.5 },
+	Animation = { flicker = 0.35, gait = "Flyer", flap = 26, flapRate = 3.8, hover = 0.2, headLook = 20, tailSway = 6, tailRate = 1.2, auraSpeed = 0.5 },
+	Ability = ABILITY,
 	build = build,
 }
 

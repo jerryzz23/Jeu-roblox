@@ -14,6 +14,7 @@
 local Kit = require(script.Parent.Parent.Kit)
 local A = require(script.Parent.Parent.Anatomy)
 local Fx = require(script.Parent.Parent.Fx)
+local Vfx = require(script.Parent.Parent.Vfx)
 local Types = require(script.Parent.Parent.Types)
 
 local S = Kit.style
@@ -56,6 +57,15 @@ local HEAD = Kit.spine({
 	{ pos = v3(0, 1.6, -0.72), rx = 0.24, ry = 0.23 },
 	{ pos = v3(0, 1.5, -0.55), rx = 0.21, ry = 0.21 },
 })
+
+-- Capacité spéciale (CreatureForge.playAbility)
+local ABILITY: Types.Ability = {
+	name = "Bourrasque des brumes",
+	kind = "Nova",
+	colors = { rgb(190, 130, 255), rgb(90, 60, 150), rgb(255, 255, 255) },
+	texture = "smoke",
+	radius = 4,
+}
 
 local function build(opts: Kit.BuildOptions?): Model
 	local rig = Kit.newRig(ID, opts)
@@ -139,6 +149,14 @@ local function build(opts: Kit.BuildOptions?): Model
 		Fx.light(rig.bones.Head, { color = rgb(200, 130, 255), range = 5, brightness = 1 }, sc)
 	end
 
+
+	-- Effets avancés : signature, origine de la capacité, aura de rareté
+	if rig.effects then
+		Vfx.wingTrails(rig, v3(1.95, 1.76, -0.08), v3(0.08, 0, 0.28), { colors = { rgb(200, 150, 255), rgb(90, 60, 160) }, transparency = { 0.3, 1 }, lifetime = 0.35 })
+		Vfx.abilityOrigin(rig, ABILITY)
+		Vfx.rarityAura(rig, "Common")
+	end
+
 	return rig:finish({ Rarity = "Common" })
 end
 
@@ -152,6 +170,7 @@ local Def: Types.CreatureDef = {
 	Description = "Oiseau aux plumes sombres et aux yeux violets brumeux. Plane sans bruit au-dessus du canyon.",
 	Icon = { top = rgb(70, 54, 110), bottom = rgb(18, 14, 34), glow = rgb(200, 140, 255), motif = rgb(170, 120, 240), yaw = 30, pitch = 18, zoom = 1.15 },
 	Animation = { gait = "Flyer", flap = 32, flapRate = 6.5, hover = 0.12, headLook = 25, tailSway = 6, tailRate = 1.5 },
+	Ability = ABILITY,
 	build = build,
 }
 

@@ -16,6 +16,7 @@
 local Kit = require(script.Parent.Parent.Kit)
 local A = require(script.Parent.Parent.Anatomy)
 local Fx = require(script.Parent.Parent.Fx)
+local Vfx = require(script.Parent.Parent.Vfx)
 local Types = require(script.Parent.Parent.Types)
 
 local S = Kit.style
@@ -89,6 +90,15 @@ local function segBone(u: number): string
 	end
 	return "Body"
 end
+
+-- Capacité spéciale (CreatureForge.playAbility)
+local ABILITY: Types.Ability = {
+	name = "Pluie d'améthyste",
+	kind = "Burst",
+	colors = { rgb(200, 110, 255), rgb(140, 60, 220), rgb(255, 220, 255) },
+	texture = "sparkle",
+	radius = 4,
+}
 
 local function build(opts: Kit.BuildOptions?): Model
 	local rig = Kit.newRig(ID, opts)
@@ -164,6 +174,14 @@ local function build(opts: Kit.BuildOptions?): Model
 		Fx.light(dust, { color = rgb(190, 110, 255), range = 7, brightness = 1 }, sc)
 	end
 
+
+	-- Effets avancés : signature, origine de la capacité, aura de rareté
+	if rig.effects then
+		Vfx.orbitRing(rig, "Aura1", Vfx.orbitPoints(v3(0, 1.1, 0.5), 1.8, 3, 0.3), { colors = { rgb(220, 150, 255), rgb(150, 70, 230) }, transparency = { 0.3, 0.6 }, width0 = 0.06, curve0 = 0.6, curve1 = -0.6 })
+		Vfx.abilityOrigin(rig, ABILITY)
+		Vfx.rarityAura(rig, "Uncommon")
+	end
+
 	return rig:finish({ Rarity = "Uncommon" })
 end
 
@@ -177,6 +195,7 @@ local Def: Types.CreatureDef = {
 	Description = "Reptile aux écailles mauves. Des cristaux d'améthyste bruts percent le long de sa colonne.",
 	Icon = { top = rgb(96, 50, 150), bottom = rgb(26, 10, 44), glow = rgb(230, 160, 255), motif = rgb(200, 110, 255), yaw = 30, pitch = 12, zoom = 1.05 },
 	Animation = { gait = "Serpent", breathe = 0.02, sway = 10, tailRate = 1.6, headLook = 18, tongueFlick = true, auraSpeed = 0.7 },
+	Ability = ABILITY,
 	build = build,
 }
 

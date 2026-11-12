@@ -15,6 +15,7 @@
 local Kit = require(script.Parent.Parent.Kit)
 local A = require(script.Parent.Parent.Anatomy)
 local Fx = require(script.Parent.Parent.Fx)
+local Vfx = require(script.Parent.Parent.Vfx)
 local Types = require(script.Parent.Parent.Types)
 
 local S = Kit.style
@@ -58,6 +59,15 @@ local HEAD = Kit.spine({
 	{ pos = v3(0, 2.18, -0.1), rx = 0.48, ry = 0.46 },
 	{ pos = v3(0, 2.04, 0.08), rx = 0.3, ry = 0.3 },
 })
+
+-- Capacité spéciale (CreatureForge.playAbility)
+local ABILITY: Types.Ability = {
+	name = "Blizzard",
+	kind = "Nova",
+	colors = { rgb(170, 236, 255), rgb(90, 170, 255), rgb(255, 255, 255) },
+	texture = "sparkle",
+	radius = 5,
+}
 
 local function build(opts: Kit.BuildOptions?): Model
 	local rig = Kit.newRig(ID, opts)
@@ -158,6 +168,14 @@ local function build(opts: Kit.BuildOptions?): Model
 		Fx.light(rig.bones.Head, { color = rgb(140, 220, 255), range = 7, brightness = 1.1 }, sc)
 	end
 
+
+	-- Effets avancés : signature, origine de la capacité, aura de rareté
+	if rig.effects then
+		Vfx.wingTrails(rig, v3(2.0, 2.0, 0.08), v3(0.08, 0, 0.28), { colors = { rgb(200, 245, 255), rgb(100, 180, 255) }, transparency = { 0.3, 1 }, lifetime = 0.4 })
+		Vfx.abilityOrigin(rig, ABILITY)
+		Vfx.rarityAura(rig, "Uncommon")
+	end
+
 	return rig:finish({ Rarity = "Uncommon" })
 end
 
@@ -171,6 +189,7 @@ local Def: Types.CreatureDef = {
 	Description = "Rapace blanc et bleu givre. Ses yeux étincellent et ses serres sont d'acier.",
 	Icon = { top = rgb(70, 130, 200), bottom = rgb(16, 30, 60), glow = rgb(190, 240, 255), motif = rgb(170, 236, 255), yaw = 26, pitch = 10, zoom = 1.1 },
 	Animation = { gait = "Flyer", flap = 26, flapRate = 4.5, hover = 0.12, headLook = 35, tailSway = 4, tailRate = 1.4, auraSpeed = 0.6 },
+	Ability = ABILITY,
 	build = build,
 }
 

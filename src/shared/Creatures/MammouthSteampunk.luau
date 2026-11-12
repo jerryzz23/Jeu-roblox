@@ -17,6 +17,7 @@
 local Kit = require(script.Parent.Parent.Kit)
 local A = require(script.Parent.Parent.Anatomy)
 local Fx = require(script.Parent.Parent.Fx)
+local Vfx = require(script.Parent.Parent.Vfx)
 local Types = require(script.Parent.Parent.Types)
 
 local S = Kit.style
@@ -72,6 +73,16 @@ local TRUNK = Kit.spine({
 	{ pos = v3(0, 0.38, -2.45), rx = 0.16, ry = 0.16 },
 	{ pos = v3(0, 0.5, -2.22), rx = 0.12, ry = 0.12 },
 })
+
+-- Capacité spéciale (CreatureForge.playAbility)
+local ABILITY: Types.Ability = {
+	name = "Séisme mécanique",
+	kind = "Stomp",
+	colors = { rgb(255, 210, 90), rgb(200, 120, 30), rgb(255, 255, 220) },
+	texture = "spark",
+	radius = 9,
+	duration = 1.8,
+}
 
 local function build(opts: Kit.BuildOptions?): Model
 	local rig = Kit.newRig(ID, opts)
@@ -238,6 +249,17 @@ local function build(opts: Kit.BuildOptions?): Model
 		Fx.light(g, { color = rgb(255, 210, 100), range = 16, brightness = 1.6 }, sc)
 	end
 
+
+	-- Effets avancés : signature, origine de la capacité, aura de rareté
+	if rig.effects then
+		-- Arcs d'énergie entre les engrenages en orbite et la flèche de la tour d'horloge
+		local deck = BODY:surface(2.6, 0, 0.18)
+		local finial = (deck * cf(0, 0.9, 0) * cf(0, 0.8, 0) * cf(0, 0.95, 0)).Position
+		Vfx.orbitTethers(rig, "Aura1", Vfx.orbitPoints(v3(0, 2.8, 0), 3.6, 6, 0.6), "Body", finial, { colors = { rgb(255, 230, 120), rgb(255, 170, 40) }, transparency = { 0.25, 0.8 }, width0 = 0.08, width1 = 0.03, curve0 = 1.0 })
+		Vfx.abilityOrigin(rig, ABILITY)
+		Vfx.rarityAura(rig, "Mythic")
+	end
+
 	return rig:finish({ Rarity = "Mythic" })
 end
 
@@ -250,7 +272,8 @@ local Def: Types.CreatureDef = {
 	Category = "Créature Mythique",
 	Description = "Mammouth mécanique surmonté d'une tour d'horloge, entouré d'engrenages et de vapeur.",
 	Icon = { top = rgb(150, 100, 40), bottom = rgb(40, 24, 10), glow = rgb(255, 220, 120), motif = rgb(255, 204, 64), yaw = 34, pitch = 14, zoom = 1.05 },
-	Animation = { gait = "Quadruped", breathe = 0.05, bob = 0.08, stride = 18, strideRate = 5, tailSway = 10, tailRate = 2, headLook = 10, earTwitch = true, auraSpeed = 0.35 },
+	Animation = { flicker = 0.12, gait = "Quadruped", breathe = 0.05, bob = 0.08, stride = 18, strideRate = 5, tailSway = 10, tailRate = 2, headLook = 10, earTwitch = true, auraSpeed = 0.35 },
+	Ability = ABILITY,
 	build = build,
 }
 
