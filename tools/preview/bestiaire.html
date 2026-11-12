@@ -106,7 +106,7 @@ body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 var(-
   <aside class="side" aria-label="Créatures">
     <div class="brand">
       <h1>Bestiaire du Tapis</h1>
-      <p>30 personnages (dont les 10 variétés du Néant Couronné), 8 raretés, 11 mutations cumulables.</p>
+      <p>10 tapis de course, 30 personnages (dont les 10 variétés du Néant Couronné), 8 raretés, 11 mutations cumulables.</p>
     </div>
     <div id="zones"></div>
   </aside>
@@ -707,7 +707,7 @@ function buildCreature(data, mutationIds = [], opts = {}) {
     const g = new THREE.Group();
     g.matrixAutoUpdate = false;
     const rest = cfMatrix(b.c);
-    bones[b.n] = { name: b.n, parent: b.p, g, rest, restInv: rest.clone().invert(), c0: new THREE.Matrix4() };
+    bones[b.n] = { name: b.n, parent: b.p, g, rest, restInv: rest.clone().invert(), c0: new THREE.Matrix4(), attrs: b.a || {} };
   }
   for (const b of Object.values(bones)) {
     if (b.parent && bones[b.parent]) {
@@ -943,8 +943,11 @@ function stepAnim(cr, dt) {
     if (name.startsWith("Sway")) {
       const k = Number(name.slice(4)) || 0;
       set(name, T(0, 0, 0, Math.sin(t * 1.4 + k * 0.9) * rad(9), 0, Math.sin(t * 1.1 + k * 0.7) * rad(9)));
+    } else if (name === "Belt") {
+      const a = B[name].attrs;
+      set(name, T(0, 0, (t * (a.BeltSpeed || 3)) % (a.BeltSpacing || 0.5)));
     } else if (name.startsWith("Spin")) {
-      set(name, T(0, 0, 0, 0, 0, t * (cr.mut.spin[name] || 1)));
+      set(name, T(0, 0, 0, 0, 0, t * (cr.mut.spin[name] || B[name].attrs.Speed || 1)));
     } else if (name.startsWith("Float")) {
       const k = Number(name.slice(5)) || 0;
       set(name, T(0, Math.sin(t * 1.6 + k * 2) * 0.15, 0, Math.sin(t * 0.9 + k) * rad(8), Math.sin(t * 0.7 + k) * rad(12), 0));
@@ -1109,7 +1112,7 @@ function stepTransient(dt) {
 // ---------------------------------------------------------------------------
 let index = [];
 const cache = new Map();
-let currentId = null, currentMutations = [], concepts = [], ghost = null;
+let currentId = null, currentMutations = [], concepts = [], treadmills = [], ghost = null;
 let showFx = true;
 
 function pxScale() {
@@ -1125,7 +1128,7 @@ function renderList() {
   const zones = document.getElementById("zones");
   zones.innerHTML = "";
   const groups = [];
-  if (concepts.length) groups.push({ label: "Variantes du Néant Couronné", sub: "10 styles : choisis ton préféré", items: concepts });
+  if (treadmills.length) groups.push({ label: "Tapis de course", sub: "10 niveaux : plus de vitesse gagnée par seconde", items: treadmills, treadmill: true });
   for (const r of ORDER) {
     const items = index.filter(c => c.rarity === r);
     if (items.length) groups.push({ label: RARITY[r].label, sub: RARITY[r].where, items });
@@ -1137,6 +1140,15 @@ function renderList() {
     const list = document.createElement("div");
     list.className = "list";
     for (const c of g.items) {
+      if (g.treadmill) {
+        const b = document.createElement("button");
+        b.className = "item";
+        b.id = "item-" + c.id;
+        b.innerHTML = `<i class="pip" style="background:rgb(${c.color.join(",")})"></i><b>${c.name.replace(/ — niveau \d+$/, "")}</b><small>Niveau ${c.tier} · +${money(c.gain)} vitesse/s · ${c.price ? money(c.price) + " $" : "offert"}</small>`;
+        b.onclick = () => { location.hash = c.id; };
+        list.appendChild(b);
+        continue;
+      }
       const r = RARITY[c.rarity] || RARITY.Common;
       const b = document.createElement("button");
       b.className = "item";
@@ -1222,6 +1234,25 @@ async function show(id, keepCamera = false) {
   holder.updateMatrixWorld(true);
   for (let k = 0; k < 60; k++) for (const em of creature.fx.emitters) em.step(1 / 30);
   if (!keepCamera) fit(creature);
+  const isTread = data.kind === "Treadmill";
+  document.getElementById("mutations").hidden = isTread;
+  document.querySelector(".seg").hidden = isTread;
+  if (isTread) {
+    const next = treadmills.find(x => x.tier === data.tier + 1);
+    document.getElementById("name").textContent = data.name.replace(/ — niveau \d+$/, "");
+    document.getElementById("desc").textContent = data.description || "";
+    document.getElementById("tags").innerHTML =
+      `<span class="tag rarity" style="background:rgb(${data.color.join(",")})">Tapis · niveau ${data.tier}</span><span class="tag">${data.theme}</span>`;
+    document.getElementById("stats").innerHTML =
+      `<span><strong>+${money(data.gain)}</strong> vitesse gagnée par seconde</span>` +
+      `<span><strong>${data.price ? money(data.price) + " $" : "Offert"}</strong> ${data.price ? "à l'achat" : "(tapis de départ)"}</span>` +
+      `<span><strong>${data.parts.length.toLocaleString("fr-FR")}</strong> pièces</span>`;
+    document.getElementById("income").textContent = next ? `Niveau suivant : ${next.name.replace(/ — niveau \d+$/, "")} (${money(next.price)} $, +${money(next.gain)} vitesse/s)` : "Le meilleur tapis du jeu";
+    document.getElementById("abilityName").textContent = "";
+    document.getElementById("loading").hidden = true;
+    document.title = `${document.getElementById("name").textContent} · Bestiaire du Tapis`;
+    return;
+  }
   const meta = index.find(c => c.id === id) || concepts.find(c => c.id === id) || {};
   const rar = RARITY[data.rarity] || RARITY.Common;
   const concept = data.zone === "Concepts";
@@ -1292,7 +1323,11 @@ renderer.setAnimationLoop(() => {
 window.addEventListener("hashchange", () => show(location.hash.slice(1)));
 (async () => {
   try {
-    [index, mutations] = await Promise.all([fetch("index.json").then(r => r.json()), fetch("mutations.json").then(r => r.json())]);
+    [index, mutations, treadmills] = await Promise.all([
+      fetch("index.json").then(r => r.json()),
+      fetch("mutations.json").then(r => r.json()),
+      fetch("treadmills.json").then(r => (r.ok ? r.json() : [])).catch(() => []),
+    ]);
   } catch (err) {
     document.getElementById("loading").textContent = "Impossible de charger le bestiaire. Recharge la page.";
     return;
@@ -1300,7 +1335,8 @@ window.addEventListener("hashchange", () => show(location.hash.slice(1)));
   renderList();
   renderMutations();
   const start = location.hash.slice(1);
-  await show(index.some(c => c.id === start) ? start : (index.find(c => c.rarity === "Chaotic") || index[0]).id);
+  const known = index.some(c => c.id === start) || treadmills.some(c => c.id === start);
+  await show(known ? start : (treadmills[treadmills.length - 1] || index[0]).id);
   window.__ready = true;
 })();
 </script>

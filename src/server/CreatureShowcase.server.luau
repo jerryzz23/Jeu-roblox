@@ -7,6 +7,7 @@
 	(états "Move" / "Idle" lus par CreatureAnimator côté client) et déclencher de temps en
 	temps leur capacité spéciale (CreatureForge.playAbility : effets joués par les clients).
 	Environ une créature sur trois reçoit une ou deux mutations au hasard pour la démonstration.
+	Les 10 tapis de course sont alignés derrière le point d'apparition.
 	Désactivez ce script (Enabled = false) dans votre vrai jeu.
 ]]
 
@@ -112,4 +113,17 @@ for _, rarity in CreatureForge.Rarity.Order do
 		x += widths[i] / 2 + GAP
 	end
 	rowOffset += depth + ROW_GAP
+end
+
+-- Rangée des 10 tapis de course derrière le point d'apparition (du niveau 1 au niveau 10) :
+-- on monte par l'arrière, la console est face au coureur et la bande le fait courir sur place.
+do
+	local list = CreatureForge.Treadmills.list()
+	local spacing = 6
+	local away = -forward
+	for i, def in list do
+		local x = (i - (#list + 1) / 2) * spacing
+		local pos = groundAt(base.Position + away * 16 + right * x)
+		CreatureForge.Treadmills.spawn(def.Id, CFrame.lookAt(pos, pos + away), { parent = folder })
+	end
 end

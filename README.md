@@ -10,7 +10,7 @@ articulé (Motor6D), animé, a son **icône UI**, une **selle** (monture) et, po
 
 ## Bestiaire animé
 
-`tools/preview/bestiaire.html` affiche les 30 modèles (21 personnages, dont 10 variétés du Néant) en 3D, **animés** (repos, marche,
+`tools/preview/bestiaire.html` affiche les 10 tapis de course et les 30 modèles de créatures (21 personnages, dont 10 variétés du Néant) en 3D, **animés** (repos, marche,
 capacité spéciale, figé), classés par rareté, avec leurs stats (taille, argent de base, bonus de
 vitesse, passager) et les **mutations cumulables** (le revenu se calcule en direct). C'est le même
 animateur que dans le jeu, porté en JavaScript. En local :
@@ -116,6 +116,39 @@ Quand plusieurs mutations sont cumulées, la plus rare impose ses couleurs ; les
 fissures, engrenages, squelette, étoiles, ombre, fantôme) s'additionnent. Les effets animés
 (engrenages, ondulation, aurore, écho, paradoxe) sont joués côté client par `Mutations.runtime`.
 
+## Tapis de course (gagner de la vitesse)
+
+![Les 10 tapis de course](docs/previews/tapis.png)
+
+Le joueur gagne de la vitesse en courant sur le mini tapis de sa base ; un meilleur tapis fait
+gagner plus vite. 10 niveaux (`src/shared/Treadmills/`), chacun avec sa bande qui défile (os
+`Belt`), son écran face au coureur, son emblème en façade et ses décors animés. Prix et gains sont
+des valeurs de départ à ajuster :
+
+| Niveau | Tapis | Thème | Prix | Vitesse gagnée / s |
+| --- | --- | --- | --- | --- |
+| 1 | Tapis d'entraînement | acier brossé, néon cyan, gourde et serviette | offert | +1 |
+| 2 | Tapis de forge | fer noirci, chevrons de lave, échappements en feu, engrenages | 500 $ | +3 |
+| 3 | Tapis givré | acier blanc, cristaux de glace, stalactites, neige | 5K $ | +10 |
+| 4 | Tapis céleste | marbre et or, ailes de plumes, halo flottant, nuages | 50K $ | +35 |
+| 5 | Tapis d'orage | bobines Tesla reliées par des arcs, nuage d'orage | 500K $ | +120 |
+| 6 | Tapis du néant | obsidienne, portail en spirale qui tourne, croissants de lune | 5M $ | +400 |
+| 7 | Tapis royal | pourpre et or, couronne, éventails de plumes, bannières | 50M $ | +1,5K |
+| 8 | Tapis lune de sang | lune de sang qui tourne, chaînes, cierges, runes | 500M $ | +5K |
+| 9 | Tapis d'émeraude | flèches gothiques aux flammes vertes, lianes lumineuses | 5B $ | +20K |
+| 10 | Tapis du Néant Couronné | bande arc-en-ciel, couronne flottante, étoiles, aura Chaotique | 50B $ | +100K |
+
+```lua
+local Treadmills = CreatureForge.Treadmills
+local tapis = Treadmills.spawn("TapisForge", baseCFrame)   -- le coureur regarde vers -Z
+Treadmills.setRunning(tapis, true)                          -- la bande fait courir sur place
+Treadmills.get("TapisForge").Gain                           --> 3 (vitesse gagnée par seconde)
+Treadmills.nextOf("TapisForge")                             --> Tapis givré (prix, gain)
+```
+
+Chaque tapis contient une pièce `RunSurface` (collidable, ancrée, vitesse de convoyeur) : le
+serveur vérifie que le joueur est dessus et bouge avant d'accorder le gain (anti-triche).
+
 ## Effets visuels (VFX)
 
 Chaque créature combine une **aura de rareté**, des **effets signature** (braises, flocons,
@@ -130,7 +163,7 @@ souffle, gerbe d'éclats ou éruption, avec une pose de rugissement.
 
 Ouvre **`dist/CreatureForge.rbxl`** dans Roblox Studio et appuie sur **Play** : les 21 personnages
 apparaissent en rangées (une par rareté), se promènent et s'animent ; environ un sur trois reçoit
-une ou deux mutations. Le bouton **Bestiaire** (en bas à gauche) affiche toutes les icônes.
+une ou deux mutations. Les 10 tapis de course sont alignés derrière le point d'apparition. Le bouton **Bestiaire** (en bas à gauche) affiche toutes les icônes.
 
 ### Option 2 — Une créature dans ta propre place
 
@@ -189,6 +222,7 @@ src/shared/                 -> ReplicatedStorage.CreatureForge
                             plumes, ailes, cristaux, engrenages, runes, orbites
   Mutations.luau            11 mutations cumulables (peinture, ajouts, runtime client)
   Spawning.luau             tirage des raretés selon la distance sur le tapis, format 1,5K / 2M
+  Treadmills/               tapis de course : Base (châssis, bande, console), Models/ (10 niveaux)
   Vfx.luau                  aura de rareté, rayons (Beam), traînées (Trail), capacités spéciales
   Fx.luau                   particules et lumières (textures moteur, aucun asset à téléverser)
   Icon.luau                 carte d'icône (UICorner, UIGradient, UIStroke, ViewportFrame)

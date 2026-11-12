@@ -24,6 +24,7 @@ local Mutations = require(script.Mutations)
 local Vfx = require(script.Vfx)
 local Types = require(script.Types)
 local Spawning = require(script.Spawning)
+local Treadmills = require(script.Treadmills)
 
 export type CreatureDef = Types.CreatureDef
 export type AnimState = "Idle" | "Move" | "Still" | "Ability"
@@ -37,6 +38,7 @@ local CreatureForge = {
 	Mutations = Mutations,
 	Vfx = Vfx,
 	Spawning = Spawning,
+	Treadmills = Treadmills,
 	TAG = Kit.TAG,
 }
 

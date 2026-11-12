@@ -361,12 +361,21 @@ local function step(st: State, dt: number)
 	end
 
 	-- Os "SwayN" (tentacules, voiles) : ondulation douce, cumulée le long des chaînes ;
-	-- os "FloatN" (mains, poings flottants) : flottement et légère rotation
+	-- os "FloatN" (mains, poings flottants) : flottement et légère rotation ;
+	-- os "Belt" (bande des tapis de course) et "SpinN" (rotations continues)
 	for name, m in st.motors do
 		local prefix = string.sub(name, 1, 4)
 		if prefix == "Sway" then
 			local k = tonumber(string.sub(name, 5)) or 0
 			m.Transform = CFrame.Angles(math.sin(t * 1.4 + k * 0.9) * rad(9), 0, math.sin(t * 1.1 + k * 0.7) * rad(9))
+		elseif prefix == "Belt" then
+			-- Bande d'un tapis de course : les lattes défilent vers l'arrière (boucle sur l'espacement)
+			local speed = (m:GetAttribute("BeltSpeed") :: number?) or 3
+			local spacing = (m:GetAttribute("BeltSpacing") :: number?) or 0.5
+			m.Transform = CFrame.new(0, 0, ((t * speed) % spacing) * sc)
+		elseif prefix == "Spin" then
+			-- Engrenages, portails, lunes : rotation continue autour de l'axe Z de l'os
+			m.Transform = CFrame.Angles(0, 0, t * ((m:GetAttribute("Speed") :: number?) or 1))
 		elseif prefix == "Floa" then
 			local k = tonumber(string.sub(name, 6)) or 0
 			m.Transform = CFrame.new(0, math.sin(t * 1.6 + k * 2) * 0.15 * sc, 0)

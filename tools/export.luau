@@ -3,7 +3,8 @@
 	  dist/models/<Id>.rbxm        -> modèle à glisser-déposer dans Roblox Studio
 	  dist/icons/<Id>_Icon.rbxm    -> ScreenGui avec la carte d'icône (à déposer dans StarterGui)
 	  tools/preview/<Id>.json      -> géométrie pour l'aperçu web (tools/preview/viewer.html)
-	  tools/preview/index.json     -> liste des créatures (nom, rareté, zone)
+	  tools/preview/index.json     -> liste des créatures (nom, rareté, stats)
+	  tools/preview/treadmills.json -> liste des tapis de course (niveau, prix, gain)
 	  tools/preview/mutations.json -> données des mutations (aperçu web)
 
 	Usage : lune run tools/export [Id ...]   (sans argument : toutes les créatures)
@@ -144,12 +145,20 @@ local function exportPreview(def, model, iconCard)
 	local bones = { { n = "Root", c = cframeArray(model.PrimaryPart.CFrame) } }
 	for _, bp in bonesFolder:GetChildren() do
 		local parentName = "Root"
+		local attrs = nil
 		for _, m in model:GetDescendants() do
 			if m:IsA("Motor6D") and m.Part1 == bp then
 				parentName = m.Part0.Name
+				for _, key in { "Speed", "BeltSpeed", "BeltSpacing" } do
+					local v = m:GetAttribute(key)
+					if v then
+						attrs = attrs or {}
+						attrs[key] = v
+					end
+				end
 			end
 		end
-		table.insert(bones, { n = bp.Name, p = parentName, c = cframeArray(bp.CFrame) })
+		table.insert(bones, { n = bp.Name, p = parentName, c = cframeArray(bp.CFrame), a = attrs })
 	end
 
 	-- Capacité spéciale + point d'origine
@@ -172,7 +181,7 @@ local function exportPreview(def, model, iconCard)
 		}
 	end
 
-	local cam = iconCard:FindFirstChild("Viewport"):FindFirstChildOfClass("Camera")
+	local cam = if iconCard then iconCard:FindFirstChild("Viewport"):FindFirstChildOfClass("Camera") else nil
 	return {
 		id = def.Id,
 		name = def.DisplayName,
@@ -190,13 +199,13 @@ local function exportPreview(def, model, iconCard)
 		category = def.Category,
 		scale = def.Scale or 1,
 		fx = { emitters = emitters, beams = beams, lights = lights, trails = trails },
-		icon = {
+		icon = if cam then {
 			camera = cframeArray(cam.CFrame),
 			fov = cam.FieldOfView,
 			top = c3(def.Icon.top),
 			bottom = c3(def.Icon.bottom),
 			glow = c3(def.Icon.glow),
-		},
+		} else nil,
 	}
 end
 
@@ -286,6 +295,26 @@ for _, id in ids do
 	local span = math.max(body.X, body.Y, body.Z)
 	local target = Forge.Rarity.Sizes[def.Size] and Forge.Rarity.Sizes[def.Size].span or span
 	print(string.format("%-24s %-9s %-8s %5d pièces | %.1f x %.1f x %.1f (scale 1) | Scale %.2f -> conseillé %.2f", id, def.Rarity, def.Size or "?", #preview.parts, body.Y, body.X, body.Z, def.Scale or 1, target / span))
+end
+
+-- Tapis de course
+if all then
+	local tlist = {}
+	for _, def in Forge.Treadmills.list() do
+		local model = def.build({ scale = 1 })
+		fs.writeFile(`dist/models/{def.Id}.rbxm`, roblox.serializeModel({ model }))
+		local preview = exportPreview({ Id = def.Id, DisplayName = def.DisplayName, Rarity = "Treadmill", Animation = { gait = "Static" }, Description = def.Description, Category = "Tapis de course", Scale = 1 }, model, nil)
+		preview.kind = "Treadmill"
+		preview.tier = def.Tier
+		preview.price = def.Price
+		preview.gain = def.Gain
+		preview.theme = def.Theme
+		preview.color = c3(def.Color)
+		fs.writeFile(`tools/preview/{def.Id}.json`, serde.encode("json", preview, false))
+		table.insert(tlist, { id = def.Id, name = def.DisplayName, tier = def.Tier, price = def.Price, gain = def.Gain, theme = def.Theme, color = c3(def.Color) })
+		print(string.format("%-20s niveau %2d %5d pièces", def.Id, def.Tier, #preview.parts))
+	end
+	fs.writeFile("tools/preview/treadmills.json", serde.encode("json", tlist, false))
 end
 
 if all then
