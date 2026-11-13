@@ -150,3 +150,8 @@ Dans l'ordre, les plus récentes en bas.
     sur son PC avec Computer use activé.
 12. « Je veux que tu te souviennes de cette discussion » → création de ce fichier et de
     `CLAUDE.md`.
+13. « Fais-moi un récap détaillé du jeu » → donné dans la conversation (concept, carte, 30
+    personnages, mutations, seringues, machine à ADN, tapis, battes, fait / à faire).
+14. « Va sur mon PC et mets le jeu sur Roblox Studio » (2e fois) → toujours impossible depuis
+    cette session cloud : aucun accès à son ordinateur. Il doit ouvrir une conversation depuis
+    l'application Claude de son PC (Computer use activé), ou ouvrir lui-même le fichier `.rbxl`.
