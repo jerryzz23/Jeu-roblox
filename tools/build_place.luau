@@ -2,9 +2,14 @@
 	Génère un fichier de jeu prêt à ouvrir dans Roblox Studio :
 	  dist/CreatureForge.rbxl
 	    ReplicatedStorage.CreatureForge       (tous les ModuleScripts de src/shared)
-	    ServerScriptService.CreatureShowcase  (démo : les créatures se promènent dans leur zone)
+	    ServerScriptService.CreatureShowcase  (démo : les personnages se promènent dans leur zone)
+	    ServerScriptService.Bases             (une base par joueur, machine à ADN, boutique)
 	    StarterPlayerScripts.CreatureAnimator / CreatureBestiary
-	    Workspace : la carte (bases, canyon en pente, 4 zones) + point d'apparition
+	    StarterPack : batte en bois + seringue basique (équipement de départ)
+	    Workspace.Carte   : bases, machines à ADN, tapis, stands, pente du canyon, 8 zones
+	    Workspace.Vitrine : les 30 personnages dans leur zone, les 10 tapis de course,
+	                        les présentoirs des battes, seringues et ADN
+	  Tout est visible dès l'ouverture dans Roblox Studio ; Play lance les animations.
 
 	Usage : lune run tools/build_place
 ]]
@@ -62,6 +67,26 @@ local Forge = Sandbox.load("src/shared")
 local map = Forge.Map.build({})
 map.Parent = workspace
 print(`carte : {map:GetAttribute("PartCount")} pièces`)
+
+-- La vitrine : tout le contenu du jeu exposé dans la carte (visible dès l'ouverture)
+local vitrine = Forge.buildVitrine(map, workspace)
+local function countParts(root)
+	local n = 0
+	for _, d in root:GetDescendants() do
+		if d:IsA("BasePart") then
+			n += 1
+		end
+	end
+	return n
+end
+for _, child in vitrine:GetChildren() do
+	print(`vitrine / {child.Name} : {#child:GetChildren()} éléments, {countParts(child)} pièces`)
+end
+
+-- Équipement de départ
+local pack = game:GetService("StarterPack")
+Forge.Weapons.buildTool("BatteBois").Parent = pack
+Forge.Syringes.buildTool("SeringueBasique").Parent = pack
 
 local lighting = game:GetService("Lighting")
 lighting.ClockTime = 14.5

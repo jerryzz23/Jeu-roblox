@@ -250,9 +250,25 @@ souffle, gerbe d'éclats ou éruption, avec une pose de rugissement.
 
 ### Option 1 — Le jeu complet (le plus simple)
 
-Ouvre **`dist/CreatureForge.rbxl`** dans Roblox Studio et appuie sur **Play** : les 21 personnages
-se promènent dans la carte, chacun dans la zone de sa rareté ; environ un sur trois reçoit une ou
-deux mutations. Les 10 tapis de course sont exposés sur la place des bases. Le bouton **Bestiaire** (en bas à gauche) affiche toutes les icônes.
+Télécharge **`dist/CreatureForge.rbxl`** (sur GitHub : ouvre le fichier puis « Download raw
+file »), puis dans Roblox Studio : **Fichier > Ouvrir depuis un fichier** (*File > Open from
+File*). Tout est déjà dans la place, visible dès l'ouverture :
+
+| Où | Quoi |
+| --- | --- |
+| `Workspace.Carte` | les 8 bases (enclos, machine à ADN, tapis devant chaque base), les stands, la roue, la pente du canyon et ses 8 zones |
+| `Workspace.Vitrine.Creatures` | les 30 personnages, chacun dans la zone de sa rareté (environ un sur trois a une ou deux mutations) |
+| `Workspace.Vitrine.Tapis` | les 10 tapis de course, derrière le point d'apparition |
+| `Workspace.Vitrine.Objets` | les présentoirs : 5 battes et 8 seringues à gauche des bases, les 8 ADN à droite |
+| `StarterPack` | la batte en bois et la seringue basique (équipement de départ) |
+| `ReplicatedStorage.CreatureForge` | tous les modules (modèles, raretés, mutations, carte, machine à ADN...) |
+| `ServerScriptService` | `CreatureShowcase` (fait se promener les personnages) et `Bases` (une base par joueur, machine à ADN, stock de seringues) |
+| `StarterPlayerScripts` | `CreatureAnimator` (animations, effets) et `CreatureBestiary` (bouton **Bestiaire**) |
+
+Appuie sur **Play** : tu apparais derrière les bases, une base t'est attribuée (panneau à ton
+nom) et tu reçois 3 ADN de test à poser dans ta machine. Les personnages se promènent et lancent
+leur capacité spéciale. La place compte environ 80 000 pièces : l'ouverture peut prendre quelques
+secondes.
 
 ### Option 2 — Une créature dans ta propre place
 
@@ -354,6 +370,7 @@ src/shared/                 -> ReplicatedStorage.CreatureForge
   Syringes.luau             les seringues (modèles + Tool), ADN, boutique toutes les 5 min
   DnaMachine.luau           la machine à ADN de chaque base, chances selon la rareté de l'ADN,
                             fragments d'ADN (modèles + Tool)
+  Vitrine.luau              tout le contenu exposé dans la carte (personnages, tapis, présentoirs)
   Vfx.luau                  aura de rareté, rayons (Beam), traînées (Trail), capacités spéciales
   Fx.luau                   particules et lumières (textures moteur, aucun asset à téléverser)
   Icon.luau                 carte d'icône (UICorner, UIGradient, UIStroke, ViewportFrame)
@@ -364,7 +381,7 @@ src/shared/                 -> ReplicatedStorage.CreatureForge
   Archive/                  anciens modèles (non enregistrés)
 src/client/                 CreatureAnimator (démarches Quadruped, Sprawler, Flyer, Serpent,
                             Hover, Biped + orbites + capacités + lumières + mutations), CreatureBestiary (UI)
-src/server/                 CreatureShowcase (démo : créatures dans leur zone, tapis exposés),
+src/server/                 CreatureShowcase (démo : les personnages de la Vitrine se promènent),
                             Bases (un enclos par joueur, machine à ADN, stock de seringues)
 tools/                      export.luau, bundle.luau, build_place.luau,
                             preview/bestiaire.html (bestiaire animé), preview/viewer.html (aperçus)

@@ -29,6 +29,7 @@ local Map = require(script.Map)
 local Weapons = require(script.Weapons)
 local Syringes = require(script.Syringes)
 local DnaMachine = require(script.DnaMachine)
+local Vitrine = require(script.Vitrine)
 
 export type CreatureDef = Types.CreatureDef
 export type AnimState = "Idle" | "Move" | "Still" | "Ability"
@@ -47,6 +48,7 @@ local CreatureForge = {
 	Weapons = Weapons,
 	Syringes = Syringes,
 	DnaMachine = DnaMachine,
+	Vitrine = Vitrine,
 	TAG = Kit.TAG,
 }
 
@@ -229,6 +231,12 @@ function CreatureForge.hatch(dnaRarity: string, amount: number?, rng: Random?): 
 		return nil, {}
 	end
 	return pool[r:NextInteger(1, #pool)], Mutations.roll(r)
+end
+
+--- Expose tout le contenu du jeu dans la carte (Workspace.Vitrine) : les personnages dans leur
+--- zone, les 10 tapis de course et les présentoirs des battes, seringues et ADN.
+function CreatureForge.buildVitrine(map: Model, parent: Instance?): Folder
+	return Vitrine.build(map, parent or workspace, CreatureForge.list(), CreatureForge.spawn)
 end
 
 --- Construit la carte d'icône UI de la créature `id`.

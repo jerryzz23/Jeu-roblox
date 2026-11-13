@@ -2,13 +2,15 @@
 --[[
 	CreatureShowcase (ServerScriptService)
 	--------------------------------------
-	Démo : fait apparaître toutes les créatures dans la carte, chacune dans la zone de sa rareté
-	(Communs en haut de la pente... Chaotiques tout au bout de l'Abysse), puis les fait se promener
-	(états "Move" / "Idle" lus par CreatureAnimator côté client) et déclencher de temps en
-	temps leur capacité spéciale (CreatureForge.playAbility : effets joués par les clients).
-	Environ une créature sur trois reçoit une ou deux mutations au hasard pour la démonstration.
-	Les 10 tapis de course sont exposés sur la place des bases, derrière le point d'apparition.
-	Désactivez ce script (Enabled = false) dans votre vrai jeu.
+	Démo : la Vitrine (Workspace.Vitrine) expose tout le contenu du jeu — les personnages dans la
+	zone de leur rareté (Communs en haut de la pente... Chaotiques tout au bout), les 10 tapis de
+	course derrière le point d'apparition, les présentoirs des battes, seringues et ADN à côté des
+	bases. Elle est déjà enregistrée dans dist/CreatureForge.rbxl ; sinon (Rojo) elle est
+	construite au démarrage.
+	Ce script fait ensuite se promener les personnages (états "Move" / "Idle" lus par
+	CreatureAnimator côté client) et déclencher de temps en temps leur capacité spéciale
+	(CreatureForge.playAbility : effets joués par les clients).
+	Désactivez ce script (Enabled = false) et supprimez la Vitrine dans votre vrai jeu.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -17,16 +19,19 @@ local TweenService = game:GetService("TweenService")
 local CreatureForge = require(ReplicatedStorage:WaitForChild("CreatureForge"))
 
 local SPEED = 8 -- studs/s (multiplié par l'échelle)
-local MUTATION_DEMO = true
 local ABILITY_CHANCE = 0.3 -- probabilité de lancer sa capacité au lieu de se déplacer
 
-local folder = Instance.new("Folder")
-folder.Name = "Creatures"
-folder.Parent = workspace
+-- La carte : celle de la place (dist/CreatureForge.rbxl), sinon construite au démarrage (Rojo)
+local map = workspace:FindFirstChild("Carte") :: Model?
+if not map then
+	map = CreatureForge.Map.build({ parent = workspace })
+end
+local vitrine = workspace:FindFirstChild("Vitrine") or CreatureForge.buildVitrine(map :: Model, workspace)
+local folder = vitrine:WaitForChild("Creatures")
 
 local rayParams = RaycastParams.new()
 rayParams.FilterType = Enum.RaycastFilterType.Exclude
-rayParams.FilterDescendantsInstances = { folder }
+rayParams.FilterDescendantsInstances = { vitrine }
 
 local function groundAt(pos: Vector3): Vector3
 	local hit = workspace:Raycast(pos + Vector3.new(0, 80, 0), Vector3.new(0, -300, 0), rayParams)
@@ -70,50 +75,10 @@ local function wander(model: Model, home: Vector3, radius: number)
 	end
 end
 
--- La carte : celle de la place (dist/CreatureForge.rbxl), sinon construite au démarrage (Rojo)
-local Map = CreatureForge.Map
-local map = workspace:FindFirstChild("Carte") :: Model?
-if not map then
-	map = Map.build({ parent = workspace })
-end
-local pivot = (map :: Model):GetPivot()
-local uphill = pivot:VectorToWorldSpace(Vector3.new(0, 0, 1))
-local rng = Random.new()
-
--- Chaque créature se promène dans la zone de sa rareté (distance relative le long de la pente)
-local ZONE_D = {
-	Common = { 0.02, 0.11 },
-	Rare = { 0.14, 0.24 },
-	Epic = { 0.27, 0.36 },
-	Legendary = { 0.39, 0.49 },
-	Mythic = { 0.52, 0.62 },
-	Exotic = { 0.64, 0.74 },
-	Exclusive = { 0.77, 0.86 },
-	Chaotic = { 0.89, 0.98 },
-}
-for _, def in CreatureForge.list() do
-	local mutations = {}
-	if MUTATION_DEMO and rng:NextNumber() < 0.3 then
-		local list = CreatureForge.Mutations.List
-		for _ = 1, rng:NextInteger(1, 2) do
-			table.insert(mutations, list[rng:NextInteger(1, #list)].id)
-		end
-	end
-	local band = ZONE_D[def.Rarity] or { 0.05, 0.2 }
-	local d = rng:NextNumber(band[1], band[2])
-	local p = groundAt((pivot * Map.pathCFrame(d, rng:NextNumber(-12, 12))).Position)
-	local model = CreatureForge.spawn(def.Id, CFrame.identity, { parent = folder, mutations = mutations })
-	-- Tournée vers le haut de la pente (vers les bases)
-	model:PivotTo(CFrame.lookAt(p, p + uphill))
-	local scale = (model:GetAttribute("Scale") :: number?) or 1
-	task.spawn(wander, model, p, 6 + scale * 3)
-end
-
--- Exposition des 10 tapis de course sur la place des bases, derrière le point d'apparition
-do
-	local list = CreatureForge.Treadmills.list()
-	for i, def in list do
-		local pos = pivot * Vector3.new((i - (#list + 1) / 2) * 6, 0.1, 218)
-		CreatureForge.Treadmills.spawn(def.Id, CFrame.lookAt(pos, pos - uphill), { parent = folder })
+for _, model in folder:GetChildren() do
+	if model:IsA("Model") and model.PrimaryPart then
+		local home = (model:GetAttribute("Home") :: Vector3?) or model:GetPivot().Position
+		local scale = (model:GetAttribute("Scale") :: number?) or 1
+		task.spawn(wander, model, home, 6 + scale * 3)
 	end
 end

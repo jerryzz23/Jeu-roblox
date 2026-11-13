@@ -300,6 +300,10 @@ end
 -- Carte du jeu (aperçu web : vue de la carte entière)
 if all then
 	local map = Forge.Map.build({})
+	fs.writeFile("dist/models/Carte.rbxm", roblox.serializeModel({ map }))
+	-- Aperçu : la carte + la vitrine (tapis exposés, présentoirs des battes, seringues et ADN)
+	Forge.Vitrine.treadmills(map, map)
+	Forge.Vitrine.items(map, map)
 	local zones = {}
 	for _, z in Forge.Map.ZONES do
 		table.insert(zones, { id = z.id, label = z.label, sub = z.sub, from = z.from, to = z.to, color = c3(z.color) })
@@ -310,7 +314,6 @@ if all then
 	preview.length = Forge.Map.LENGTH
 	preview.drop = Forge.Map.DROP
 	fs.writeFile("tools/preview/Carte.json", serde.encode("json", preview, false))
-	fs.writeFile("dist/models/Carte.rbxm", roblox.serializeModel({ map }))
 	print(string.format("Carte : %d pièces", #preview.parts))
 end
 
