@@ -610,7 +610,7 @@ function load(json) {
     `${(bounds.max.y - bounds.min.y).toFixed(1)} st de haut · ${(bounds.max.z - bounds.min.z).toFixed(1)} st de long`;
   document.getElementById("plate").textContent = json.name;
   const ms = mutations.filter(x => mutList().includes(x.id));
-  const sub = json.kind === "Weapon" ? `Portée ${json.range} · ${json.cooldown}s` : json.kind === "Syringe" ? `ADN x${String(json.multiplier).replace(".", ",")}` : json.kind === "Treadmill" ? `+${json.gain.toLocaleString("fr-FR")} vitesse/s` : ms.length ? ms.map(m => m.label).join(" + ") + " x" + String(ms.reduce((a, m) => a + m.multiplier, 0)).replace(".", ",") : json.rarity.toUpperCase();
+  const sub = json.kind === "Weapon" ? `Portée ${json.range} · ${json.cooldown}s` : json.kind === "Syringe" ? `ADN x${String(json.multiplier).replace(".", ",")}` : json.kind === "Treadmill" ? `+${json.gain.toLocaleString("fr-FR")} vitesse/s` : json.kind === "Machine" ? "Une par base" : json.kind === "Dna" ? `Incubation ${json.incubation >= 60 ? Math.floor(json.incubation / 60) + " min" + (json.incubation % 60 ? " " + json.incubation % 60 + " s" : "") : json.incubation + " s"}` : ms.length ? ms.map(m => m.label).join(" + ") + " x" + String(ms.reduce((a, m) => a + m.multiplier, 0)).replace(".", ",") : json.rarity.toUpperCase();
   document.getElementById("caption").innerHTML = `${json.name}<span>${sub}</span>`;
   setView(view);
 }
@@ -618,7 +618,7 @@ function load(json) {
 function fit(dir) {
   const center = bounds.getCenter(new THREE.Vector3());
   const radius = bounds.getSize(new THREE.Vector3()).length() / 2;
-  const dist = radius / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2)) * 0.8;
+  const dist = radius / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2)) * 0.8 * (Number(params.get("zoomout")) || 1);
   camera.position.copy(center).add(dir.clone().normalize().multiplyScalar(dist));
   controls.target.copy(center);
   camera.lookAt(center);

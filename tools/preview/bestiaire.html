@@ -71,6 +71,11 @@ body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 var(-
 .hud p { margin: 0; color: #d6d3ee; font-size: 14px; max-width: 46ch; text-shadow: 0 1px 6px rgba(0,0,0,.6); }
 .stats { display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .stats strong { color: var(--fg); font-weight: 700; }
+.oddsTable { display: grid; gap: 3px; width: 100%; }
+.oddsRow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; line-height: 1.35; }
+.oddsRow b { font-weight: 700; }
+.oddsRow .pip { flex: none; }
+.oddsHead { margin-top: 4px; font-weight: 700; color: var(--fg); }
 
 .controls {
   position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px));
@@ -106,7 +111,7 @@ body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 var(-
   <aside class="side" aria-label="Créatures">
     <div class="brand">
       <h1>Bestiaire du Canyon</h1>
-      <p>La carte du canyon, 10 tapis de course, 30 personnages (dont les 10 variétés du Néant Couronné), 8 raretés, 11 mutations cumulables.</p>
+      <p>La carte du canyon, la machine à ADN, 10 tapis de course, 30 personnages (dont les 10 variétés du Néant Couronné), 8 raretés, 11 mutations cumulables.</p>
     </div>
     <div id="zones"></div>
   </aside>
@@ -156,14 +161,15 @@ const RARITY = {
   Epic: { label: "Épique", color: "#a850ff", where: "Milieu du tapis · moyen" },
   Legendary: { label: "Légendaire", color: "#ffbe28", where: "Loin · peu fréquent" },
   Mythic: { label: "Mythique", color: "#ff283c", where: "Très loin · rare" },
-  Exotic: { label: "Exotique", color: "linear-gradient(90deg,#ff4646,#ffaa28,#fff046,#46e66e,#3caaff,#aa5aff)", where: "Tout au bout · 1 sur 5 000", cls: "exotic" },
-  Exclusive: { label: "Exclusif", color: "linear-gradient(90deg,#0a080c,#3a2a06,#0a080c)", where: "Tout au bout + roue · 1 sur 50 000", cls: "exclusive" },
-  Chaotic: { label: "Chaotique", color: "linear-gradient(90deg,#ff005a,#00ffe6,#7800ff,#ff005a)", where: "Tout au bout · 1 sur 1 000 000", cls: "chaotic" },
+  Exotic: { label: "Exotique", color: "linear-gradient(90deg,#ff4646,#ffaa28,#fff046,#46e66e,#3caaff,#aa5aff)", where: "Tout au bout · 1 sur 5 000", cls: "exotic", text: "#ff8a3c" },
+  Exclusive: { label: "Exclusif", color: "linear-gradient(90deg,#0a080c,#3a2a06,#0a080c)", where: "Tout au bout + roue · 1 sur 50 000", cls: "exclusive", text: "#d9a520" },
+  Chaotic: { label: "Chaotique", color: "linear-gradient(90deg,#ff005a,#00ffe6,#7800ff,#ff005a)", where: "Tout au bout · 1 sur 1 000 000", cls: "chaotic", text: "#ff2d8c" },
 };
 const ORDER = ["Common", "Rare", "Epic", "Legendary", "Mythic", "Exotic", "Exclusive", "Chaotic"];
 const SIZE = { Small: "Petit", Medium: "Moyen", Large: "Grand", Giant: "Géant", Colossal: "Colossal" };
 const SOURCE = { Tapis: "Sur le tapis", TapisEtRoue: "Tapis + roue", Roue: "Roue uniquement" };
 const money = n => { for (const [v, u] of [[1e12, "T"], [1e9, "B"], [1e6, "M"], [1e3, "K"]]) if (n >= v) { const x = n / v; return (x >= 100 ? Math.floor(x) : Math.round(x * 10) / 10).toString().replace(".", ",") + u; } return String(Math.round(n)); };
+const duration = sec => (sec >= 60 ? `${Math.floor(sec / 60)} min${sec % 60 ? " " + (sec % 60) + " s" : ""}` : `${sec} s`);
 const GAIT = { Quadruped: "Quadrupède", Sprawler: "Rampant", Flyer: "Vol", Serpent: "Serpent", Hover: "Lévitation", Biped: "Bipède" };
 const KIND = { Nova: "Nova", Breath: "Souffle", Stomp: "Onde de choc", Burst: "Explosion", Eruption: "Éruption" };
 
@@ -1146,6 +1152,8 @@ function renderList() {
   const weapons = items.filter(i => i.kind === "Weapon"), syringes = items.filter(i => i.kind === "Syringe");
   if (weapons.length) groups.push({ label: "Battes", sub: "Frapper fait tomber ce que l'autre porte", items: weapons, item: true });
   if (syringes.length) groups.push({ label: "Seringues", sub: "Boutique réinitialisée toutes les 5 minutes", items: syringes, item: true });
+  const dnaItems = items.filter(i => i.kind === "Machine" || i.kind === "Dna");
+  if (dnaItems.length) groups.push({ label: "Machine à ADN", sub: "Une par base : plus l'ADN est rare, meilleur le personnage", items: dnaItems, item: true });
   for (const r of ORDER) {
     const items = index.filter(c => c.rarity === r);
     if (items.length) groups.push({ label: RARITY[r].label, sub: RARITY[r].where, items });
@@ -1170,9 +1178,13 @@ function renderList() {
         const b = document.createElement("button");
         b.className = "item";
         b.id = "item-" + c.id;
-        const sub = c.kind === "Weapon" ? `Portée ${c.range} · ${c.price ? money(c.price) + " $" : "départ"}` : `ADN x${String(c.multiplier).replace(".", ",")} · ${Math.round(c.chance * 1000) / 10} % en stock`;
-        const col = c.color ? `rgb(${c.color.join(",")})` : "#d9a35c";
-        b.innerHTML = `<i class="pip" style="background:${col}"></i><b>${c.name}</b><small>${sub}</small>`;
+        const rr = c.kind === "Dna" ? RARITY[c.rarity] || RARITY.Common : null;
+        const sub = c.kind === "Weapon" ? `Portée ${c.range} · ${c.price ? money(c.price) + " $" : "départ"}`
+          : c.kind === "Machine" ? "Une par joueur, à côté de sa base"
+          : c.kind === "Dna" ? `Incubation ${duration(c.incubation)}`
+          : `ADN x${String(c.multiplier).replace(".", ",")} · ${Math.round(c.chance * 1000) / 10} % en stock`;
+        const col = rr ? rr.color : c.kind === "Machine" ? "linear-gradient(180deg,#5ad2ff,#ff6eb4)" : c.color ? `rgb(${c.color.join(",")})` : "#d9a35c";
+        b.innerHTML = `<i class="pip ${rr ? rr.cls || "" : ""}" style="background:${col}"></i><b>${c.name}</b><small>${sub}</small>`;
         b.onclick = () => { location.hash = c.id; };
         list.appendChild(b);
         continue;
@@ -1223,10 +1235,10 @@ function renderMutations() {
   }
 }
 
-function fit(cr) {
+function fit(cr, k = 0.78) {
   const size = cr.box.getSize(V()), c = cr.box.getCenter(V());
   const r = Math.max(size.length() / 2, 1);
-  const dist = r / Math.sin(rad(camera.fov / 2)) * 0.78;
+  const dist = r / Math.sin(rad(camera.fov / 2)) * k;
   const dir = new THREE.Vector3(0.78, 0.42, -1).normalize();
   c.y -= r * 0.18; // la créature remonte à l'écran, au-dessus des commandes
   camera.position.copy(c).addScaledVector(dir, dist);
@@ -1281,8 +1293,31 @@ async function show(id, keepCamera = false) {
     controls.update();
   } else if (!keepCamera) fit(creature);
   const isTread = data.kind === "Treadmill", isItem = data.kind === "Weapon" || data.kind === "Syringe";
-  document.getElementById("mutations").hidden = isTread || isMap || isItem;
-  document.querySelector(".seg").hidden = isTread || isMap || isItem;
+  const isDna = data.kind === "Machine" || data.kind === "Dna";
+  document.getElementById("mutations").hidden = isTread || isMap || isItem || isDna;
+  document.querySelector(".seg").hidden = isTread || isMap || isItem || isDna;
+  if (isDna) {
+    if (!keepCamera) fit(creature, data.kind === "Machine" ? 1.25 : 1.6);
+    const pct = x => (x >= 0.1 ? Math.round(x * 1000) / 10 : x >= 0.001 ? Math.round(x * 10000) / 100 : Math.round(x * 100000) / 1000).toString().replace(".", ",") + " %";
+    const chip = o => `<b style="color:${(RARITY[o.rarity] || RARITY.Common).text || (RARITY[o.rarity] || RARITY.Common).color}">${(RARITY[o.rarity] || RARITY.Common).label}</b> ${pct(o.chance)}`;
+    const rowOf = (r, odds) => `<span class="oddsRow"><i class="pip ${(RARITY[r] || RARITY.Common).cls || ""}" style="background:${(RARITY[r] || RARITY.Common).color}"></i><strong>ADN ${(RARITY[r] || RARITY.Common).label.toLowerCase()}</strong> → ${odds.map(chip).join(" · ")}</span>`;
+    document.getElementById("name").textContent = data.name;
+    document.getElementById("desc").textContent = data.description || "";
+    if (data.kind === "Machine") {
+      document.getElementById("tags").innerHTML = `<span class="tag rarity" style="background:linear-gradient(90deg,#5ad2ff,#ff6eb4)">Machine</span><span class="tag">Une par joueur</span><span class="tag">À côté de la base</span>`;
+      document.getElementById("stats").innerHTML = `<div class="oddsTable">${arr(data.table).map(e => rowOf(e.rarity, arr(e.odds))).join("")}</div>`;
+      document.getElementById("income").textContent = "Avec une meilleure seringue (plus d'ADN), les chances de monter d'une ou deux raretés augmentent";
+    } else {
+      const r = RARITY[data.dnaRarity] || RARITY.Common;
+      document.getElementById("tags").innerHTML = `<span class="tag rarity ${r.cls || ""}" style="background:${r.color}">ADN · ${r.label}</span><span class="tag">Incubation ${duration(data.incubation)}</span>`;
+      document.getElementById("stats").innerHTML = `<div class="oddsTable"><span class="oddsHead">Seringue basique (${money(data.dna)} ADN)</span>${rowOf(data.dnaRarity, arr(data.odds))}<span class="oddsHead">Seringue du Néant (${money(data.dna * 20)} ADN)</span>${rowOf(data.dnaRarity, arr(data.best))}</div>`;
+      document.getElementById("income").textContent = "Il tombe si on te frappe : n'importe qui peut le ramasser";
+    }
+    document.getElementById("abilityName").textContent = "";
+    document.getElementById("loading").hidden = true;
+    document.title = `${data.name} · Bestiaire du Canyon`;
+    return;
+  }
   if (isItem) {
     const w = data.kind === "Weapon";
     document.getElementById("name").textContent = data.name;

@@ -23,12 +23,14 @@ animateur que dans le jeu, porté en JavaScript. En local :
 
 ![La carte : l'entrée, les bases, le milieu du canyon, le Néant](docs/previews/carte.png)
 
-`src/shared/Map.luau` construit la carte (≈ 12 900 pièces, déjà enregistrée dans
+`src/shared/Map.luau` construit la carte (≈ 13 500 pièces, déjà enregistrée dans
 `dist/CreatureForge.rbxl`, et dans `dist/models/Carte.rbxm`) :
 
 - **Les bases, style Roblox** : un grand champ vert avec **8 enclos** aux clôtures de couleurs
   différentes (planches ou croisillons). Chaque enclos a 6 places pour les créatures, un panneau au
-  nom du joueur, une maisonnette et un tapis d'entraînement.
+  nom du joueur et une maisonnette. **Devant chaque base**, entre l'allée et l'entrée : le **tapis
+  d'entraînement** (à droite de l'entrée) et la **machine à ADN** du joueur (à gauche, aux
+  couleurs de sa base ; voir plus bas).
 - **Les stands** à auvents rayés le long de la **ligne « ZONE SÛRE »** (dans les bases, on ne
   peut pas être frappé) : VENDRE, SERINGUES (avec le tableau du stock), TAPIS DE COURSE,
   GRATUIT !, et la ROUE de la chance qui tourne.
@@ -49,8 +51,8 @@ animateur que dans le jeu, porté en JavaScript. En local :
 | 8. Le Néant | Chaotique | vide, lignes glitch, cubes flottants | Néant Couronné |
 
 - **Tout au bout** : le portail du Néant, des îles flottantes et un dragon d'aurore dans le ciel.
-- Le script serveur `Bases` donne un enclos à chaque joueur (panneau à son nom) et tient le
-  tableau du stock de seringues à jour (stock + compte à rebours).
+- Le script serveur `Bases` donne un enclos à chaque joueur (panneau à son nom), gère sa
+  machine à ADN et tient le tableau du stock de seringues à jour (stock + compte à rebours).
 
 ```lua
 local Map = CreatureForge.Map
@@ -298,11 +300,48 @@ bestiaire ne les construit qu'à la première ouverture. Pour un jeu avec beauco
 l'écran, le visualiseur exporte chaque créature en **GLB/OBJ** (un maillage par matériau, couleurs
 par sommet) à importer en MeshPart avec l'importateur 3D de Studio.
 
+## Machine à ADN (une par base)
+
+![La machine à ADN et les fragments d'ADN](docs/previews/machine-adn.png)
+
+Chaque joueur a **sa machine à ADN à côté de sa base** (`src/shared/DnaMachine.luau`). Il y pose
+l'ADN récolté dans le canyon (seul le propriétaire peut l'utiliser) ; l'écran affiche la rareté de
+l'ADN, la chance de monter d'une rareté et le compte à rebours. À la fin de l'incubation, le
+personnage sort (avec ses mutations) et s'installe sur une place libre de la base.
+
+**Plus l'ADN est rare, meilleures sont les chances** d'avoir un bon personnage. Plus il y a
+d'ADN (meilleure seringue), plus on a de chances de monter d'une ou deux raretés :
+
+| ADN posé | Moins bon | Même rareté | Mieux (seringue basique) | Mieux (seringue du Néant, x20) | Incubation |
+| --- | --- | --- | --- | --- | --- |
+| Commun | — | 87,7 % | Rare 10,5 % · Épique 1,8 % | Rare 33 % · Épique 5,5 % | 10 s |
+| Rare | Commun 23,5 % | 67,1 % | Épique 8,1 % · Légendaire 1,3 % | Épique 27,2 % · Légendaire 4,5 % | 20 s |
+| Épique | Commun 5,1 % · Rare 22,3 % | 63,7 % | Légendaire 7,6 % · Mythique 1,3 % | Légendaire 26,1 % · Mythique 4,4 % | 40 s |
+| Légendaire | Rare 5,2 % · Épique 22,5 % | 64,4 % | Mythique 7,7 % · Exotique 0,19 % | Mythique 27,1 % · Exotique 0,68 % | 1 min |
+| Mythique | Épique 5,5 % · Légendaire 24,2 % | 69 % | Exotique 1,24 % · Exclusif 0,07 % | Exotique 5,3 % · Exclusif 0,3 % | 1 min 30 |
+| Exotique | Légendaire 5,6 % · Mythique 24,4 % | 69,6 % | Exclusif 0,42 % · Chaotique 0,01 % | Exclusif 1,84 % · Chaotique 0,06 % | 2 min |
+| Exclusif | Mythique 5,6 % · Exotique 24,5 % | 69,9 % | Chaotique 0,08 % | Chaotique 0,37 % | 3 min |
+| Chaotique | Exotique 5,6 % · Exclusif 24,5 % | 69,9 % | — | — | 5 min |
+
+Avec plus d'ADN, les chances « Même rareté » et « Moins bon » baissent d'autant. Les valeurs sont
+dans `DnaMachine` (`SAME`, `DOWN`, `UP`, `ULTIMATE`, `INCUBATION`) et s'ajustent facilement.
+
+```lua
+local DnaMachine = CreatureForge.DnaMachine
+DnaMachine.odds("Legendary", 60)                       -- { { rarity = "Epic", chance = 0.21 }, ... }
+local def, mutations = CreatureForge.hatch("Legendary", 60) -- tirage du personnage (serveur)
+local tool = DnaMachine.buildDnaTool("Legendary", 60)  -- l'ADN que le joueur porte (Tool)
+```
+
+L'ADN est un `Tool` (attributs `DnaRarity` et `DnaAmount`) : il tombe si on te frappe et
+n'importe qui peut le ramasser. En Studio, chaque joueur reçoit 3 ADN de test (commun, épique,
+légendaire) pour essayer la machine.
+
 ## Architecture
 
 ```
 src/shared/                 -> ReplicatedStorage.CreatureForge
-  init.luau                 registre, spawn / buildIcon / setAnimState / rollSpawn / income
+  init.luau                 registre, spawn / buildIcon / setAnimState / rollSpawn / hatch / income
   Kit.luau                  rig (os Motor6D), primitives low-poly, colonnes (spine),
                             tubes organiques + revêtements d'écailles / fourrure, ceintures
   Anatomy.luau              pattes, sabots, yeux, oreilles, cornes, dents, crêtes, flammes,
@@ -313,6 +352,8 @@ src/shared/                 -> ReplicatedStorage.CreatureForge
   Map.luau                  la carte : bases style Roblox, stands, pente du canyon, 8 zones, statues
   Weapons.luau              les battes (modèles + Tool)
   Syringes.luau             les seringues (modèles + Tool), ADN, boutique toutes les 5 min
+  DnaMachine.luau           la machine à ADN de chaque base, chances selon la rareté de l'ADN,
+                            fragments d'ADN (modèles + Tool)
   Vfx.luau                  aura de rareté, rayons (Beam), traînées (Trail), capacités spéciales
   Fx.luau                   particules et lumières (textures moteur, aucun asset à téléverser)
   Icon.luau                 carte d'icône (UICorner, UIGradient, UIStroke, ViewportFrame)
@@ -324,7 +365,7 @@ src/shared/                 -> ReplicatedStorage.CreatureForge
 src/client/                 CreatureAnimator (démarches Quadruped, Sprawler, Flyer, Serpent,
                             Hover, Biped + orbites + capacités + lumières + mutations), CreatureBestiary (UI)
 src/server/                 CreatureShowcase (démo : créatures dans leur zone, tapis exposés),
-                            Bases (un enclos par joueur, tableau du stock de seringues)
+                            Bases (un enclos par joueur, machine à ADN, stock de seringues)
 tools/                      export.luau, bundle.luau, build_place.luau,
                             preview/bestiaire.html (bestiaire animé), preview/viewer.html (aperçus)
 ```

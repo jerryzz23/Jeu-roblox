@@ -343,8 +343,45 @@ if all then
 		fs.writeFile(`tools/preview/{sy.Id}.json`, serde.encode("json", preview, false))
 		table.insert(items, { id = sy.Id, name = sy.DisplayName, kind = "Syringe", tier = sy.Tier, price = sy.Price, multiplier = sy.Multiplier, chance = sy.Chance, color = c3(sy.Color) })
 	end
+	-- Machine à ADN (une par base) + fragments d'ADN de chaque rareté
+	local D = Forge.DnaMachine
+	local function oddsOf(rarity: string, amount: number)
+		local out = {}
+		for _, o in D.odds(rarity, amount) do
+			table.insert(out, { rarity = o.rarity, chance = o.chance })
+		end
+		return out
+	end
+	local table8 = {}
+	for _, r in Forge.Rarity.Order do
+		local base = Forge.Syringes.BASE_DNA[r]
+		table.insert(table8, { rarity = r, dna = base, incubation = D.incubation(r), odds = oddsOf(r, base), best = oddsOf(r, base * 20) })
+	end
+	do
+		local model = D.build({ scale = 1 })
+		fs.writeFile("dist/models/MachineADN.rbxm", roblox.serializeModel({ D.build({ scale = 1 }) }))
+		local preview = exportPreview({ Id = "MachineADN", DisplayName = "Machine à ADN", Rarity = "Machine", Animation = { gait = "Static" }, Description = "Une machine à côté de chaque base (une par joueur). Pose l'ADN récolté dans le canyon : après l'incubation, un personnage sort et s'installe dans ta base. Plus l'ADN est rare, meilleures sont tes chances d'avoir un bon personnage.", Category = "Machine", Scale = 1 }, model, nil)
+		preview.kind = "Machine"
+		preview.table = table8
+		fs.writeFile("tools/preview/MachineADN.json", serde.encode("json", preview, false))
+		table.insert(items, { id = "MachineADN", name = "Machine à ADN", kind = "Machine" })
+	end
+	for _, e in table8 do
+		local id = "ADN_" .. e.rarity
+		local model = D.buildDna(e.rarity, { scale = 1, animated = false })
+		fs.writeFile(`dist/models/{id}.rbxm`, roblox.serializeModel({ D.buildDnaTool(e.rarity, e.dna) }))
+		local preview = exportPreview({ Id = id, DisplayName = D.NAMES[e.rarity], Rarity = e.rarity, Animation = { gait = "Static" }, Description = `Fragment d'ADN récolté sur un personnage {string.sub(D.NAMES[e.rarity], 5)}. Il tombe si on te frappe : n'importe qui peut le ramasser. Pose-le dans ta machine à ADN.`, Category = "ADN", Scale = 1 }, model, nil)
+		preview.kind = "Dna"
+		preview.dnaRarity = e.rarity
+		preview.dna = e.dna
+		preview.incubation = e.incubation
+		preview.odds = e.odds
+		preview.best = e.best
+		fs.writeFile(`tools/preview/{id}.json`, serde.encode("json", preview, false))
+		table.insert(items, { id = id, name = D.NAMES[e.rarity], kind = "Dna", rarity = e.rarity, incubation = e.incubation })
+	end
 	fs.writeFile("tools/preview/items.json", serde.encode("json", items, false))
-	print(`{#items} objets (battes + seringues)`)
+	print(`{#items} objets (battes, seringues, machine à ADN, fragments d'ADN)`)
 end
 
 -- Tapis de course

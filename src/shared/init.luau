@@ -28,6 +28,7 @@ local Treadmills = require(script.Treadmills)
 local Map = require(script.Map)
 local Weapons = require(script.Weapons)
 local Syringes = require(script.Syringes)
+local DnaMachine = require(script.DnaMachine)
 
 export type CreatureDef = Types.CreatureDef
 export type AnimState = "Idle" | "Move" | "Still" | "Ability"
@@ -45,6 +46,7 @@ local CreatureForge = {
 	Map = Map,
 	Weapons = Weapons,
 	Syringes = Syringes,
+	DnaMachine = DnaMachine,
 	TAG = Kit.TAG,
 }
 
@@ -200,6 +202,23 @@ end
 function CreatureForge.rollSpawn(distance: number, rng: Random?, luck: number?): (Types.CreatureDef?, { string })
 	local r = rng or Random.new()
 	local rarity = Spawning.rollRarity(distance, r, luck)
+	local pool = {}
+	for _, def in CreatureForge.ofRarity(rarity) do
+		if (def.Source or "Tapis") ~= "Roue" then
+			table.insert(pool, def)
+		end
+	end
+	if #pool == 0 then
+		return nil, {}
+	end
+	return pool[r:NextInteger(1, #pool)], Mutations.roll(r)
+end
+
+--- Tirage d'un personnage dans la machine à ADN : la rareté de l'ADN posé fixe les chances
+--- (voir DnaMachine.odds) ; plus il y a d'ADN (meilleure seringue), plus on peut monter de rareté.
+function CreatureForge.hatch(dnaRarity: string, amount: number?, rng: Random?): (Types.CreatureDef?, { string })
+	local r = rng or Random.new()
+	local rarity = DnaMachine.rollRarity(dnaRarity, amount, r)
 	local pool = {}
 	for _, def in CreatureForge.ofRarity(rarity) do
 		if (def.Source or "Tapis") ~= "Roue" then

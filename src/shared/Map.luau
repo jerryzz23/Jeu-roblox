@@ -339,7 +339,7 @@ end
 
 --- Construit toute la carte. opts : cframe (pivot), parent, effects (particules, défaut true),
 --- statues (défaut true), treadmills (tapis d'entraînement dans les bases, défaut true).
-function Map.build(opts: { cframe: CFrame?, parent: Instance?, effects: boolean?, statues: boolean?, treadmills: boolean? }?): Model
+function Map.build(opts: { cframe: CFrame?, parent: Instance?, effects: boolean?, statues: boolean?, treadmills: boolean?, machines: boolean? }?): Model
 	local o = opts or {}
 	local rig = Kit.newRig("Carte", { cframe = o.cframe, animated = false, outline = false, effects = o.effects ~= false })
 	local function group(name: string): string
@@ -788,18 +788,24 @@ function Map.build(opts: { cframe: CFrame?, parent: Instance?, effects: boolean?
 
 		-- 8 enclos colorés (4 de chaque côté de l'allée), ouverture côté allée
 		local FENCE_COLORS = { rgb(150, 92, 50), rgb(245, 245, 245), rgb(60, 190, 255), rgb(170, 90, 255), rgb(255, 150, 40), rgb(255, 110, 180), rgb(255, 220, 60), rgb(70, 210, 120) }
-		local treadmill: any = nil
+		local treadmill: any, machine: any = nil, nil
 		if o.treadmills ~= false then
 			local tm = script.Parent:FindFirstChild("Treadmills")
 			if tm then
 				treadmill = require(tm :: any)
 			end
 		end
+		if o.machines ~= false then
+			local dm = script.Parent:FindFirstChild("DnaMachine")
+			if dm then
+				machine = require(dm :: any)
+			end
+		end
 		local plotIndex = 0
 		for row = 0, Map.PLOTS / 2 - 1 do
 			for _, s in { -1, 1 } do
 				plotIndex += 1
-				local center = v3(s * 40, 0, 62 + row * 44)
+				local center = v3(s * 46, 0, 62 + row * 44)
 				local plot = Instance.new("Model")
 				plot.Name = "Base" .. plotIndex
 				plot:SetAttribute("PlotIndex", plotIndex)
@@ -835,17 +841,39 @@ function Map.build(opts: { cframe: CFrame?, parent: Instance?, effects: boolean?
 				rig:block(g, "HutDoor", cf(hp + v3(-s * 2.52, 1.4, 0)), v3(0.1, 2.8, 1.6), S(col:Lerp(Color3.new(0, 0, 0), 0.3)))
 				rig:wedge(g, "HutRoof", cf(hp + v3(0, 4.9, 1.4)), v3(5.6, 1.8, 2.8), S(rgb(230, 70, 50)))
 				rig:wedge(g, "HutRoof", cf(hp + v3(0, 4.9, -1.4)) * ang(0, math.pi, 0), v3(5.6, 1.8, 2.8), S(rgb(230, 70, 50)))
+				-- Devant la base (entre l'allée et l'enclos) : chemin d'entrée, emplacement du tapis
+				-- et dalle de la machine à ADN
+				local front = inner - s * 7 -- milieu de la bande entre l'allée et la clôture
+				rig:block(g, "PlotPath", cf(front, 0.04, center.Z), v3(14, 0.1, 9), S(col:Lerp(Color3.new(1, 1, 1), 0.55)))
+				rig:block(g, "TreadmillPad", cf(front, 0.04, center.Z + 11), v3(10, 0.1, 5.6), S(col:Lerp(Color3.new(0, 0, 0), 0.15)))
 				local kids = folder:GetChildren()
 				for i = before + 1, #kids do
 					kids[i].Parent = plot
 				end
 				plot.Parent = folder
-				-- Tapis d'entraînement dans l'enclos (au fond, le coureur tourné vers l'allée)
+				-- Tapis d'entraînement DEVANT la base (à droite de l'entrée), le coureur tourné vers l'allée
+				local front = inner - s * 7
 				if treadmill then
-					local tc = v3(outer - s * 5, 0.25, zA + 7)
-					local tmodel = treadmill.get("TapisEntrainement").build({ cframe = CFrame.lookAt(tc, tc + v3(-s, 0, 0)), outline = false, effects = rig.effects })
+					local tc = rig.origin * v3(front, 0.25, center.Z + 11)
+					local tmodel = treadmill.get("TapisEntrainement").build({
+						cframe = CFrame.lookAt(tc, tc + rig.origin:VectorToWorldSpace(v3(-s, 0, 0))),
+						outline = false,
+						effects = rig.effects,
+					})
 					tmodel.Name = "Tapis"
 					tmodel.Parent = plot
+				end
+				-- Machine à ADN du joueur À CÔTÉ de la base (à gauche de l'entrée), façade vers l'allée
+				if machine then
+					local mc = rig.origin * v3(front + s * 0.5, 0, center.Z - 11.5)
+					local mmodel = machine.build({
+						cframe = CFrame.lookAt(mc, mc + rig.origin:VectorToWorldSpace(v3(-s, 0, 0))),
+						color = col,
+						outline = false,
+						effects = rig.effects,
+					})
+					mmodel.Name = "MachineADN"
+					mmodel.Parent = plot
 				end
 			end
 		end
@@ -867,7 +895,7 @@ function Map.build(opts: { cframe: CFrame?, parent: Instance?, effects: boolean?
 	-- ===================================================================
 	local spinBone = rig.bones.Spin1
 	for _, d in rig.model:GetDescendants() do
-		if d:IsA("BasePart") and d ~= rig.root and not d:IsA("SpawnLocation") and d:FindFirstAncestor("Tapis") == nil then
+		if d:IsA("BasePart") and d ~= rig.root and not d:IsA("SpawnLocation") and d:FindFirstAncestor("Tapis") == nil and d:FindFirstAncestor("MachineADN") == nil then
 			local onWheel = false
 			for _, w in d:GetChildren() do
 				if w:IsA("Weld") then
