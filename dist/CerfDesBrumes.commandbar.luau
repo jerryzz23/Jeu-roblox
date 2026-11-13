@@ -68,6 +68,7 @@ type RigData = {
 		detail: number,
 		parent: Instance?,
 		bones: { [string]: BasePart },
+		joints: { [string]: { name: string, at: Vector3, dir: Vector3 } },
 		folders: { [string]: Folder },
 		boneFolder: Folder,
 		partCount: number,
@@ -310,6 +311,7 @@ local function configureLoose(p: BasePart)
 			detail = math.clamp(o.detail or 1, 0.2, 1),
 			parent = o.parent,
 			bones = { Root = root },
+			joints = {},
 			folders = {},
 			boneFolder = boneFolder,
 			partCount = 0,
@@ -360,6 +362,19 @@ function Rig.folderFor(self: Rig, boneName: string): Folder
 		return b
 	end
 	
+--- Articulation au milieu d'un membre (genou, coude) : crée l'os "<bone>_Knee" en `at`,
+	--- enfant de `bone`. Ensuite, toute pièce de `bone` située au-delà de `at` (dans le sens
+	--- hanche -> genou) est rattachée à l'articulation (voir Rig.part).
+	function Rig.joint(self: Rig, bone: string, from: Vector3, at: Vector3): string
+		local name = bone .. "_Knee"
+		if not self.bones[name] then
+			self:bone(name, bone, CFrame.new(at))
+		end
+		local dir = at - from
+		self.joints[bone] = { name = name, at = at, dir = if dir.Magnitude > 1e-3 then dir.Unit else Vector3.new(0, -1, 0) }
+		return name
+	end
+	
 --- Chaîne d'os le long d'une polyligne (queues, cous, corps de serpent) :
 	--- crée `prefix1` … `prefix(#points - 1)`, chacun pivotant sur points[i] et orienté
 	--- (-Z) vers points[i + 1]. Le premier est attaché à `parentName`. Renvoie les noms.
@@ -383,6 +398,11 @@ function Rig.folderFor(self: Rig, boneName: string): Folder
 		size: Vector3,
 		style: Style
 	): BasePart
+		-- Articulation (genou, coude) : la pièce passe sur l'os inférieur si elle est au-delà
+		local j = self.joints[boneName]
+		if j and (cf.Position - j.at):Dot(j.dir) > 0 then
+			boneName = j.name
+		end
 		local bone = self.bones[boneName]
 		assert(bone, `CreatureForge: os inconnu "{boneName}"`)
 	
@@ -889,12 +909,13 @@ __modules["Rarity"] = function()
 	--[[
 		CreatureForge.Rarity
 		--------------------
-		Les 8 raretés du jeu, du plus courant au plus rare : couleurs (UI, aura), position sur le
-		tapis roulant et chance d'apparition.
+		Les 8 raretés du jeu, du plus courant au plus rare : couleurs (UI, aura), zone du canyon où
+		elles apparaissent et chance d'apparition.
 	
-	Le tapis va de 0 (bases, début du tapis) à 1 (tout au bout). Une rareté « normale »
+	La pente du canyon va de 0 (en haut, près des bases) à 1 (tout au bout de l'Abysse), voir Map.ZONES.
+		Une rareté « normale »
 		apparaît à partir de band[1], surtout autour de `peak` (poids `weight`, courbe en cloche) ;
-		les raretés ultimes (Exotique, Exclusif, Chaotique) sont tirées à part, en bout de tapis,
+		les raretés ultimes (Exotique, Exclusif, Chaotique) sont tirées à part, dans l'Abysse,
 		avec une chance de 1 sur `odds`.
 		Les valeurs sont un point de départ à ajuster pendant les tests (voir Spawning).
 	]]
@@ -907,10 +928,10 @@ type Tier = {
 		light: Color3, -- reflet clair du dégradé
 		dark: Color3, -- ombre du dégradé
 		where: string, -- où elle apparaît (texte affiché)
-		band: { number }, -- { début, fin } sur le tapis (0 = début, 1 = tout au bout)
+		band: { number }, -- { début, fin } sur la pente (0 = en haut, 1 = tout au bout)
 		peak: number?, -- distance où la rareté est la plus fréquente (raretés normales)
 		weight: number?, -- poids du tirage au pic (raretés normales)
-		odds: number?, -- 1 chance sur `odds` (raretés ultimes, en bout de tapis)
+		odds: number?, -- 1 chance sur `odds` (raretés ultimes, dans l'Abysse)
 		rainbow: boolean?, -- couleur arc-en-ciel animée (Exotique)
 		glitch: boolean?, -- couleurs qui changent / glitch (Chaotique)
 		gold: Color3?, -- seconde couleur (Exclusif : noir et or)
@@ -924,44 +945,44 @@ Rarity.Order = { "Common", "Rare", "Epic", "Legendary", "Mythic", "Exotic", "Exc
 	
 Rarity.Tiers = {
 		Common = {
-			id = "Common", label = "COMMUN", order = 1, where = "Début du tapis",
+			id = "Common", label = "COMMUN", order = 1, where = "La Surface",
 			color = rgb(170, 176, 188), light = rgb(236, 240, 246), dark = rgb(96, 102, 114),
-			band = { 0, 1 }, peak = 0.05, weight = 1,
+			band = { 0, 1 }, peak = 0.04, weight = 1,
 		},
 		Rare = {
-			id = "Rare", label = "RARE", order = 2, where = "Un peu plus loin",
+			id = "Rare", label = "RARE", order = 2, where = "Le Désert",
 			color = rgb(54, 140, 255), light = rgb(170, 216, 255), dark = rgb(20, 60, 170),
-			band = { 0.15, 1 }, peak = 0.3, weight = 0.8,
+			band = { 0.1, 1 }, peak = 0.18, weight = 0.8,
 		},
 		Epic = {
-			id = "Epic", label = "ÉPIQUE", order = 3, where = "Milieu du tapis",
+			id = "Epic", label = "ÉPIQUE", order = 3, where = "La Pente Brumeuse",
 			color = rgb(168, 80, 255), light = rgb(230, 180, 255), dark = rgb(80, 26, 160),
-			band = { 0.35, 1 }, peak = 0.5, weight = 0.6,
+			band = { 0.22, 1 }, peak = 0.31, weight = 0.6,
 		},
 		Legendary = {
-			id = "Legendary", label = "LÉGENDAIRE", order = 4, where = "Loin",
+			id = "Legendary", label = "LÉGENDAIRE", order = 4, where = "Le Glacier",
 			color = rgb(255, 190, 40), light = rgb(255, 240, 160), dark = rgb(196, 100, 10),
-			band = { 0.55, 1 }, peak = 0.7, weight = 0.45,
+			band = { 0.35, 1 }, peak = 0.44, weight = 0.45,
 		},
 		Mythic = {
-			id = "Mythic", label = "MYTHIQUE", order = 5, where = "Très loin",
+			id = "Mythic", label = "MYTHIQUE", order = 5, where = "Les Grottes de Cristal et plus loin",
 			color = rgb(255, 40, 60), light = rgb(255, 170, 180), dark = rgb(140, 0, 20),
-			band = { 0.75, 1 }, peak = 0.92, weight = 0.3,
+			band = { 0.47, 1 }, peak = 0.6, weight = 0.3,
 		},
 		Exotic = {
-			id = "Exotic", label = "EXOTIQUE", order = 6, where = "Tout au bout",
+			id = "Exotic", label = "EXOTIQUE", order = 6, where = "L'Abysse Profond et plus loin",
 			color = rgb(255, 120, 200), light = rgb(255, 255, 200), dark = rgb(80, 60, 200),
-			band = { 0.9, 1 }, odds = 5000, rainbow = true,
+			band = { 0.625, 1 }, odds = 5000, rainbow = true,
 		},
 		Exclusive = {
-			id = "Exclusive", label = "EXCLUSIF", order = 7, where = "Tout au bout + roue",
+			id = "Exclusive", label = "EXCLUSIF", order = 7, where = "Le Ciel Étoilé + roue",
 			color = rgb(255, 200, 60), light = rgb(255, 236, 150), dark = rgb(10, 8, 12), gold = rgb(255, 200, 60),
-			band = { 0.9, 1 }, odds = 50000,
+			band = { 0.75, 1 }, odds = 50000,
 		},
 		Chaotic = {
-			id = "Chaotic", label = "CHAOTIQUE", order = 8, where = "Tout au bout",
+			id = "Chaotic", label = "CHAOTIQUE", order = 8, where = "Le Néant",
 			color = rgb(255, 0, 90), light = rgb(0, 255, 230), dark = rgb(20, 0, 40),
-			band = { 0.9, 1 }, odds = 1000000, glitch = true,
+			band = { 0.875, 1 }, odds = 1000000, glitch = true,
 		},
 	} :: { [string]: Tier }
 	
@@ -2426,7 +2447,7 @@ local Kit = __require("Kit")
 --- Taille (voir Rarity.Sizes) : plus une créature est grosse, plus elle rapporte.
 	type Size = "Small" | "Medium" | "Large" | "Giant" | "Colossal"
 	
---- Où la créature s'obtient : sur le tapis, sur le tapis ET dans la roue, ou seulement dans la roue.
+--- Où la créature s'obtient : dans le canyon ("Tapis"), dans le canyon ET la roue, ou seulement dans la roue.
 	type Source = "Tapis" | "TapisEtRoue" | "Roue"
 	
 --- Habillage de l'icône d'inventaire.
@@ -2450,6 +2471,7 @@ type CreatureDef = {
 		Passenger: boolean, -- peut porter un passager (selle passager)
 		Source: Source?, -- défaut : "Tapis"
 		Scale: number?, -- échelle par défaut à l'apparition (taille en jeu)
+		Order: number?, -- ordre d'affichage dans une même rareté (sinon : par nom)
 		Category: string,
 		Description: string,
 		Icon: IconTheme,
@@ -2796,6 +2818,12 @@ type LimbPoint = { Vector3 | number }
 		local sections = {}
 		for _, p in path do
 			table.insert(sections, { pos = A.mx(p[1] :: Vector3, side), rx = p[2] :: number, ry = p[3] :: number })
+		end
+		-- Genou / coude : les pattes ("Leg…") et les bras ("Arm…") à 3 points ou plus reçoivent une
+		-- articulation au 2e point (os "<os>_Knee"). Tout ce qui est construit ensuite sur cet os
+		-- au-delà de l'articulation (bas de la patte, pied, griffes, bracelets) s'y rattache tout seul.
+		if #sections >= 3 and (string.sub(bone, 1, 3) == "Leg" or string.sub(bone, 1, 3) == "Arm") then
+			rig:joint(bone, sections[1].pos, sections[2].pos)
 		end
 		local spine = Kit.spine(sections)
 		rig:tube(spine, {

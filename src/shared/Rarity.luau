@@ -43,39 +43,39 @@ Rarity.Tiers = {
 		band = { 0, 1 }, peak = 0.04, weight = 1,
 	},
 	Rare = {
-		id = "Rare", label = "RARE", order = 2, where = "La Surface et la Pente Brumeuse",
+		id = "Rare", label = "RARE", order = 2, where = "Le Désert",
 		color = rgb(54, 140, 255), light = rgb(170, 216, 255), dark = rgb(20, 60, 170),
-		band = { 0.08, 1 }, peak = 0.2, weight = 0.8,
+		band = { 0.1, 1 }, peak = 0.18, weight = 0.8,
 	},
 	Epic = {
 		id = "Epic", label = "ÉPIQUE", order = 3, where = "La Pente Brumeuse",
 		color = rgb(168, 80, 255), light = rgb(230, 180, 255), dark = rgb(80, 26, 160),
-		band = { 0.25, 1 }, peak = 0.4, weight = 0.6,
+		band = { 0.22, 1 }, peak = 0.31, weight = 0.6,
 	},
 	Legendary = {
-		id = "Legendary", label = "LÉGENDAIRE", order = 4, where = "Les Grottes de Cristal",
+		id = "Legendary", label = "LÉGENDAIRE", order = 4, where = "Le Glacier",
 		color = rgb(255, 190, 40), light = rgb(255, 240, 160), dark = rgb(196, 100, 10),
-		band = { 0.5, 1 }, peak = 0.6, weight = 0.45,
+		band = { 0.35, 1 }, peak = 0.44, weight = 0.45,
 	},
 	Mythic = {
-		id = "Mythic", label = "MYTHIQUE", order = 5, where = "Grottes de Cristal et Abysse",
+		id = "Mythic", label = "MYTHIQUE", order = 5, where = "Les Grottes de Cristal et plus loin",
 		color = rgb(255, 40, 60), light = rgb(255, 170, 180), dark = rgb(140, 0, 20),
-		band = { 0.58, 1 }, peak = 0.76, weight = 0.3,
+		band = { 0.47, 1 }, peak = 0.6, weight = 0.3,
 	},
 	Exotic = {
-		id = "Exotic", label = "EXOTIQUE", order = 6, where = "L'Abysse Profond",
+		id = "Exotic", label = "EXOTIQUE", order = 6, where = "L'Abysse Profond et plus loin",
 		color = rgb(255, 120, 200), light = rgb(255, 255, 200), dark = rgb(80, 60, 200),
-		band = { 0.78, 1 }, odds = 5000, rainbow = true,
+		band = { 0.625, 1 }, odds = 5000, rainbow = true,
 	},
 	Exclusive = {
-		id = "Exclusive", label = "EXCLUSIF", order = 7, where = "L'Abysse Profond + roue",
+		id = "Exclusive", label = "EXCLUSIF", order = 7, where = "Le Ciel Étoilé + roue",
 		color = rgb(255, 200, 60), light = rgb(255, 236, 150), dark = rgb(10, 8, 12), gold = rgb(255, 200, 60),
-		band = { 0.78, 1 }, odds = 50000,
+		band = { 0.75, 1 }, odds = 50000,
 	},
 	Chaotic = {
-		id = "Chaotic", label = "CHAOTIQUE", order = 8, where = "Tout au bout de l'Abysse",
+		id = "Chaotic", label = "CHAOTIQUE", order = 8, where = "Le Néant",
 		color = rgb(255, 0, 90), light = rgb(0, 255, 230), dark = rgb(20, 0, 40),
-		band = { 0.78, 1 }, odds = 1000000, glitch = true,
+		band = { 0.875, 1 }, odds = 1000000, glitch = true,
 	},
 } :: { [string]: Tier }
 

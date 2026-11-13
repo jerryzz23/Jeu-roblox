@@ -10,7 +10,7 @@ articulé (Motor6D), animé, a son **icône UI**, une **selle** (monture) et, po
 
 ## Bestiaire animé
 
-`tools/preview/bestiaire.html` affiche la carte, les 10 tapis de course et les 30 modèles de créatures (21 personnages, dont 10 variétés du Néant) en 3D, **animés** (repos, marche,
+`tools/preview/bestiaire.html` affiche la carte, les 10 tapis de course, les battes, les seringues et les 30 modèles de créatures (21 personnages, dont 10 variétés du Néant) en 3D, **animés** (repos, marche,
 capacité spéciale, figé), classés par rareté, avec leurs stats (taille, argent de base, bonus de
 vitesse, passager) et les **mutations cumulables** (le revenu se calcule en direct). C'est le même
 animateur que dans le jeu, porté en JavaScript. En local :
@@ -21,31 +21,44 @@ animateur que dans le jeu, porté en JavaScript. En local :
 
 ## La carte du jeu
 
-![La carte : la pente du canyon, les bases, l'Abysse](docs/previews/carte.png)
+![La carte : l'entrée, les bases, le milieu du canyon, le Néant](docs/previews/carte.png)
 
-`src/shared/Map.luau` construit la carte d'après l'illustration (≈ 10 800 pièces, déjà
-enregistrée dans `dist/CreatureForge.rbxl`, et dans `dist/models/Carte.rbxm`) :
+`src/shared/Map.luau` construit la carte (≈ 12 900 pièces, déjà enregistrée dans
+`dist/CreatureForge.rbxl`, et dans `dist/models/Carte.rbxm`) :
 
-- **Les bases** en haut : une place, une allée en terre, **8 parcelles** avec bâtiment néon
-  « BASE » (panneau prêt pour le nom du joueur), enclos et tapis d'entraînement, et un point
-  d'apparition.
-- **L'entrée** : piliers à lanternes et clôtures en bois.
-- **La pente** (640 studs, environ 7°) : un large chemin qui descend au fond du canyon, sans tapis
-  roulant. On descend facilement, mais remonter la pente vide l'endurance. Il est entouré de
-  falaises en terrasses avec des sapins, de lampadaires aux couleurs de la zone et de panneaux.
-- **4 zones**, une statue de pierre par zone :
-  1. La Surface : herbe, clôtures, buissons, Renard des cendres.
-  2. La Pente Brumeuse : brume violette, améthystes, Kirin céleste.
-  3. Les Grottes de Cristal : cristaux bleus, arches de cristal, Léviathan des sables.
-  4. L'Abysse Profond : lave, cascades de feu, cristaux rouges, Rhinocéros d'obsidienne.
+- **Les bases, style Roblox** : un grand champ vert avec **8 enclos** aux clôtures de couleurs
+  différentes (planches ou croisillons). Chaque enclos a 6 places pour les créatures, un panneau au
+  nom du joueur, une maisonnette et un tapis d'entraînement.
+- **Les stands** à auvents rayés le long de la **ligne « ZONE SÛRE »** (dans les bases, on ne
+  peut pas être frappé) : VENDRE, SERINGUES (avec le tableau du stock), TAPIS DE COURSE,
+  GRATUIT !, et la ROUE de la chance qui tourne.
+- **La pente** (960 studs, environ 6°) : un large chemin qui descend au fond du canyon, sans tapis
+  roulant. Descendre est facile, mais remonter vide l'endurance. Il est bordé de falaises en
+  terrasses, de lampadaires aux couleurs de chaque zone et d'un panneau par zone.
+- **8 zones, une par rareté**, chacune avec ses décors et une statue de pierre :
+
+| Zone | Rareté | Décor | Statue |
+| --- | --- | --- | --- |
+| 1. La Surface | Communs | herbe, sapins, clôtures, fleurs | Renard des cendres |
+| 2. Le Désert | Rares | sable, pyramide à gradins, cactus | Léviathan des sables |
+| 3. La Pente Brumeuse | Épiques | brume violette, améthystes | Kirin céleste |
+| 4. Le Glacier | Légendaires | neige, sapins enneigés, arches de glace | Lynx de givre |
+| 5. Les Grottes de Cristal | Mythiques | grands cristaux bleus, arches de cristal | Mammouth runique |
+| 6. L'Abysse Profond | Exotiques | lave, cascades de feu, cristaux rouges | Rhinocéros d'obsidienne |
+| 7. Le Ciel Étoilé | Exclusifs | nuit étoilée, obélisques d'or, anneaux flottants | Sphinx stellaire |
+| 8. Le Néant | Chaotique | vide, lignes glitch, cubes flottants | Néant Couronné |
+
 - **Tout au bout** : le portail du Néant, des îles flottantes et un dragon d'aurore dans le ciel.
+- Le script serveur `Bases` donne un enclos à chaque joueur (panneau à son nom) et tient le
+  tableau du stock de seringues à jour (stock + compte à rebours).
 
 ```lua
 local Map = CreatureForge.Map
 local d = Map.distanceOf(rootPart.Position)        -- 0 (haut de la pente) -> 1 (tout au bout)
-Map.zoneOf(d).label                                -- "3. LES GROTTES DE CRISTAL"
+Map.zoneOf(d).label                                -- "4. LE GLACIER"
 local def, mutations = CreatureForge.rollSpawn(d)  -- apparition selon la profondeur
 Map.isClimbing(rootPart.AssemblyLinearVelocity)    -- vrai quand le joueur remonte (endurance)
+Map.isSafe(rootPart.Position)                      -- vrai dans la zone sûre des bases
 ```
 
 ## Raretés
@@ -53,28 +66,28 @@ Map.isClimbing(rootPart.AssemblyLinearVelocity)    -- vrai quand le joueur remon
 | Rareté | Couleur | Où elle apparaît | Chance |
 | --- | --- | --- | --- |
 | Commun | Gris | La Surface | très fréquent |
-| Rare | Bleu | La Surface et la Pente Brumeuse | fréquent |
+| Rare | Bleu | Le Désert | fréquent |
 | Épique | Violet | La Pente Brumeuse | moyen |
-| Légendaire | Or | Les Grottes de Cristal | peu fréquent |
-| Mythique | Rouge | Grottes de Cristal et Abysse | rare |
-| Exotique | Arc-en-ciel (animé) | L'Abysse Profond | 1 sur 5 000 |
-| Exclusif | Noir et or | L'Abysse Profond + roue | 1 sur 50 000 |
-| Chaotique | Glitch (couleurs qui changent) | Tout au bout de l'Abysse | 1 sur 1 000 000 |
+| Légendaire | Or | Le Glacier | peu fréquent |
+| Mythique | Rouge | Les Grottes de Cristal et plus loin | rare |
+| Exotique | Arc-en-ciel (animé) | L'Abysse Profond et plus loin | 1 sur 5 000 |
+| Exclusif | Noir et or | Le Ciel Étoilé + roue | 1 sur 50 000 |
+| Chaotique | Glitch (couleurs qui changent) | Le Néant | 1 sur 1 000 000 |
 
 Chaque rareté a son **aura** autour des pieds (anneaux au sol, colonnes de lumière, particules),
 de plus en plus riche ; l'Exotique est arc-en-ciel, l'Exclusif noir et or, le Chaotique glitch.
 `Spawning.rollRarity(distance)` tire la rareté selon la profondeur dans le canyon
 (`Map.distanceOf`) : chaque rareté normale suit une courbe en cloche, les raretés ultimes sont
-tirées à part dans l'Abysse. `luck = 2` pour le boost « Chance x2 ». Valeurs à ajuster en test :
+tirées à part à partir de leur zone. `luck = 2` pour le boost « Chance x2 ». Valeurs à ajuster en test :
 
 | Distance | Commun | Rare | Épique | Légendaire | Mythique |
 | --- | --- | --- | --- | --- | --- |
-| 0 (haut, Surface) | 100 % | | | | |
-| 0,2 (Surface) | 40 % | 60 % | | | |
-| 0,4 (Pente Brumeuse) | 4 % | 32 % | 64 % | | |
-| 0,5 (début des Grottes) | 0,6 % | 9 % | 52 % | 39 % | |
-| 0,7 (Grottes) | | 0,2 % | 9 % | 51 % | 40 % |
-| 1 (bout de l'Abysse) | | | 0,1 % | 10 % | 90 % (+ Exotique 0,02 %, Exclusif 0,002 %, Chaotique 0,0001 %) |
+| 0 (Surface) | 100 % | | | | |
+| 0,2 (Désert) | 40 % | 60 % | | | |
+| 0,4 (Glacier) | 3 % | 20 % | 41 % | 36 % | |
+| 0,5 (Grottes) | 0,5 % | 6 % | 25 % | 43 % | 24 % |
+| 0,7 (Abysse) | | 0,3 % | 4 % | 25 % | 71 % (+ Exotique 0,02 %) |
+| 1 (Néant) | | | 0,1 % | 3 % | 97 % (+ Exotique 0,02 %, Exclusif 0,002 %, Chaotique 0,0001 %) |
 
 ## Les 21 personnages
 
@@ -180,6 +193,49 @@ Treadmills.nextOf("TapisForge")                             --> Tapis givré (pr
 Chaque tapis contient une pièce `RunSurface` (collidable, ancrée, vitesse de convoyeur) : le
 serveur vérifie que le joueur est dessus et bouge avant d'accorder le gain (anti-triche).
 
+## Battes et seringues
+
+![Les 5 battes et les 8 seringues](docs/previews/battes-seringues.png)
+
+- **Battes** (`src/shared/Weapons.luau`) : la batte en bois (de départ), en aluminium, cloutée,
+  dorée et du Néant. Chacune a sa portée, son délai entre deux coups et son recul (valeurs de
+  départ à ajuster). `Weapons.buildTool(id)` donne un `Tool` prêt à mettre dans le sac du joueur.
+  Frapper un joueur fait tomber ce qu'il porte (créatures, ADN, seringue) ; le serveur doit
+  vérifier la distance et le délai.
+- **Seringues** (`src/shared/Syringes.luau`) : 8 niveaux, de la basique (ADN x1) à celle du
+  Néant (ADN x20). ADN récolté = ADN de base de la rareté (Commun 1 ... Chaotique 10 000) ×
+  multiplicateur de la seringue : `Syringes.dnaFor("SeringueDoree", "Legendary")` → 60.
+- **Boutique de seringues** : elle se réinitialise **toutes les 5 minutes**. Chaque seringue a
+  une chance d'être en stock, en quantité limitée :
+
+| Seringue | ADN | Chance d'être en stock | Stock | Prix |
+| --- | --- | --- | --- | --- |
+| Basique | x1 | 100 % | 5–10 | 500 $ |
+| Renforcée | x1,5 | 70 % | 3–6 | 25K $ |
+| Dorée | x2 | 45 % | 2–4 | 500K $ |
+| De cristal | x3 | 25 % | 1–3 | 10M $ |
+| De lave | x5 | 12 % | 1–2 | 250M $ |
+| Cosmique | x8 | 5 % | 1 | 5B $ |
+| Prisme | x12 | 2 % | 1 | 100B $ |
+| Du Néant | x20 | 0,5 % | 1 | 2,5T $ |
+
+  `Syringes.stockAt(os.time())` ne dépend que du créneau de 5 minutes : tous les serveurs (et le
+  tableau de la boutique) affichent le même stock au même moment.
+
+## Animations
+
+![Le Loup d'acier au trot : genoux qui plient, corps qui rebondit](docs/previews/marche.png)
+
+Toutes les pattes et tous les bras ont maintenant une articulation au milieu (genou, coude) : le
+bas de la patte, le pied et les griffes suivent automatiquement l'articulation. L'animateur
+(`CreatureAnimator`, et le même en JavaScript dans le bestiaire) fait :
+
+- **quadrupèdes** : trot diagonal, le genou se plie quand la patte avance, le corps rebondit
+  deux fois par foulée, tangue, roule et penche vers l'avant ; la tête hoche, la queue balance ;
+- **bipèdes** (Titan) : pas lourds avec genoux, bras en balancier avec coudes ;
+- **lévitation** (Néant Couronné) : buste qui s'incline, bras et coudes vivants, ailes ;
+- **oiseaux** : battements d'ailes, pattes repliées en vol.
+
 ## Effets visuels (VFX)
 
 Chaque créature combine une **aura de rareté**, des **effets signature** (braises, flocons,
@@ -254,7 +310,9 @@ src/shared/                 -> ReplicatedStorage.CreatureForge
   Mutations.luau            11 mutations cumulables (peinture, ajouts, runtime client)
   Spawning.luau             tirage des raretés selon la distance sur le tapis, format 1,5K / 2M
   Treadmills/               tapis de course : Base (châssis, bande, console), Models/ (10 niveaux)
-  Map.luau                  la carte : bases, pente du canyon, 4 zones, statues, bout
+  Map.luau                  la carte : bases style Roblox, stands, pente du canyon, 8 zones, statues
+  Weapons.luau              les battes (modèles + Tool)
+  Syringes.luau             les seringues (modèles + Tool), ADN, boutique toutes les 5 min
   Vfx.luau                  aura de rareté, rayons (Beam), traînées (Trail), capacités spéciales
   Fx.luau                   particules et lumières (textures moteur, aucun asset à téléverser)
   Icon.luau                 carte d'icône (UICorner, UIGradient, UIStroke, ViewportFrame)
@@ -265,7 +323,8 @@ src/shared/                 -> ReplicatedStorage.CreatureForge
   Archive/                  anciens modèles (non enregistrés)
 src/client/                 CreatureAnimator (démarches Quadruped, Sprawler, Flyer, Serpent,
                             Hover, Biped + orbites + capacités + lumières + mutations), CreatureBestiary (UI)
-src/server/                 CreatureShowcase (démo : créatures dans leur zone, tapis exposés)
+src/server/                 CreatureShowcase (démo : créatures dans leur zone, tapis exposés),
+                            Bases (un enclos par joueur, tableau du stock de seringues)
 tools/                      export.luau, bundle.luau, build_place.luau,
                             preview/bestiaire.html (bestiaire animé), preview/viewer.html (aperçus)
 ```

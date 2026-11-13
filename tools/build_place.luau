@@ -47,6 +47,7 @@ local game = Instance.new("DataModel")
 
 moduleTree("src/shared", "CreatureForge").Parent = game:GetService("ReplicatedStorage")
 scriptFrom("Script", "CreatureShowcase", "src/server/CreatureShowcase.server.luau").Parent = game:GetService("ServerScriptService")
+scriptFrom("Script", "Bases", "src/server/Bases.server.luau").Parent = game:GetService("ServerScriptService")
 
 local starterPlayer = game:GetService("StarterPlayer")
 local sps = Instance.new("StarterPlayerScripts")

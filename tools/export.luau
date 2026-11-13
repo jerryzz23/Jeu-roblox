@@ -300,14 +300,11 @@ end
 -- Carte du jeu (aperçu web : vue de la carte entière)
 if all then
 	local map = Forge.Map.build({})
-	local bones = roblox.Instance.new("Folder")
-	bones.Name = "Bones"
-	bones.Parent = map
 	local zones = {}
 	for _, z in Forge.Map.ZONES do
 		table.insert(zones, { id = z.id, label = z.label, sub = z.sub, from = z.from, to = z.to, color = c3(z.color) })
 	end
-	local preview = exportPreview({ Id = "Carte", DisplayName = "La carte du canyon", Rarity = "Map", Animation = { gait = "Static" }, Description = "Les bases en haut, puis la pente du canyon à travers les 4 zones : plus on descend, plus les personnages sont rares. Remonter la pente vide l'endurance.", Category = "Carte", Scale = 1 }, map, nil)
+	local preview = exportPreview({ Id = "Carte", DisplayName = "La carte du canyon", Rarity = "Map", Animation = { gait = "Static" }, Description = "Les bases en haut (zone sûre, stands, 8 enclos), puis la pente du canyon à travers 8 zones : plus on descend, plus les personnages sont rares. Remonter la pente vide l'endurance.", Category = "Carte", Scale = 1 }, map, nil)
 	preview.kind = "Map"
 	preview.zones = zones
 	preview.length = Forge.Map.LENGTH
@@ -315,6 +312,39 @@ if all then
 	fs.writeFile("tools/preview/Carte.json", serde.encode("json", preview, false))
 	fs.writeFile("dist/models/Carte.rbxm", roblox.serializeModel({ map }))
 	print(string.format("Carte : %d pièces", #preview.parts))
+end
+
+-- Armes (battes) et seringues
+if all then
+	local items = {}
+	for _, w in Forge.Weapons.List do
+		local model = w.build({ scale = 1, animated = false })
+		fs.writeFile(`dist/models/{w.Id}.rbxm`, roblox.serializeModel({ Forge.Weapons.buildTool(w.Id) }))
+		local preview = exportPreview({ Id = w.Id, DisplayName = w.DisplayName, Rarity = "Weapon", Animation = { gait = "Static" }, Description = w.Description, Category = "Arme", Scale = 1 }, model, nil)
+		preview.kind = "Weapon"
+		preview.tier = w.Tier
+		preview.price = w.Price
+		preview.range = w.Range
+		preview.cooldown = w.Cooldown
+		fs.writeFile(`tools/preview/{w.Id}.json`, serde.encode("json", preview, false))
+		table.insert(items, { id = w.Id, name = w.DisplayName, kind = "Weapon", tier = w.Tier, price = w.Price, range = w.Range, cooldown = w.Cooldown })
+	end
+	for _, sy in Forge.Syringes.List do
+		local model = sy.build({ scale = 1, animated = false })
+		fs.writeFile(`dist/models/{sy.Id}.rbxm`, roblox.serializeModel({ Forge.Syringes.buildTool(sy.Id) }))
+		local preview = exportPreview({ Id = sy.Id, DisplayName = sy.DisplayName, Rarity = "Syringe", Animation = { gait = "Static" }, Description = sy.Description, Category = "Seringue", Scale = 1 }, model, nil)
+		preview.kind = "Syringe"
+		preview.tier = sy.Tier
+		preview.price = sy.Price
+		preview.multiplier = sy.Multiplier
+		preview.chance = sy.Chance
+		preview.stock = sy.Stock
+		preview.color = c3(sy.Color)
+		fs.writeFile(`tools/preview/{sy.Id}.json`, serde.encode("json", preview, false))
+		table.insert(items, { id = sy.Id, name = sy.DisplayName, kind = "Syringe", tier = sy.Tier, price = sy.Price, multiplier = sy.Multiplier, chance = sy.Chance, color = c3(sy.Color) })
+	end
+	fs.writeFile("tools/preview/items.json", serde.encode("json", items, false))
+	print(`{#items} objets (battes + seringues)`)
 end
 
 -- Tapis de course

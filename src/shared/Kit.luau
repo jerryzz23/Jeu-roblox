@@ -52,6 +52,7 @@ export type RigData = {
 	detail: number,
 	parent: Instance?,
 	bones: { [string]: BasePart },
+	joints: { [string]: { name: string, at: Vector3, dir: Vector3 } },
 	folders: { [string]: Folder },
 	boneFolder: Folder,
 	partCount: number,
@@ -294,6 +295,7 @@ function Kit.newRig(id: string, opts: BuildOptions?): Rig
 		detail = math.clamp(o.detail or 1, 0.2, 1),
 		parent = o.parent,
 		bones = { Root = root },
+		joints = {},
 		folders = {},
 		boneFolder = boneFolder,
 		partCount = 0,
@@ -344,6 +346,19 @@ function Rig.bone(self: Rig, name: string, parentName: string, cf: CFrame): Base
 	return b
 end
 
+--- Articulation au milieu d'un membre (genou, coude) : crée l'os "<bone>_Knee" en `at`,
+--- enfant de `bone`. Ensuite, toute pièce de `bone` située au-delà de `at` (dans le sens
+--- hanche -> genou) est rattachée à l'articulation (voir Rig.part).
+function Rig.joint(self: Rig, bone: string, from: Vector3, at: Vector3): string
+	local name = bone .. "_Knee"
+	if not self.bones[name] then
+		self:bone(name, bone, CFrame.new(at))
+	end
+	local dir = at - from
+	self.joints[bone] = { name = name, at = at, dir = if dir.Magnitude > 1e-3 then dir.Unit else Vector3.new(0, -1, 0) }
+	return name
+end
+
 --- Chaîne d'os le long d'une polyligne (queues, cous, corps de serpent) :
 --- crée `prefix1` … `prefix(#points - 1)`, chacun pivotant sur points[i] et orienté
 --- (-Z) vers points[i + 1]. Le premier est attaché à `parentName`. Renvoie les noms.
@@ -367,6 +382,11 @@ function Rig.part(
 	size: Vector3,
 	style: Style
 ): BasePart
+	-- Articulation (genou, coude) : la pièce passe sur l'os inférieur si elle est au-delà
+	local j = self.joints[boneName]
+	if j and (cf.Position - j.at):Dot(j.dir) > 0 then
+		boneName = j.name
+	end
 	local bone = self.bones[boneName]
 	assert(bone, `CreatureForge: os inconnu "{boneName}"`)
 

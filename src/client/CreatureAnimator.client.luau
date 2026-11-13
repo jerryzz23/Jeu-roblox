@@ -268,6 +268,8 @@ local function step(st: State, dt: number)
 		set(st, "WingTip_L", CFrame.Angles(0, 0, -math.sin(t * rate - 0.8) * rad(p.flap) * 0.5))
 		set(st, "Leg_R", CFrame.Angles(rad(25) * mv + math.sin(t * 1.3) * rad(4), 0, 0))
 		set(st, "Leg_L", CFrame.Angles(rad(25) * mv + math.sin(t * 1.3 + 1) * rad(4), 0, 0))
+		set(st, "Leg_R_Knee", CFrame.Angles(-rad(20) - rad(30) * mv, 0, 0))
+		set(st, "Leg_L_Knee", CFrame.Angles(-rad(20) - rad(30) * mv, 0, 0))
 	elseif p.gait == "Serpent" then
 		-- Serpent : une onde parcourt les segments de la tête vers la queue
 		local amp = rad(p.sway) * (0.5 + mv)
@@ -278,20 +280,28 @@ local function step(st: State, dt: number)
 			m.Transform = CFrame.Angles(math.sin(t * rate * 0.6 - i * 0.4) * rad(2), math.sin(t * rate - i * 0.55) * amp * (0.3 + k), 0)
 		end
 	elseif p.gait == "Biped" then
-		-- Géant debout : pas lourds, balancier des bras, buste qui roule
+		-- Géant debout : pas lourds, genoux qui plient, bras en balancier avec coudes, buste qui roule
 		local ph = gait
-		local step = math.abs(math.sin(ph)) * p.bob * mv
-		set(st, "Body", CFrame.new(0, (breathe + step) * sc, 0) * CFrame.Angles(0, math.sin(ph) * rad(4) * mv + math.sin(t * 0.5) * rad(3) * idle, math.sin(ph) * rad(3) * mv))
-		set(st, "Leg_R", CFrame.Angles(math.sin(ph) * swing, 0, 0))
-		set(st, "Leg_L", CFrame.Angles(-math.sin(ph) * swing, 0, 0))
-		set(st, "Arm_R", CFrame.Angles(-math.sin(ph) * swing * 0.7 + math.sin(t * 1.1) * rad(4) * idle, 0, math.sin(t * 0.8) * rad(3)))
-		set(st, "Arm_L", CFrame.Angles(math.sin(ph) * swing * 0.7 + math.sin(t * 1.1 + 1) * rad(4) * idle, 0, -math.sin(t * 0.8) * rad(3)))
+		local step = (1 - math.cos(ph * 2)) * 0.5 * p.bob * mv
+		set(st, "Body", CFrame.new(0, (breathe + step) * sc, 0) * CFrame.Angles(-rad(4) * mv, math.sin(ph) * rad(5) * mv + math.sin(t * 0.5) * rad(3) * idle, math.sin(ph) * rad(3) * mv))
+		for k, s in { 1, -1 } do
+			local sfx = if s > 0 then "_R" else "_L"
+			local a = ph + (if s > 0 then 0 else math.pi)
+			set(st, "Leg" .. sfx, CFrame.Angles(math.sin(a) * swing, 0, 0))
+			set(st, "Leg" .. sfx .. "_Knee", CFrame.Angles(-math.max(0, math.cos(a)) * rad(60) * mv, 0, 0))
+			set(st, "Arm" .. sfx, CFrame.Angles(-math.sin(a) * swing * 0.8 + math.sin(t * 1.1 + k) * rad(4) * idle, 0, s * rad(3) + math.sin(t * 0.8) * rad(2)))
+			set(st, "Arm" .. sfx .. "_Knee", CFrame.Angles(rad(12) + math.max(0, -math.sin(a)) * rad(30) * mv + math.sin(t * 1.3 + k) * rad(4) * idle, 0, 0))
+		end
 	elseif p.gait == "Hover" then
-		-- Lévitation : flottement lent, légère inclinaison en mouvement
+		-- Lévitation : flottement lent, inclinaison vers l'avant en mouvement, bras et coudes vivants
 		local float = math.sin(t * 1.3) * p.hover
-		set(st, "Body", CFrame.new(0, float * sc, 0) * CFrame.Angles(-rad(10) * mv + math.sin(t * 0.9) * rad(2), math.sin(t * 0.5) * rad(4), 0))
-		set(st, "Arm_R", CFrame.Angles(math.sin(t * 1.1) * rad(8), 0, math.sin(t * 0.8) * rad(6)))
-		set(st, "Arm_L", CFrame.Angles(math.sin(t * 1.1 + 1.4) * rad(8), 0, -math.sin(t * 0.8 + 1) * rad(6)))
+		set(st, "Body", CFrame.new(0, float * sc, 0) * CFrame.Angles(-rad(12) * mv + math.sin(t * 0.9) * rad(2), math.sin(t * 0.5) * rad(4), math.sin(t * 0.7) * rad(2) * idle))
+		for k, s in { 1, -1 } do
+			local sfx = if s > 0 then "_R" else "_L"
+			local w = math.sin(t * 1.1 + k * 1.4)
+			set(st, "Arm" .. sfx, CFrame.Angles(w * rad(10) + rad(18) * mv, 0, s * (math.sin(t * 0.8 + k) * rad(6) + rad(8) * mv)))
+			set(st, "Arm" .. sfx .. "_Knee", CFrame.Angles(rad(14) + math.sin(t * 1.4 + k) * rad(12), 0, 0))
+		end
 		-- Ailes éventuelles : battements lents et majestueux (deux paires possibles)
 		local w = math.sin(t * 2.2) * rad(16) * (1 + mv * 0.5)
 		local w2 = math.sin(t * 2.2 - 0.8) * rad(12) * (1 + mv * 0.5)
@@ -300,15 +310,20 @@ local function step(st: State, dt: number)
 		set(st, "Wing2_R", CFrame.Angles(0, 0, w2))
 		set(st, "Wing2_L", CFrame.Angles(0, 0, -w2))
 	else
-		-- Quadrupède : rebond au trot, pattes en balancier (avant-droite avec arrière-gauche)
-		local bob = math.abs(math.sin(gait)) * p.bob * mv
-		set(st, "Body", CFrame.new(0, (breathe + bob) * sc, 0) * CFrame.Angles(math.sin(gait * 2) * 0.035 * mv, 0, 0))
-		for _, leg in LEGS do
-			set(st, leg.name, CFrame.Angles(math.sin(gait + leg.phase) * swing, 0, 0))
+		-- Quadrupède : trot diagonal (avant-droite avec arrière-gauche). Chaque patte balance depuis
+		-- la hanche et plie le genou pendant qu'elle avance ; le corps rebondit, tangue et roule.
+		local ph = gait
+		local bob = (1 - math.cos(ph * 2)) * 0.5 * p.bob * mv
+		set(st, "Body", CFrame.new(0, (breathe + bob) * sc, 0) * CFrame.Angles(math.sin(ph * 2) * rad(2.5) * mv - rad(2) * mv, math.sin(t * 0.6) * rad(1.5) * idle, math.sin(ph) * rad(2.5) * mv))
+		for i, leg in LEGS do
+			local a = ph + leg.phase
+			local lift = math.max(0, math.cos(a)) -- la patte est en l'air quand elle avance
+			set(st, leg.name, CFrame.Angles(math.sin(a) * swing + math.sin(t * 0.8 + i) * rad(1.5) * idle, 0, 0))
+			set(st, leg.name .. "_Knee", CFrame.Angles(-lift * rad(55) * mv - (0.5 + 0.5 * math.sin(t * 0.8 + i)) * rad(3) * idle, 0, 0))
 		end
-		-- Ailes repliées éventuelles (ex. créatures ailées terrestres)
-		set(st, "Wing_R", CFrame.Angles(0, 0, math.sin(t * 1.6) * rad(6)))
-		set(st, "Wing_L", CFrame.Angles(0, 0, -math.sin(t * 1.6) * rad(6)))
+		-- Ailes repliées éventuelles (ex. créatures ailées terrestres) : frémissent, s'ouvrent un peu en marche
+		set(st, "Wing_R", CFrame.Angles(0, 0, math.sin(t * 1.6) * rad(6) + math.sin(ph * 2) * rad(8) * mv))
+		set(st, "Wing_L", CFrame.Angles(0, 0, -math.sin(t * 1.6) * rad(6) - math.sin(ph * 2) * rad(8) * mv))
 	end
 
 	-- Tête : regard lent + reniflements par salves

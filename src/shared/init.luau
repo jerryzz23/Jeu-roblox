@@ -26,6 +26,8 @@ local Types = require(script.Types)
 local Spawning = require(script.Spawning)
 local Treadmills = require(script.Treadmills)
 local Map = require(script.Map)
+local Weapons = require(script.Weapons)
+local Syringes = require(script.Syringes)
 
 export type CreatureDef = Types.CreatureDef
 export type AnimState = "Idle" | "Move" | "Still" | "Ability"
@@ -41,6 +43,8 @@ local CreatureForge = {
 	Spawning = Spawning,
 	Treadmills = Treadmills,
 	Map = Map,
+	Weapons = Weapons,
+	Syringes = Syringes,
 	TAG = Kit.TAG,
 }
 

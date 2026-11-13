@@ -92,6 +92,12 @@ function A.limb(rig: Rig, bone: string, side: number, path: { { any } }, core: S
 	for _, p in path do
 		table.insert(sections, { pos = A.mx(p[1] :: Vector3, side), rx = p[2] :: number, ry = p[3] :: number })
 	end
+	-- Genou / coude : les pattes ("Leg…") et les bras ("Arm…") à 3 points ou plus reçoivent une
+	-- articulation au 2e point (os "<os>_Knee"). Tout ce qui est construit ensuite sur cet os
+	-- au-delà de l'articulation (bas de la patte, pied, griffes, bracelets) s'y rattache tout seul.
+	if #sections >= 3 and (string.sub(bone, 1, 3) == "Leg" or string.sub(bone, 1, 3) == "Arm") then
+		rig:joint(bone, sections[1].pos, sections[2].pos)
+	end
 	local spine = Kit.spine(sections)
 	rig:tube(spine, {
 		name = "Limb",

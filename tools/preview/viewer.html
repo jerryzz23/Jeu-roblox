@@ -610,7 +610,7 @@ function load(json) {
     `${(bounds.max.y - bounds.min.y).toFixed(1)} st de haut · ${(bounds.max.z - bounds.min.z).toFixed(1)} st de long`;
   document.getElementById("plate").textContent = json.name;
   const ms = mutations.filter(x => mutList().includes(x.id));
-  const sub = json.kind === "Treadmill" ? `+${json.gain.toLocaleString("fr-FR")} vitesse/s` : ms.length ? ms.map(m => m.label).join(" + ") + " x" + String(ms.reduce((a, m) => a + m.multiplier, 0)).replace(".", ",") : json.rarity.toUpperCase();
+  const sub = json.kind === "Weapon" ? `Portée ${json.range} · ${json.cooldown}s` : json.kind === "Syringe" ? `ADN x${String(json.multiplier).replace(".", ",")}` : json.kind === "Treadmill" ? `+${json.gain.toLocaleString("fr-FR")} vitesse/s` : ms.length ? ms.map(m => m.label).join(" + ") + " x" + String(ms.reduce((a, m) => a + m.multiplier, 0)).replace(".", ",") : json.rarity.toUpperCase();
   document.getElementById("caption").innerHTML = `${json.name}<span>${sub}</span>`;
   setView(view);
 }

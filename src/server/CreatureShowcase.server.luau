@@ -82,14 +82,14 @@ local rng = Random.new()
 
 -- Chaque créature se promène dans la zone de sa rareté (distance relative le long de la pente)
 local ZONE_D = {
-	Common = { 0.03, 0.12 },
+	Common = { 0.02, 0.11 },
 	Rare = { 0.14, 0.24 },
-	Epic = { 0.3, 0.45 },
-	Legendary = { 0.52, 0.64 },
-	Mythic = { 0.66, 0.76 },
-	Exotic = { 0.8, 0.85 },
-	Exclusive = { 0.86, 0.91 },
-	Chaotic = { 0.92, 0.99 },
+	Epic = { 0.27, 0.36 },
+	Legendary = { 0.39, 0.49 },
+	Mythic = { 0.52, 0.62 },
+	Exotic = { 0.64, 0.74 },
+	Exclusive = { 0.77, 0.86 },
+	Chaotic = { 0.89, 0.98 },
 }
 for _, def in CreatureForge.list() do
 	local mutations = {}
