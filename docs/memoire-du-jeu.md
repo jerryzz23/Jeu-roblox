@@ -76,9 +76,11 @@ Ne pas revenir sur ces règles sans le lui demander.
     nom du joueur et une maisonnette.
 15. **Animations** : **tout le corps doit bouger** (pattes, genoux, coudes, ailes, queue), pas
     seulement la tête.
-16. Également prévus dans son « Récap final du jeu », mais **sans détails enregistrés ici** :
-    **pièges**, **achats Robux**, **progression**, **anti-triche**, **interface Roblox cartoon**.
-    Lui demander de recoller son récap avant de les faire.
+16. Également prévus dans son « Récap final du jeu » : **pièges**, **achats Robux**,
+    **progression**, **anti-triche**, **interface Roblox cartoon**. Le texte d'origine du récap
+    est recopié dans `docs/conversation-complete.md` (son message « Fait moi les personnages de
+    ce jeux… »). Attention : il décrivait encore un tapis roulant, mais la règle n°1 l'a remplacé
+    par une pente.
 
 ## Les 30 personnages
 
@@ -155,3 +157,7 @@ Dans l'ordre, les plus récentes en bas.
 14. « Va sur mon PC et mets le jeu sur Roblox Studio » (2e fois) → toujours impossible depuis
     cette session cloud : aucun accès à son ordinateur. Il doit ouvrir une conversation depuis
     l'application Claude de son PC (Computer use activé), ou ouvrir lui-même le fichier `.rbxl`.
+15. « Comment transférer les données de la conversation ? Mets toute la conv dans ce fichier » →
+    `docs/conversation-complete.md` : toute la conversation (ses messages, dont son « Récap final
+    du jeu » d'origine, et les réponses de Claude) + l'état du projet, à joindre dans une nouvelle
+    conversation.
