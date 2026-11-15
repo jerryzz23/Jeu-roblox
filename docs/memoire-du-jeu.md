@@ -100,9 +100,10 @@ Les détails (bonus de vitesse, selle passager, démarche, capacité) sont dans 
 
 ## Ce qui est fait
 
-- **Nouveau style « cubes + pixels »** (test) : le Gardien lunaire, d'après son image de
-  référence. Technique : `pixels()` (motifs en pixels fusionnés par lignes), `crescentRows()`
-  (croissants en pixels), cubes de queue lumineux sur une chaîne d'os.
+- **Nouveau style « cubes + pixels »** (tests, `Source = "Test"`) : le Gardien lunaire (d'après
+  son image, validé : « trop bien ») et le Dragon d'aurore en cubes. Outils dans
+  `src/shared/Pixel.luau` : `draw` (motifs en pixels fusionnés par lignes), `crescent`
+  (croissants), `waves` (rubans d'aurore), `tiles` (membranes d'ailes en carreaux), `speckle`.
 - Les **30 personnages** en 3D : animés (démarches, genoux, coudes), avec VFX, icône UI, selles
   et mutations visibles.
 - La **carte** : bases, stands (VENDRE, SERINGUES, TAPIS DE COURSE, GRATUIT !), roue, pente du
@@ -172,5 +173,9 @@ Dans l'ordre, les plus récentes en bas.
     associés au personnage ». → **Gardien lunaire** (`src/shared/Creatures/GardienLunaire.luau`) :
     gros cubes, motifs gravés en pixels, yeux ronds cyan, oreilles magenta, cristaux, couronne en
     croissant de lune en pixels, queue de cubes de lune lumineux, lunes en orbite. `Source =
-    "Test"` : visible partout mais jamais tiré au sort. **En attente de son avis** : s'il valide,
-    il veut un autre personnage dans ce style pour tester (puis peut-être refaire les autres).
+    "Test"` : visible partout mais jamais tiré au sort. Son avis : « il est trop bien ».
+18. « Il est trop bien, fais un autre personnage pour voir si ça rend bien » → **Dragon d'aurore
+    en cubes** (`DragonDAuroreCubes`, test) : le dragon du jeu refait dans le nouveau style
+    (rubans d'aurore en pixels, ailes en carreaux de verre, cornes en cubes, gueule qui s'ouvre).
+    Outils du style regroupés dans `src/shared/Pixel.luau`. **En attente de son avis** : s'il
+    valide, proposer de refaire tous les personnages dans ce style (en gardant leur identité).

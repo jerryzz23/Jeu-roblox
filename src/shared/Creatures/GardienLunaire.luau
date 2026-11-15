@@ -21,6 +21,7 @@ local A = require(script.Parent.Parent.Anatomy)
 local Fx = require(script.Parent.Parent.Fx)
 local Vfx = require(script.Parent.Parent.Vfx)
 local Types = require(script.Parent.Parent.Types)
+local Pixel = require(script.Parent.Parent.Pixel)
 
 local S = Kit.style
 local M = Enum.Material
@@ -112,46 +113,8 @@ local TUFT = {
 	"L.L.",
 }
 
---- Croissant de lune en pixels (cornes vers le haut) : grand disque de rayon R moins un disque
---- de rayon r décalé de d vers le haut. S = argent, C = bord lumineux, K = cratère,
---- E = petit croissant au centre (si `emblem`).
-local function crescentRows(R: number, r: number, d: number, emblem: boolean?): { string }
-	local n = math.ceil(R)
-	local function inShape(x: number, y: number): boolean
-		return x * x + y * y <= R * R and x * x + (y - d) * (y - d) > r * r
-	end
-	local function inEmblem(x: number, y: number): boolean
-		return (x + 0.2) ^ 2 + (y - 0.6) ^ 2 <= 2.4 ^ 2 and (x - 1.0) ^ 2 + (y - 1.1) ^ 2 > 2.0 ^ 2
-	end
-	local rows = {}
-	for y = n, -n, -1 do
-		local row = {}
-		for x = -n, n do
-			local ch = "."
-			if inShape(x, y) then
-				-- bord lumineux seulement sur le contour extérieur du disque
-				local function outer(px: number, py: number): boolean
-					return px * px + py * py > R * R
-				end
-				local edge = outer(x + 1, y) or outer(x - 1, y) or outer(x, y + 1) or outer(x, y - 1)
-				if edge then
-					ch = "C"
-				elseif (x * 7 + y * 13 + 40) % 5 == 0 then
-					ch = "K"
-				else
-					ch = "S"
-				end
-			elseif emblem and inEmblem(x, y) then
-				ch = "E"
-			end
-			table.insert(row, ch)
-		end
-		table.insert(rows, table.concat(row))
-	end
-	return rows
-end
-local CROWN = crescentRows(6.5, 5.4, 2.4, true)
-local SMALL_MOON = crescentRows(3.5, 2.9, 1.4, false)
+local CROWN = Pixel.crescent(6.5, 5.4, 2.4, true)
+local SMALL_MOON = Pixel.crescent(3.5, 2.9, 1.4, false)
 
 -- Queue : points de la chaîne (base dans le dos, 9 cubes, cube violet au bout) et tailles
 local TAIL_PTS = {
@@ -176,47 +139,18 @@ local ABILITY: Types.Ability = {
 local function build(opts: Kit.BuildOptions?): Model
 	local rig = Kit.newRig(ID, opts)
 
-	--- Motif en pixels sur une face. `face` : centre de la face, -Z local = vers l'extérieur.
-	--- Les pixels voisins de même couleur sont fusionnés (moins de pièces).
-	local function pixels(bone: string, face: CFrame, px: number, rows: { string }, depth: number?, pal: { [string]: any }?)
+	--- Motif en pixels sur une face (palette bleu nuit par défaut, voir Pixel.draw).
+	local function pixels(bone: string, f: CFrame, px: number, rows: { string }, depth: number?, pal: Pixel.Palette?)
 		local d = depth or 0.03
-		local palette: { [string]: any } = pal or {
+		Pixel.draw(rig, bone, f, px, rows, pal or {
 			L = { P.navyPale, d }, M = { P.navyLight, d * 0.8 }, D = { P.navyDeep, d * 0.5 },
 			C = { P.cyan, d }, S = { P.moon, d },
-		}
-		local h = #rows
-		for r, row in rows do
-			local w = #row
-			local c = 1
-			while c <= w do
-				local ch = string.sub(row, c, c)
-				local pal = palette[ch]
-				if pal then
-					local c2 = c
-					while c2 < w and string.sub(row, c2 + 1, c2 + 1) == ch do
-						c2 += 1
-					end
-					local x = ((c + c2) / 2 - (w + 1) / 2) * px
-					local y = ((h + 1) / 2 - r) * px
-					rig:block(bone, "Pixel", face * cf(x, y, -pal[2] / 2), v3((c2 - c + 1) * px, px, pal[2]), pal[1])
-					c = c2 + 1
-				else
-					c += 1
-				end
-			end
-		end
+		})
 	end
-	local function face(center: Vector3, normal: Vector3, up: Vector3?): CFrame
-		return CFrame.lookAt(center, center + normal, up or Vector3.yAxis)
-	end
-	--- Pixels isolés sur une face (texture « pierre de lune »), dans un rectangle w × h.
+	local face = Pixel.face
+	--- Pixels isolés sur une face (texture « pierre de lune »).
 	local function speckle(bone: string, f: CFrame, w: number, h: number, count: number, px: number, seed: number)
-		local rng = Random.new(seed)
-		for _ = 1, count do
-			local x, y = rng:NextNumber(-w / 2, w / 2), rng:NextNumber(-h / 2, h / 2)
-			local dark = rng:NextNumber() < 0.55
-			rig:block(bone, "Speck", f * cf(x, y, -0.008), v3(px, px, 0.016), if dark then P.navyDark else P.navyLight)
-		end
+		Pixel.speckle(rig, bone, f, w, h, count, px, { P.navyDark, P.navyLight }, seed)
 	end
 
 	-- Os

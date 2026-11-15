@@ -150,6 +150,26 @@ Il compte pour 660 pièces (`src/shared/Creatures/GardienLunaire.luau`, script
 et dans la place, mais il n'est **jamais tiré au sort** (ni dans le canyon, ni par la machine à
 ADN) tant que le créateur ne l'a pas validé.
 
+### Test de style n° 2 : le Dragon d'aurore en cubes
+
+![Le Dragon d'aurore en cubes](docs/previews/dragon-aurore-cubes.png)
+
+Le Dragon d'aurore du jeu, refait dans le même style pour voir s'il marche aussi sur les
+personnages existants. On y retrouve :
+
+- des cubes bleu nuit gravés de **rubans d'aurore en pixels** ;
+- des **ailes en carreaux de verre** en dégradé d'aurore, aux bords lumineux ;
+- une gueule qui s'ouvre, des yeux blancs lumineux et des cornes d'argent en cubes ;
+- des pointes en losange lumineuses, une queue de cubes avec un cristal au bout, et des cristaux
+  en orbite.
+
+Le modèle fait 629 pièces (`src/shared/Creatures/DragonDAuroreCubes.luau`). Comme le Gardien, il
+a `Source = "Test"` : il n'est jamais tiré au sort. L'ancien Dragon d'aurore reste en place tant
+que le créateur n'a pas choisi.
+
+Les outils du style « cubes + pixels » sont dans `src/shared/Pixel.luau` : motifs en pixels,
+croissants, rubans ondulés et carreaux d'ailes.
+
 ## Mutations
 
 ![Le Griffon impérial avec chacune des 11 mutations](docs/previews/mutations.png)
@@ -387,6 +407,7 @@ src/shared/                 -> ReplicatedStorage.CreatureForge
   Map.luau                  la carte : bases style Roblox, stands, pente du canyon, 8 zones, statues
   Weapons.luau              les battes (modèles + Tool)
   Syringes.luau             les seringues (modèles + Tool), ADN, boutique toutes les 5 min
+  Pixel.luau                outils du style « cubes + pixels » (motifs, croissants, carreaux)
   DnaMachine.luau           la machine à ADN de chaque base, chances selon la rareté de l'ADN,
                             fragments d'ADN (modèles + Tool)
   Vitrine.luau              tout le contenu exposé dans la carte (personnages, tapis, présentoirs)
