@@ -28,6 +28,15 @@ journal et mettre à jour « Ce qui est fait » / « À faire ».
 - Budget de pièces : carte ≈ 13 400 et place complète ≈ 80 000. Rester léger sur les décors
   répétés : éviter `rig:ring` avec beaucoup de segments sur un objet présent 8 fois.
 
+## Modèles Blender
+
+- `blender/gardien_lunaire.py` construit le Gardien lunaire dans Blender (Python 3.11 + module
+  `bpy` de Blender 5 + Pillow, voir le README) et écrit `dist/blender/GardienLunaire/` (FBX, GLB,
+  .blend, texture, installateur Command Bar, rendus avec `--rendus`). Les scripts Roblox de ce
+  modèle sont `blender/installer_gardien.luau` et `blender/animation_gardien.luau` ; le script
+  Python y insère les données du squelette. Test : `lune run tools/tests/test_gardien_blender.luau`.
+- Ce n'est pas dans `src/` : pas besoin de refaire export / bundle / build_place pour lui.
+
 ## Aperçus et bestiaire
 
 - Serveur local : `cd tools/preview && python3 -m http.server 8765`. Pages :
@@ -55,6 +64,9 @@ journal et mettre à jour « Ce qui est fait » / « À faire ».
 - `string.lower` ne met pas les lettres accentuées en minuscules (« LÉGENDAIRE » donne
   « lÉgendaire ») : utiliser des tables de noms écrites à la main.
 - Texte des SurfaceGui : `FontFace = Font.fromEnum(Enum.Font.FredokaOne)`.
+- `CFrame.lookAt` de Lune vise +Z (dans Roblox, le regard est -Z) : ne pas s'y fier dans les tests.
+- `Workspace` est lui-même un `Model` : en remontant les parents d'une pièce pour trouver « son »
+  modèle, s'arrêter avant `workspace`.
 
 ## Git
 

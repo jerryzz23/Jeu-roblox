@@ -117,8 +117,18 @@ Les détails (bonus de vitesse, selle passager, démarche, capacité) sont dans 
 - La **place complète** `dist/CreatureForge.rbxl` : tout est visible dès l'ouverture dans
   Studio, avec la Vitrine (personnages dans leur zone, tapis et présentoirs).
 - Le **bestiaire web** (artefact privé) : https://claude.ai/artifact/6wLxEoofvni4XYqjNBFNaM
+- Le **Gardien lunaire version Blender** (vrai modèle 3D, `dist/blender/GardienLunaire/`) :
+  - FBX à importer dans Studio (58 MeshParts, environ 32 000 triangles, 22,7 studs de haut) ;
+  - installateur à coller dans la Command Bar : articulations, Neon/Glass, VFX, animation ;
+  - rendus Cycles et animation de marche ;
+  - fabriqué par `blender/gardien_lunaire.py`, testé par `tools/tests/test_gardien_blender.luau` ;
+  - planche de présentation (canevas Design privé) : https://claude.ai/artifact/DvasXo32Bsmm8NzQFPu3CD
 
 ## À faire (le gameplay n'est pas encore codé)
+
+- **Gardien lunaire Blender** : attendre son avis. S'il préfère cette version, la brancher dans le
+  jeu (bestiaire, place complète, tirage) à la place de la version en Parts. On peut aussi refaire
+  d'autres personnages de la même façon.
 
 - **Endurance** : la barre se vide en remontant ; à 0, le joueur est lent et vulnérable.
 - **Récolte d'ADN** avec la seringue sur les personnages du canyon (apparitions selon la
@@ -188,3 +198,13 @@ Dans l'ordre, les plus récentes en bas.
     - des cornes annelées et des carreaux d'ailes de deux teintes.
     Ajout de `Pixel.craters` (texture de lune) pour les prochains. Dans le bestiaire, les pixels
     plaqués n'ont plus de contour (comme dans Roblox).
+20. Même image « Lunar Guardian » : « fais-moi ce personnage en 3D, tu peux utiliser Blender pour
+    le perso et les VFX, c'est pour un jeu Roblox » → **Gardien lunaire version Blender**.
+    - Le modèle est construit par script dans Blender 5 (module `bpy`) : vrais maillages en cubes,
+      texture pierre/lune et motifs gravés en pixels sur chaque face.
+    - Pour Roblox : un FBX à importer (*Importer 3D*), puis l'installateur à coller dans la Command
+      Bar. Il ajoute les Motor6D, les matériaux Neon/Glass, les particules, les lumières, la traînée
+      et le script d'animation (*RunContext* Client).
+    - Rendus Cycles (avec lueur, poussière d'étoiles et éclats de lune au sol), présentés sur un
+      canevas Design privé : https://claude.ai/artifact/DvasXo32Bsmm8NzQFPu3CD
+    - **En attente de son avis.**

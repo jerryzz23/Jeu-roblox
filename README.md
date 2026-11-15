@@ -281,6 +281,57 @@ bas de la patte, le pied et les griffes suivent automatiquement l'articulation. 
 - **lévitation** (Néant Couronné) : buste qui s'incline, bras et coudes vivants, ailes ;
 - **oiseaux** : battements d'ailes, pattes repliées en vol.
 
+### Le Gardien lunaire en vrai modèle 3D (Blender)
+
+![Le Gardien lunaire fait avec Blender](dist/blender/GardienLunaire/rendus/heros.png)
+
+Le même personnage, mais fait **avec Blender** : de vrais maillages (MeshParts) au lieu de
+centaines de Parts, à importer dans Studio. Tout est dans `dist/blender/GardienLunaire/` :
+
+| Fichier | À quoi il sert |
+| --- | --- |
+| `GardienLunaire.fbx` | le modèle à importer dans Studio (1 unité = 1 stud, texture incluse) |
+| `GardienLunaire.installer.luau` | le script à coller **une fois** dans la Command Bar après l'import |
+| `GardienLunaire_texture.png` | la texture (au cas où elle n'arrive pas avec l'import) |
+| `GardienLunaire.glb` | le même modèle en glTF (aperçu web, autres logiciels) |
+| `GardienLunaire.blend` | le fichier Blender, pièces rangées et articulées |
+| `GardienLunaire.animation.client.luau` | le script d'animation (déjà inclus dans l'installateur) |
+| `rendus/` | les images (face, profil, dos, tête, queue) et l'animation de marche (`marche.gif`) |
+
+**Le modèle** (22,7 studs de haut, comme l'image de référence) : 58 pièces, environ
+32 000 triangles. Les grandes faces ont une texture de pierre bleu nuit ou de lune, et **chaque
+face** porte des motifs gravés en pixels, en relief : engrenages, spirales carrées, croissants,
+phases de lune, cratères. On y trouve aussi :
+- les yeux ronds cyan, avec un reflet ;
+- les oreilles magenta en marches ;
+- 2 × 4 grands cristaux à facettes, comme des ailes, et des éclats sur les joues ;
+- la couronne en croissant de lune en pixels, avec un petit croissant lumineux au centre ;
+- la queue de 9 cubes de lune, chacun avec un anneau néon et un disque cratérisé, plus un cube violet au bout ;
+- deux ronds de lunes en orbite.
+
+**Dans Roblox Studio** :
+1. *Avatar* (ou *Accueil*) › **Importer 3D** › `GardienLunaire.fbx` › **Importer**.
+2. Sélectionner le modèle importé.
+3. *Affichage* › **Command Bar** : coller tout `GardienLunaire.installer.luau`, puis Entrée.
+
+L'installateur remet le Gardien debout, à la bonne taille et dans le bon sens, quel que soit
+l'import. Il ajoute ensuite :
+- les matériaux : Neon pour les yeux, les anneaux et les lunes, Glass pour les cristaux ;
+- 25 articulations (Motor6D) : pattes avec genoux, tête, oreilles, couronne, 10 cubes de queue,
+  lunes en orbite ;
+- les VFX : 7 émetteurs de particules (poussière de lune, paillettes au sol, étoiles de la
+  couronne, éclats des cristaux), 4 lumières cyan et une traînée au bout de la queue ;
+- le script `AnimationGardien` (*RunContext* Client).
+
+En **Play**, le Gardien respire, regarde autour de lui et frémit des oreilles. Sa queue ondule,
+la couronne flotte et les lunes tournent. Il trotte quand il se déplace. Pour le voir marcher sur
+place, mettre son attribut `Marche` à 1. Si la texture n'arrive pas avec l'import, il suffit de
+téléverser `GardienLunaire_texture.png` et de coller son ID dans `TEXTURE_ID`, en haut du script.
+
+Tout est refait par `blender/gardien_lunaire.py` (Python 3.11 avec le module `bpy` de Blender 5
+et Pillow ; voir « Régénérer »). Le test `tools/tests/test_gardien_blender.luau` simule l'import
+(droit, tourné de 180° ou de 37°) et vérifie l'installateur et l'animation.
+
 ## Effets visuels (VFX)
 
 Chaque créature combine une **aura de rareté**, des **effets signature** (braises, flocons,
@@ -325,7 +376,13 @@ regroupés par rareté dans `dist/scripts-creatures.zip`.
 - **Glisser-déposer** : `dist/models/<Créature>.rbxm` dans la vue 3D,
   `dist/icons/<Créature>_Icon.rbxm` sur `StarterGui`.
 
-### Option 3 — Projet Rojo
+### Option 3 — Le Gardien lunaire version Blender
+
+Importer `dist/blender/GardienLunaire/GardienLunaire.fbx` (*Importer 3D*), le sélectionner, puis
+coller `GardienLunaire.installer.luau` dans la Command Bar (détails plus haut, dans « Le Gardien
+lunaire en vrai modèle 3D »).
+
+### Option 4 — Projet Rojo
 
 ```bash
 rojo serve        # puis « Connect » dans le plugin Rojo de Studio
@@ -433,6 +490,9 @@ src/server/                 CreatureShowcase (démo : les personnages de la Vitr
                             Bases (un enclos par joueur, machine à ADN, stock de seringues)
 tools/                      export.luau, bundle.luau, build_place.luau,
                             preview/bestiaire.html (bestiaire animé), preview/viewer.html (aperçus)
+blender/                    gardien_lunaire.py (le Gardien lunaire fait avec Blender : modèle,
+                            texture, exports FBX/GLB/.blend, rendus), installer_gardien.luau et
+                            animation_gardien.luau (scripts Roblox de ce modèle)
 ```
 
 ### Régénérer `dist/` et les aperçus
@@ -446,4 +506,14 @@ lune run tools/build_place   # dist/CreatureForge.rbxl
 cd tools/preview && python3 -m http.server 8000
 # http://localhost:8000/viewer.html?id=GriffonImperial&mut=Kintsugi,Vitrail
 #   (mutations, VFX, vues, export GLB/OBJ ; ajoute &bg=dark pour un fond sombre)
+```
+
+Le Gardien lunaire version Blender (`dist/blender/GardienLunaire/`) se refait avec un Python 3.11
+qui a le module `bpy` (Blender 5) et Pillow :
+
+```bash
+uv venv -p 3.11 .venv-blender && VIRTUAL_ENV=.venv-blender uv pip install bpy pillow
+.venv-blender/bin/python blender/gardien_lunaire.py            # modèle, texture, exports, installateur
+.venv-blender/bin/python blender/gardien_lunaire.py --rendus   # + rendus Cycles (long)
+lune run tools/tests/test_gardien_blender.luau
 ```

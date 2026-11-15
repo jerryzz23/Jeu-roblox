@@ -1,0 +1,1087 @@
+{
+ "id": "GardienLunaire",
+ "hauteur": 22.7,
+ "taille": [
+  16.6365,
+  22.7,
+  40.5679
+ ],
+ "sol": -8.72,
+ "points": {
+  "CristalG": [
+   -5.4,
+   8.08,
+   -4.1
+  ],
+  "CristalD": [
+   5.4,
+   8.08,
+   -4.1
+  ],
+  "Yeux": [
+   0.0,
+   3.23,
+   -9.4
+  ],
+  "QueueBout": [
+   0.0,
+   4.8698,
+   26.4514
+  ]
+ },
+ "articulations": [
+  {
+   "nom": "Corps",
+   "parent": "Racine",
+   "sorte": "corps",
+   "pivot": [
+    0.0,
+    -1.52,
+    0.0
+   ],
+   "centre": [
+    0.0,
+    0.0,
+    -0.0
+   ]
+  },
+  {
+   "nom": "PatteAvGHaut",
+   "parent": "Corps",
+   "sorte": "hanche",
+   "pivot": [
+    -1.85,
+    -1.42,
+    -2.8
+   ],
+   "centre": [
+    -2.005,
+    -2.885,
+    -2.8
+   ]
+  },
+  {
+   "nom": "PatteAvGBas",
+   "parent": "PatteAvGHaut",
+   "sorte": "genou",
+   "pivot": [
+    -1.85,
+    -4.72,
+    -2.8
+   ],
+   "centre": [
+    -1.85,
+    -6.77,
+    -3.215
+   ]
+  },
+  {
+   "nom": "PatteAvDHaut",
+   "parent": "Corps",
+   "sorte": "hanche",
+   "pivot": [
+    1.85,
+    -1.42,
+    -2.8
+   ],
+   "centre": [
+    2.005,
+    -2.885,
+    -2.8
+   ]
+  },
+  {
+   "nom": "PatteAvDBas",
+   "parent": "PatteAvDHaut",
+   "sorte": "genou",
+   "pivot": [
+    1.85,
+    -4.72,
+    -2.8
+   ],
+   "centre": [
+    1.85,
+    -6.77,
+    -3.215
+   ]
+  },
+  {
+   "nom": "PatteArGHaut",
+   "parent": "Corps",
+   "sorte": "hanche",
+   "pivot": [
+    -1.85,
+    -1.42,
+    3.2
+   ],
+   "centre": [
+    -2.005,
+    -2.885,
+    3.2
+   ]
+  },
+  {
+   "nom": "PatteArGBas",
+   "parent": "PatteArGHaut",
+   "sorte": "genou",
+   "pivot": [
+    -1.85,
+    -4.72,
+    3.2
+   ],
+   "centre": [
+    -1.85,
+    -6.77,
+    2.785
+   ]
+  },
+  {
+   "nom": "PatteArDHaut",
+   "parent": "Corps",
+   "sorte": "hanche",
+   "pivot": [
+    1.85,
+    -1.42,
+    3.2
+   ],
+   "centre": [
+    2.005,
+    -2.885,
+    3.2
+   ]
+  },
+  {
+   "nom": "PatteArDBas",
+   "parent": "PatteArDHaut",
+   "sorte": "genou",
+   "pivot": [
+    1.85,
+    -4.72,
+    3.2
+   ],
+   "centre": [
+    1.85,
+    -6.77,
+    2.785
+   ]
+  },
+  {
+   "nom": "Tete",
+   "parent": "Corps",
+   "sorte": "cou",
+   "pivot": [
+    0.0,
+    1.48,
+    -4.2
+   ],
+   "centre": [
+    0.0,
+    2.95,
+    -6.605
+   ]
+  },
+  {
+   "nom": "OreilleG",
+   "parent": "Tete",
+   "sorte": "oreille",
+   "pivot": [
+    -2.2,
+    5.78,
+    -7.1
+   ],
+   "centre": [
+    -2.4049,
+    7.78,
+    -7.25
+   ]
+  },
+  {
+   "nom": "OreilleD",
+   "parent": "Tete",
+   "sorte": "oreille",
+   "pivot": [
+    2.2,
+    5.78,
+    -7.1
+   ],
+   "centre": [
+    2.4049,
+    7.78,
+    -7.25
+   ]
+  },
+  {
+   "nom": "Couronne",
+   "parent": "Tete",
+   "sorte": "flotte",
+   "pivot": [
+    0.0,
+    8.38,
+    -5.6
+   ],
+   "centre": [
+    0.0,
+    9.38,
+    -5.6
+   ]
+  },
+  {
+   "nom": "Queue01",
+   "parent": "Corps",
+   "sorte": "queue",
+   "pivot": [
+    0.0,
+    1.18,
+    5.0
+   ],
+   "centre": [
+    0.0,
+    1.18,
+    6.28
+   ]
+  },
+  {
+   "nom": "Queue02",
+   "parent": "Queue01",
+   "sorte": "queue",
+   "pivot": [
+    0.0,
+    1.18,
+    7.56
+   ],
+   "centre": [
+    0.0,
+    1.1362,
+    8.8107
+   ]
+  },
+  {
+   "nom": "Queue03",
+   "parent": "Queue02",
+   "sorte": "queue",
+   "pivot": [
+    0.0,
+    1.0924,
+    10.0685
+   ],
+   "centre": [
+    0.0,
+    1.0495,
+    11.2977
+   ]
+  },
+  {
+   "nom": "Queue04",
+   "parent": "Queue03",
+   "sorte": "queue",
+   "pivot": [
+    0.0,
+    1.0065,
+    12.527
+   ],
+   "centre": [
+    0.0,
+    1.0065,
+    13.732
+   ]
+  },
+  {
+   "nom": "Queue05",
+   "parent": "Queue04",
+   "sorte": "queue",
+   "pivot": [
+    0.0,
+    1.0065,
+    14.937
+   ],
+   "centre": [
+    0.0,
+    1.0683,
+    16.1141
+   ]
+  },
+  {
+   "nom": "Queue06",
+   "parent": "Queue05",
+   "sorte": "queue",
+   "pivot": [
+    0.0,
+    1.1301,
+    17.2937
+   ],
+   "centre": [
+    0.0,
+    1.2708,
+    18.4401
+   ]
+  },
+  {
+   "nom": "Queue07",
+   "parent": "Queue06",
+   "sorte": "queue",
+   "pivot": [
+    0.0,
+    1.4116,
+    19.5865
+   ],
+   "centre": [
+    0.0,
+    1.6658,
+    20.6876
+   ]
+  },
+  {
+   "nom": "Queue08",
+   "parent": "Queue07",
+   "sorte": "queue",
+   "pivot": [
+    0.0,
+    1.92,
+    21.7886
+   ],
+   "centre": [
+    0.0,
+    2.3473,
+    22.8131
+   ]
+  },
+  {
+   "nom": "Queue09",
+   "parent": "Queue08",
+   "sorte": "queue",
+   "pivot": [
+    0.0,
+    2.7479,
+    23.8377
+   ],
+   "centre": [
+    0.0,
+    3.3518,
+    24.733
+   ]
+  },
+  {
+   "nom": "Queue10",
+   "parent": "Queue09",
+   "sorte": "queue",
+   "pivot": [
+    0.0,
+    3.9557,
+    25.6284
+   ],
+   "centre": [
+    0.0,
+    4.8941,
+    26.4514
+   ]
+  },
+  {
+   "nom": "OrbiteQueue",
+   "parent": "Corps",
+   "sorte": "orbite_queue",
+   "pivot": [
+    0.0,
+    3.28,
+    15.3
+   ],
+   "centre": [
+    0.0742,
+    3.351,
+    15.9643
+   ]
+  },
+  {
+   "nom": "OrbiteTete",
+   "parent": "Corps",
+   "sorte": "orbite_tete",
+   "pivot": [
+    0.0,
+    4.28,
+    -6.2
+   ],
+   "centre": [
+    0.0017,
+    4.9895,
+    -7.3545
+   ]
+  }
+ ],
+ "pieces": [
+  {
+   "nom": "Corps",
+   "base": "Corps",
+   "sorte": "Palette",
+   "triangles": 3374,
+   "centre": [
+    0.0,
+    0.0,
+    -0.0
+   ]
+  },
+  {
+   "nom": "PatteAvGHaut",
+   "base": "PatteAvGHaut",
+   "sorte": "Palette",
+   "triangles": 668,
+   "centre": [
+    -2.005,
+    -2.885,
+    -2.8
+   ]
+  },
+  {
+   "nom": "PatteAvGBas",
+   "base": "PatteAvGBas",
+   "sorte": "Palette",
+   "triangles": 518,
+   "centre": [
+    -1.85,
+    -6.77,
+    -3.215
+   ]
+  },
+  {
+   "nom": "PatteAvDHaut",
+   "base": "PatteAvDHaut",
+   "sorte": "Palette",
+   "triangles": 598,
+   "centre": [
+    2.005,
+    -2.885,
+    -2.8
+   ]
+  },
+  {
+   "nom": "PatteAvDBas",
+   "base": "PatteAvDBas",
+   "sorte": "Palette",
+   "triangles": 488,
+   "centre": [
+    1.85,
+    -6.77,
+    -3.215
+   ]
+  },
+  {
+   "nom": "PatteArGHaut",
+   "base": "PatteArGHaut",
+   "sorte": "Palette",
+   "triangles": 588,
+   "centre": [
+    -2.005,
+    -2.885,
+    3.2
+   ]
+  },
+  {
+   "nom": "PatteArGBas",
+   "base": "PatteArGBas",
+   "sorte": "Palette",
+   "triangles": 438,
+   "centre": [
+    -1.85,
+    -6.77,
+    2.785
+   ]
+  },
+  {
+   "nom": "PatteArDHaut",
+   "base": "PatteArDHaut",
+   "sorte": "Palette",
+   "triangles": 598,
+   "centre": [
+    2.005,
+    -2.885,
+    3.2
+   ]
+  },
+  {
+   "nom": "PatteArDBas",
+   "base": "PatteArDBas",
+   "sorte": "Palette",
+   "triangles": 508,
+   "centre": [
+    1.85,
+    -6.77,
+    2.785
+   ]
+  },
+  {
+   "nom": "Tete",
+   "base": "Tete",
+   "sorte": "Palette",
+   "triangles": 2476,
+   "centre": [
+    0.0,
+    2.95,
+    -6.605
+   ]
+  },
+  {
+   "nom": "Tete_NeonBlanc",
+   "base": "Tete",
+   "sorte": "NeonBlanc",
+   "triangles": 232,
+   "centre": [
+    0.0,
+    3.23,
+    -9.22
+   ]
+  },
+  {
+   "nom": "Tete_NeonCyan",
+   "base": "Tete",
+   "sorte": "NeonCyan",
+   "triangles": 184,
+   "centre": [
+    0.0,
+    3.23,
+    -9.195
+   ]
+  },
+  {
+   "nom": "Tete_NeonPale",
+   "base": "Tete",
+   "sorte": "NeonPale",
+   "triangles": 184,
+   "centre": [
+    0.0,
+    3.23,
+    -9.24
+   ]
+  },
+  {
+   "nom": "OreilleG",
+   "base": "OreilleG",
+   "sorte": "Palette",
+   "triangles": 216,
+   "centre": [
+    -2.4049,
+    7.78,
+    -7.25
+   ]
+  },
+  {
+   "nom": "OreilleG_NeonMagenta",
+   "base": "OreilleG",
+   "sorte": "NeonMagenta",
+   "triangles": 12,
+   "centre": [
+    -3.95,
+    9.88,
+    -7.1
+   ]
+  },
+  {
+   "nom": "OreilleD",
+   "base": "OreilleD",
+   "sorte": "Palette",
+   "triangles": 216,
+   "centre": [
+    2.4049,
+    7.78,
+    -7.25
+   ]
+  },
+  {
+   "nom": "OreilleD_NeonMagenta",
+   "base": "OreilleD",
+   "sorte": "NeonMagenta",
+   "triangles": 12,
+   "centre": [
+    3.95,
+    9.88,
+    -7.1
+   ]
+  },
+  {
+   "nom": "Tete_Cristal",
+   "base": "Tete",
+   "sorte": "Cristal",
+   "triangles": 288,
+   "centre": [
+    0.0125,
+    5.4203,
+    -5.478
+   ]
+  },
+  {
+   "nom": "Tete_CristalCoeur",
+   "base": "Tete",
+   "sorte": "CristalCoeur",
+   "triangles": 192,
+   "centre": [
+    0.0053,
+    6.5849,
+    -4.2185
+   ]
+  },
+  {
+   "nom": "Tete_NeonMagenta",
+   "base": "Tete",
+   "sorte": "NeonMagenta",
+   "triangles": 48,
+   "centre": [
+    0.0,
+    3.1187,
+    -7.1139
+   ]
+  },
+  {
+   "nom": "Couronne",
+   "base": "Couronne",
+   "sorte": "Palette",
+   "triangles": 1584,
+   "centre": [
+    0.0,
+    9.38,
+    -5.6
+   ]
+  },
+  {
+   "nom": "Couronne_NeonCyan",
+   "base": "Couronne",
+   "sorte": "NeonCyan",
+   "triangles": 300,
+   "centre": [
+    0.0,
+    10.28,
+    -5.6
+   ]
+  },
+  {
+   "nom": "Couronne_NeonPale",
+   "base": "Couronne",
+   "sorte": "NeonPale",
+   "triangles": 240,
+   "centre": [
+    -0.2,
+    10.73,
+    -5.6
+   ]
+  },
+  {
+   "nom": "Couronne_NeonBlanc",
+   "base": "Couronne",
+   "sorte": "NeonBlanc",
+   "triangles": 180,
+   "centre": [
+    0.245,
+    10.51,
+    -5.6
+   ]
+  },
+  {
+   "nom": "Queue01",
+   "base": "Queue01",
+   "sorte": "Palette",
+   "triangles": 732,
+   "centre": [
+    0.0,
+    1.18,
+    6.28
+   ]
+  },
+  {
+   "nom": "Queue01_Halo",
+   "base": "Queue01",
+   "sorte": "Halo",
+   "triangles": 12,
+   "centre": [
+    0.0,
+    1.18,
+    6.28
+   ]
+  },
+  {
+   "nom": "Queue01_NeonCyan",
+   "base": "Queue01",
+   "sorte": "NeonCyan",
+   "triangles": 400,
+   "centre": [
+    0.0,
+    1.18,
+    6.28
+   ]
+  },
+  {
+   "nom": "Queue02",
+   "base": "Queue02",
+   "sorte": "Palette",
+   "triangles": 752,
+   "centre": [
+    0.0,
+    1.1362,
+    8.8107
+   ]
+  },
+  {
+   "nom": "Queue02_Halo",
+   "base": "Queue02",
+   "sorte": "Halo",
+   "triangles": 12,
+   "centre": [
+    0.0,
+    1.1362,
+    8.8142
+   ]
+  },
+  {
+   "nom": "Queue02_NeonCyan",
+   "base": "Queue02",
+   "sorte": "NeonCyan",
+   "triangles": 400,
+   "centre": [
+    0.0,
+    1.1362,
+    8.8142
+   ]
+  },
+  {
+   "nom": "Queue03",
+   "base": "Queue03",
+   "sorte": "Palette",
+   "triangles": 752,
+   "centre": [
+    0.0,
+    1.0495,
+    11.2977
+   ]
+  },
+  {
+   "nom": "Queue03_Halo",
+   "base": "Queue03",
+   "sorte": "Halo",
+   "triangles": 12,
+   "centre": [
+    0.0,
+    1.0495,
+    11.2977
+   ]
+  },
+  {
+   "nom": "Queue03_NeonCyan",
+   "base": "Queue03",
+   "sorte": "NeonCyan",
+   "triangles": 360,
+   "centre": [
+    0.0,
+    1.0495,
+    11.2977
+   ]
+  },
+  {
+   "nom": "Queue04",
+   "base": "Queue04",
+   "sorte": "Palette",
+   "triangles": 632,
+   "centre": [
+    0.0,
+    1.0065,
+    13.732
+   ]
+  },
+  {
+   "nom": "Queue04_Halo",
+   "base": "Queue04",
+   "sorte": "Halo",
+   "triangles": 12,
+   "centre": [
+    0.0,
+    1.0065,
+    13.732
+   ]
+  },
+  {
+   "nom": "Queue04_NeonCyan",
+   "base": "Queue04",
+   "sorte": "NeonCyan",
+   "triangles": 360,
+   "centre": [
+    0.0,
+    1.0065,
+    13.732
+   ]
+  },
+  {
+   "nom": "Queue05",
+   "base": "Queue05",
+   "sorte": "Palette",
+   "triangles": 712,
+   "centre": [
+    0.0,
+    1.0683,
+    16.1141
+   ]
+  },
+  {
+   "nom": "Queue05_Halo",
+   "base": "Queue05",
+   "sorte": "Halo",
+   "triangles": 12,
+   "centre": [
+    0.0,
+    1.0683,
+    16.1154
+   ]
+  },
+  {
+   "nom": "Queue05_NeonCyan",
+   "base": "Queue05",
+   "sorte": "NeonCyan",
+   "triangles": 360,
+   "centre": [
+    0.0,
+    1.0683,
+    16.1154
+   ]
+  },
+  {
+   "nom": "Queue06",
+   "base": "Queue06",
+   "sorte": "Palette",
+   "triangles": 512,
+   "centre": [
+    0.0,
+    1.2708,
+    18.4401
+   ]
+  },
+  {
+   "nom": "Queue06_Halo",
+   "base": "Queue06",
+   "sorte": "Halo",
+   "triangles": 12,
+   "centre": [
+    0.0,
+    1.2708,
+    18.4401
+   ]
+  },
+  {
+   "nom": "Queue06_NeonCyan",
+   "base": "Queue06",
+   "sorte": "NeonCyan",
+   "triangles": 360,
+   "centre": [
+    0.0,
+    1.2708,
+    18.4401
+   ]
+  },
+  {
+   "nom": "Queue07",
+   "base": "Queue07",
+   "sorte": "Palette",
+   "triangles": 532,
+   "centre": [
+    0.0,
+    1.6658,
+    20.6876
+   ]
+  },
+  {
+   "nom": "Queue07_Halo",
+   "base": "Queue07",
+   "sorte": "Halo",
+   "triangles": 12,
+   "centre": [
+    0.0,
+    1.6658,
+    20.6876
+   ]
+  },
+  {
+   "nom": "Queue07_NeonCyan",
+   "base": "Queue07",
+   "sorte": "NeonCyan",
+   "triangles": 320,
+   "centre": [
+    0.0,
+    1.6658,
+    20.6876
+   ]
+  },
+  {
+   "nom": "Queue08",
+   "base": "Queue08",
+   "sorte": "Palette",
+   "triangles": 372,
+   "centre": [
+    0.0,
+    2.3473,
+    22.8131
+   ]
+  },
+  {
+   "nom": "Queue08_Halo",
+   "base": "Queue08",
+   "sorte": "Halo",
+   "triangles": 12,
+   "centre": [
+    0.0,
+    2.3339,
+    22.8131
+   ]
+  },
+  {
+   "nom": "Queue08_NeonCyan",
+   "base": "Queue08",
+   "sorte": "NeonCyan",
+   "triangles": 320,
+   "centre": [
+    0.0,
+    2.3339,
+    22.8131
+   ]
+  },
+  {
+   "nom": "Queue09",
+   "base": "Queue09",
+   "sorte": "Palette",
+   "triangles": 512,
+   "centre": [
+    0.0,
+    3.3518,
+    24.733
+   ]
+  },
+  {
+   "nom": "Queue09_Halo",
+   "base": "Queue09",
+   "sorte": "Halo",
+   "triangles": 12,
+   "centre": [
+    0.0,
+    3.3518,
+    24.733
+   ]
+  },
+  {
+   "nom": "Queue09_NeonCyan",
+   "base": "Queue09",
+   "sorte": "NeonCyan",
+   "triangles": 320,
+   "centre": [
+    0.0,
+    3.3518,
+    24.733
+   ]
+  },
+  {
+   "nom": "Queue10",
+   "base": "Queue10",
+   "sorte": "Palette",
+   "triangles": 562,
+   "centre": [
+    0.0,
+    4.8941,
+    26.4514
+   ]
+  },
+  {
+   "nom": "OrbiteQueue",
+   "base": "OrbiteQueue",
+   "sorte": "Palette",
+   "triangles": 4024,
+   "centre": [
+    0.0742,
+    3.351,
+    15.9643
+   ]
+  },
+  {
+   "nom": "OrbiteQueue_NeonPale",
+   "base": "OrbiteQueue",
+   "sorte": "NeonPale",
+   "triangles": 960,
+   "centre": [
+    0.0537,
+    3.8671,
+    15.7869
+   ]
+  },
+  {
+   "nom": "OrbiteQueue_NeonCyan",
+   "base": "OrbiteQueue",
+   "sorte": "NeonCyan",
+   "triangles": 540,
+   "centre": [
+    -0.2722,
+    2.1279,
+    16.0663
+   ]
+  },
+  {
+   "nom": "OrbiteTete",
+   "base": "OrbiteTete",
+   "sorte": "Palette",
+   "triangles": 2340,
+   "centre": [
+    0.0017,
+    4.9895,
+    -7.3545
+   ]
+  },
+  {
+   "nom": "OrbiteTete_NeonCyan",
+   "base": "OrbiteTete",
+   "sorte": "NeonCyan",
+   "triangles": 360,
+   "centre": [
+    -0.4383,
+    4.705,
+    -5.6339
+   ]
+  },
+  {
+   "nom": "OrbiteTete_NeonPale",
+   "base": "OrbiteTete",
+   "sorte": "NeonPale",
+   "triangles": 480,
+   "centre": [
+    0.3011,
+    4.9895,
+    -7.8449
+   ]
+  }
+ ],
+ "lumieres": {
+  "NeonCyan": [
+   110,
+   236,
+   255
+  ],
+  "NeonBlanc": [
+   232,
+   252,
+   255
+  ],
+  "NeonPale": [
+   178,
+   244,
+   255
+  ],
+  "NeonMagenta": [
+   255,
+   140,
+   214
+  ],
+  "Cristal": [
+   214,
+   244,
+   255
+  ],
+  "CristalCoeur": [
+   150,
+   236,
+   255
+  ],
+  "Halo": [
+   110,
+   236,
+   255
+  ]
+ },
+ "triangles": 32224
+}
