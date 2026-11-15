@@ -226,3 +226,9 @@ Dans l'ordre, les plus récentes en bas.
     - des pattes plus longues et articulées, avec un cube clair à chaque articulation : épaule,
       coude et poignet à l'avant ; cuisse, genou, tibia qui recule et jarret à l'arrière.
     **En attente de son avis.**
+23. « Connecte-toi à Obsidian vault » → impossible depuis cette session cloud : son coffre
+    Obsidian est un dossier de son PC, aucun dossier n'est partagé avec la session et il n'y a
+    pas de connecteur Obsidian. Solutions proposées : partager le dossier du coffre depuis
+    l'application Claude de son PC (Remote Control), ouvrir une conversation Claude directement
+    sur son PC, ou, si le coffre est sauvegardé sur GitHub (extension Obsidian Git), donner le
+    nom du dépôt pour qu'on l'ajoute.
