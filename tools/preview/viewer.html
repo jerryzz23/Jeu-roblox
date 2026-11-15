@@ -57,6 +57,9 @@
 <script type="module">
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+// Détails en pixels plaqués sur les faces : pas de contour (comme dans Roblox, où seul le
+// contour de la silhouette est dessiné)
+const FLAT_DETAIL = new Set(["Pixel", "Speck", "Chip"]);
 import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
 import { OBJExporter } from "three/addons/exporters/OBJExporter.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
@@ -584,7 +587,9 @@ function load(json) {
   creature.clear();
   outlines.clear();
   parts = [];
+  const noFx = params.get("fx") === "0"; // fx=0 : sans effets ni anneaux de rareté (gros plans)
   for (const p of mutateData(json, mutList()).parts) {
+    if (noFx && p.b === "AuraGround") continue;
     const geo = GEO[p.k] || GEO.Block;
     const mesh = new THREE.Mesh(geo, material(p));
     mesh.matrixAutoUpdate = false;
@@ -593,7 +598,7 @@ function load(json) {
     mesh.receiveShadow = true;
     creature.add(mesh);
     parts.push({ p, mesh });
-    if (p.t < 0.5) {
+    if (p.t < 0.5 && !FLAT_DETAIL.has(p.n)) {
       const w = Math.min(0.03, 0.2 * Math.min(...p.s));
       const hull = new THREE.Mesh(geo, OUTLINE_MAT);
       hull.matrixAutoUpdate = false;
@@ -602,7 +607,7 @@ function load(json) {
     }
   }
   creature.updateMatrixWorld(true);
-  buildFx(json.fx);
+  buildFx(params.get("fx") === "0" ? null : json.fx);
   bounds = new THREE.Box3().setFromObject(creature);
   const tris = json.parts.reduce((n, p) => n + ({ Block: 12, Wedge: 8, Ball: 80, Cylinder: 48 }[p.k] || 12), 0);
   document.getElementById("info").innerHTML =

@@ -3852,6 +3852,90 @@ local Pixel = {}
 		return grid
 	end
 	
+--- Petit hachage entier stable (motifs « aléatoires » mais identiques à chaque construction).
+	function Pixel.hash(a: number, b: number, seed: number?): number
+		local h = (a * 73856093 + b * 19349663 + (seed or 0) * 83492791) % 2147483647
+		h = (h * 48271) % 2147483647
+		return h
+	end
+	
+--- Grille de motif couvrant une face de w × h studs avec des pixels de côté `px` :
+	--- `fn(i, j)` (colonne de gauche à droite, ligne de haut en bas) renvoie un caractère.
+	function Pixel.grid(w: number, h: number, px: number, fn: (i: number, j: number) -> string): { string }
+		local cols, nrows = math.max(1, math.floor(w / px)), math.max(1, math.floor(h / px))
+		local rows = table.create(nrows)
+		for j = 1, nrows do
+			local row = table.create(cols)
+			for i = 1, cols do
+				row[i] = fn(i, j)
+			end
+			rows[j] = table.concat(row)
+		end
+		return rows
+	end
+	
+--- Motif d'écailles en quinconce (écailles de `sw` × `sr` pixels) :
+	--- D = contour sombre de l'écaille, L = reflet clair, "1".."5" = écaille qui brille
+	--- (une sur `glowEvery` environ, couleur tirée parmi 5).
+	function Pixel.scales(sw: number, sr: number, glowEvery: number, seed: number): (number, number) -> string
+		return function(i: number, j: number): string
+			local band = (j - 1) // sr
+			local off = (band % 2) * (sw // 2)
+			local u = (i - 1 + off) % sw
+			local v = (j - 1) % sr
+			local h = Pixel.hash((i - 1 + off) // sw, band, seed)
+			if v == sr - 1 then
+				return if u == 0 then "." else "D"
+			end
+			if u == 0 then
+				return "D"
+			end
+			if glowEvery > 0 and h % glowEvery == 0 and v < sr - 1 then
+				return tostring(1 + (h // glowEvery) % 5)
+			end
+			if u == 1 and v == 0 then
+				return "L"
+			end
+			return "."
+		end
+	end
+	
+--- Cratères de lune semés sur une grille de w × h studs (pixels de côté px) : anneau sombre (D),
+	--- fond (K), reflet en haut à gauche (L). À utiliser avec Pixel.grid(w, h, px, ...).
+	function Pixel.craters(w: number, h: number, px: number, count: number, rmin: number, rmax: number, seed: number): (number, number) -> string
+		local cols, rows = math.max(1, math.floor(w / px)), math.max(1, math.floor(h / px))
+		local list = {}
+		local rng = Random.new(seed)
+		for _ = 1, count do
+			table.insert(list, { rng:NextNumber(0.5, cols + 0.5), rng:NextNumber(0.5, rows + 0.5), rng:NextNumber(rmin, rmax) })
+		end
+		return function(i: number, j: number): string
+			for _, c in list do
+				local dx, dy = i - c[1], j - c[2]
+				local d = math.sqrt(dx * dx + dy * dy)
+				if d <= c[3] then
+					if d > c[3] - 1 then
+						return "D"
+					elseif dx < 0 and dy < 0 and d > c[3] - 2 then
+						return "L"
+					end
+					return "K"
+				end
+			end
+			return "."
+		end
+	end
+	
+--- Éclats sur une arête de a à b : petits cubes qui cassent la ligne droite (style voxel).
+	function Pixel.chips(rig: Rig, bone: string, a: Vector3, b: Vector3, count: number, size: number, styles: { Style }, seed: number)
+		local rng = Random.new(seed)
+		for i = 1, count do
+			local p = a:Lerp(b, (i - 0.5) / count + rng:NextNumber(-0.3, 0.3) / count)
+			local s = size * rng:NextNumber(0.6, 1.2)
+			rig:block(bone, "Chip", CFrame.new(p) * CFrame.Angles(0, rng:NextNumber(-0.2, 0.2), 0), v3(s, s * rng:NextNumber(0.5, 1), s), styles[rng:NextInteger(1, #styles)])
+		end
+	end
+	
 --- Pavage d'un triangle (a, b, c) en carreaux carrés de côté `step` (grille alignée sur a -> b),
 	--- épaisseur `thick`. `styleAt(p)` choisit la couleur du carreau au point p (nil = pas de carreau).
 	--- Sert aux membranes d'ailes « en pixels ».

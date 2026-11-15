@@ -57,12 +57,19 @@ local P = {
 	pastel = {} :: { Kit.Style },
 	neon = {} :: { Kit.Style },
 	glass = {} :: { Kit.Style },
+	glassDark = {} :: { Kit.Style },
+	headDark = S(rgb(34, 84, 108)),
+	headLight = S(rgb(84, 156, 176)),
+	torsoRim = S(rgb(44, 64, 128)),
+	torsoShine = S(rgb(86, 116, 192)),
 }
 for i, c in AURORA do
 	P.pastel[i] = S(c:Lerp(WHITE, 0.12))
 	P.neon[i] = S(c, M.Neon)
 	P.glass[i] = S(c:Lerp(WHITE, 0.1), M.Glass, { transparency = 0.3 })
+	P.glassDark[i] = S(c:Lerp(Color3.new(0, 0, 0), 0.25), M.Glass, { transparency = 0.3 })
 end
+local TAIL_RGB = { rgb(34, 36, 92), rgb(44, 34, 96), rgb(56, 32, 98), rgb(68, 30, 98) }
 
 --- Couleur d'aurore n° 1..5 selon t (0..1), bornée.
 local function au(t: number): number
@@ -77,11 +84,6 @@ local DIAMOND = {
 	".L.C.L.",
 	"..L.L..",
 	"...L...",
-}
-local SCALES = {
-	"L.L.L.L",
-	".L.L.L.",
-	"L.L.L.L",
 }
 
 -- Queue : base dans la croupe, 8 cubes qui rapetissent en s'enroulant, cristal au bout
@@ -109,6 +111,19 @@ local function build(opts: Kit.BuildOptions?): Model
 	local face = Pixel.face
 	local function engrave(bone: string, f: CFrame, px: number, rows: { string }, light: Kit.Style, glow: Kit.Style?)
 		Pixel.draw(rig, bone, f, px, rows, { L = { light, 0.03 }, C = { glow or light, 0.035 } })
+	end
+	--- Écailles gravées sur toute une face (contours sombres, reflets clairs, quelques écailles
+	--- qui brillent aux couleurs de l'aurore).
+	local function scaleFace(bone: string, f: CFrame, w: number, h: number, px: number, seed: number, dark: Kit.Style, light: Kit.Style, glowEvery: number?)
+		local pal: Pixel.Palette = { D = { dark, 0.014 }, L = { light, 0.02 } }
+		for i = 1, 5 do
+			pal[tostring(i)] = { P.neon[i], 0.018 }
+		end
+		Pixel.draw(rig, bone, f, px, Pixel.grid(w, h, px, Pixel.scales(4, 3, glowEvery or 9, seed)), pal)
+	end
+	--- Petite étoile lumineuse (croix de pixels).
+	local function star(bone: string, f: CFrame, px: number)
+		Pixel.draw(rig, bone, f, px, { ".W.", "WWW", ".W." }, { W = { P.star, 0.03 } })
 	end
 	local auroraPal: Pixel.Palette = {}
 	for i = 1, 5 do
@@ -138,7 +153,10 @@ local function build(opts: Kit.BuildOptions?): Model
 	rig:block("Body", "Rump", cf(0, 2.12, 1.45), v3(1.2, 0.95, 0.4), P.torso)
 	rig:block("Body", "BackPlate", cf(tc + v3(0, TH / 2 + 0.02, 0)), v3(0.7, 0.04, TL - 0.2), P.torsoDark)
 	for k = 0, 4 do
-		rig:block("Body", "BellyPlate", cf(0, 1.58, -0.95 + k * 0.48), v3(1.0, 0.08, 0.38), if k % 2 == 0 then P.pearl else P.pearlShade)
+		local z = -0.95 + k * 0.48
+		rig:block("Body", "BellyPlate", cf(0, 1.58, z), v3(1.0, 0.08, 0.38), if k % 2 == 0 then P.pearl else P.pearlShade)
+		rig:block("Body", "BellyGroove", cf(0, 1.535, z + 0.17), v3(0.96, 0.02, 0.04), P.pearlShade)
+		rig:block("Body", "BellyShine", cf(0, 1.535, z - 0.1), v3(0.5, 0.02, 0.05), P.pearl)
 	end
 	local waves = Pixel.waves(28, 11, {
 		{ 1.6, 18, 0.0, 4.0, 2 },
@@ -156,13 +174,21 @@ local function build(opts: Kit.BuildOptions?): Model
 				table.insert(rows, string.reverse(row))
 			end
 		end
+		scaleFace("Body", f, TL - 0.12, TH - 0.28, 0.075, 60 + side, P.torsoRim, P.torsoShine, 11)
 		Pixel.draw(rig, "Body", f, 0.08, rows, auroraPal)
-		Pixel.speckle(rig, "Body", f, TL - 0.4, TH - 0.4, 7, 0.06, { P.star, P.torsoLight }, 50 + side)
+		for k, pos in { v3(-0.85, 0.32, 0), v3(0.2, -0.3, 0), v3(0.95, 0.25, 0) } do
+			star("Body", f * cf(pos.X * side, pos.Y, 0), 0.04 + (k % 2) * 0.015)
+		end
+		-- éclats sur les arêtes du dos et du ventre
+		Pixel.chips(rig, "Body", tc + v3(side * TW / 2, TH / 2, -TL / 2 + 0.1), tc + v3(side * TW / 2, TH / 2, TL / 2 - 0.1), 9, 0.13, { P.torsoDark, P.torsoLight, P.torso }, 70 + side)
+		Pixel.chips(rig, "Body", tc + v3(side * TW / 2, -TH / 2, -TL / 2 + 0.2), tc + v3(side * TW / 2, -TH / 2, TL / 2 - 0.2), 6, 0.11, { P.torsoDark, P.torso }, 80 + side)
+		-- écailles le long de l'échine
+		scaleFace("Body", face(tc + v3(side * 0.53, TH / 2, 0.02), Vector3.yAxis, v3(0, 0, -1)), 0.3, TL - 0.2, 0.075, 90 + side, P.torsoRim, P.torsoShine, 7)
 		rig:block("Body", "FlankBand", cf(tc + v3(side * (TW / 2 + 0.01), -TH / 2 + 0.1, 0)), v3(0.02, 0.12, TL - 0.1), P.torsoDark)
-		-- écailles gravées de part et d'autre de l'échine
-		local top = face(tc + v3(side * 0.48, TH / 2, 0), Vector3.yAxis, v3(0, 0, -1))
-		engrave("Body", top, 0.07, SCALES, P.torsoLight)
 	end)
+	scaleFace("Body", face(v3(0, 2.35, -1.6), v3(0, 0, -1)), 1.14, 0.9, 0.07, 101, P.torsoRim, P.torsoShine, 8)
+	scaleFace("Body", face(v3(0, 2.12, 1.65), v3(0, 0, 1)), 1.1, 0.85, 0.07, 102, P.torsoRim, P.torsoShine, 8)
+	Pixel.chips(rig, "Body", v3(-0.62, 2.85, -1.6), v3(0.62, 2.85, -1.6), 5, 0.11, { P.torsoDark, P.torsoLight }, 103)
 	engrave("Body", face(v3(0, 2.35, -1.6), v3(0, 0, -1)), 0.07, DIAMOND, P.torsoLight, P.neon[2])
 
 	-- Pointes en losange lumineuses le long du dos
@@ -187,7 +213,13 @@ local function build(opts: Kit.BuildOptions?): Model
 			rig:block(bone, "KneeBand", cf(x, 0.95, z), v3(0.56, 0.09, 0.62), P.torsoLight)
 			rig:block(bone, "LowerLeg", cf(x, 0.56, z + 0.02), v3(0.46, 0.72, 0.5), P.torso)
 			rig:block(bone, "Shin", cf(x, 0.6, z - 0.255), v3(0.36, 0.5, 0.02), P.pearlShade)
+			scaleFace(bone, face(v3(x + side * 0.23, 0.58, z + 0.02), v3(side, 0, 0)), 0.46, 0.62, 0.065, 200 + side * 10 + (if key == "F" then 1 else 2), P.torsoRim, P.torsoShine, 7)
+			scaleFace(bone, face(v3(x, 1.2, z - 0.29), v3(0, 0, -1)), 0.48, 0.5, 0.065, 220 + side * 10 + (if key == "F" then 1 else 2), P.torsoRim, P.torsoShine, 0)
 			rig:block(bone, "Foot", cf(x, 0.1, z - 0.08), v3(0.62, 0.2, 0.78), P.torsoDark)
+			for t = -1, 1 do
+				rig:block(bone, "Toe", cf(x + t * 0.19, 0.13, z - 0.36), v3(0.15, 0.16, 0.16), P.torso)
+			end
+			Pixel.chips(rig, bone, v3(x - 0.29, 0.21, z - 0.46), v3(x + 0.29, 0.21, z - 0.46), 3, 0.07, { P.torsoLight }, 240 + side)
 			for t = -1, 1 do
 				rig:block(bone, "Claw", cf(x + t * 0.19, 0.11, z - 0.5) * ang(rad(45), 0, 0), v3(0.11, 0.13, 0.13), P.silver)
 			end
@@ -203,6 +235,10 @@ local function build(opts: Kit.BuildOptions?): Model
 	rig:block("Head", "Throat", cf(0, 3.0, -2.43), v3(0.56, 0.3, 0.1), P.pearlShade)
 	rig:block("Head", "NeckSpike", cf(0, 3.42, -1.72) * ang(rad(45), 0, 0), v3(0.16, 0.26, 0.26), P.neon[1])
 	rig:block("Head", "NeckSpike", cf(0, 3.76, -2.08) * ang(rad(45), 0, 0), v3(0.16, 0.24, 0.24), P.neon[1])
+	rig:mirrored(function(side)
+		scaleFace("Head", face(v3(side * 0.45, 2.95, -1.75), v3(side, 0, 0)), 0.66, 0.8, 0.065, 300 + side, P.headDark, P.headLight, 8)
+		scaleFace("Head", face(v3(side * 0.4, 3.32, -2.12), v3(side, 0, 0)), 0.56, 0.74, 0.065, 310 + side, P.headDark, P.headLight, 8)
+	end)
 	local hc = v3(0, 3.62, -2.5)
 	rig:block("Head", "Skull", cf(hc), v3(1.0, 0.75, 0.95), P.head)
 	rig:block("Head", "Brow", cf(0, 3.93, -2.86), v3(1.06, 0.12, 0.3), P.torsoDark)
@@ -223,8 +259,12 @@ local function build(opts: Kit.BuildOptions?): Model
 	for k = -1, 1, 2 do
 		rig:block("Jaw", "Tooth", cf(k * 0.24, 3.28, -3.48), v3(0.08, 0.1, 0.08), P.tooth)
 	end
-	-- Écailles gravées sur le crâne et le museau
-	engrave("Head", face(hc + v3(0, 0.375, 0.15), Vector3.yAxis, v3(0, 0, -1)), 0.07, SCALES, P.torsoLight)
+	-- Écailles gravées sur le crâne, éclats sur les arêtes
+	scaleFace("Head", face(hc + v3(0, 0.375, 0.12), Vector3.yAxis, v3(0, 0, -1)), 0.92, 0.66, 0.065, 320, P.headDark, P.headLight, 6)
+	scaleFace("Head", face(snout + v3(0, 0.21, 0.08), Vector3.yAxis, v3(0, 0, -1)), 0.7, 0.36, 0.06, 321, P.headDark, P.headLight, 0)
+	for _, sx in { -1, 1 } do
+		Pixel.chips(rig, "Head", hc + v3(sx * 0.5, 0.375, -0.4), hc + v3(sx * 0.5, 0.375, 0.45), 4, 0.1, { P.headDark, P.headLight }, 330 + sx)
+	end
 	rig:mirrored(function(side)
 		-- Œil blanc lumineux sur le côté de la tête, pupille d'aurore
 		local e = v3(side * 0.5, 3.7, -2.78)
@@ -232,12 +272,14 @@ local function build(opts: Kit.BuildOptions?): Model
 		rig:block("Head", "Eye", cf(e + v3(side * 0.03, 0, 0)), v3(0.03, 0.17, 0.28), P.eye)
 		rig:block("Head", "Pupil", cf(e + v3(side * 0.045, -0.01, -0.06)), v3(0.02, 0.12, 0.07), P.neon[1])
 		rig:block("Head", "BrowSide", cf(e + v3(side * 0.02, 0.15, 0.02)) * ang(side * rad(12), 0, 0), v3(0.08, 0.06, 0.42), P.torsoDark)
-		engrave("Head", face(v3(side * 0.39, 3.5, -3.25), v3(side, 0, 0)), 0.06, { "L.L.", ".L.L" }, P.torsoLight)
+		scaleFace("Head", face(v3(side * 0.39, 3.5, -3.25), v3(side, 0, 0)), 0.58, 0.38, 0.06, 340 + side, P.headDark, P.headLight, 0)
+		scaleFace("Head", face(v3(side * 0.5, 3.5, -2.3), v3(side, 0, 0)), 0.4, 0.5, 0.065, 350 + side, P.headDark, P.headLight, 5)
 		-- Double paire de cornes d'argent en cubes, pointe d'aurore
 		local h0, dir = v3(side * 0.32, 3.99, -2.2), v3(side * 0.25, 0.55, 0.8).Unit
 		for k, sz in { 0.24, 0.19, 0.14 } do
 			local p = h0 + dir * (0.05 + (k - 1) * 0.22)
 			rig:block("Head", "Horn", Kit.lookAlong(p, dir), v3(sz, sz, 0.24), if k == 3 then P.silverDark else P.silver)
+			rig:block("Head", "HornRing", Kit.lookAlong(p - dir * 0.1, dir), v3(sz * 1.08, sz * 1.08, 0.04), P.silverDark)
 		end
 		rig:block("Head", "HornTip", Kit.lookAlong(h0 + dir * 0.62, dir) * ang(0, 0, rad(45)), v3(0.08, 0.08, 0.16), P.neon[5])
 		local h1, dir1 = v3(side * 0.5, 3.8, -2.15), v3(side * 0.85, 0.35, 0.4).Unit
@@ -272,11 +314,20 @@ local function build(opts: Kit.BuildOptions?): Model
 		local function tile(p: Vector3): Kit.Style?
 			local t = (p - S0).Magnitude / maxd
 			local i = au(t * 0.98)
+			local h = Pixel.hash(math.floor(p.X * 7 + 100), math.floor(p.Y * 7 + 100) * 3 + math.floor(p.Z * 7 + 100), 4)
 			if t > 0.86 then
 				return P.neon[i]
+			elseif h % 23 == 0 then
+				return P.neon[i] -- étincelle dans la membrane
+			elseif h % 3 == 0 then
+				return P.glassDark[i]
 			end
 			return P.glass[i]
 		end
+		for _, T in { T1, T2, T3 } do
+			rig:block(w, "WingJoint", Kit.lookAlong(E:Lerp(T, 0.5), T - E), v3(0.15, 0.15, 0.08), P.silverDark)
+		end
+		rig:block(w, "WingJoint", Kit.lookAlong(S0:Lerp(E, 0.5), E - S0), v3(0.25, 0.25, 0.08), P.silverDark)
 		for _, tri in { { E, T1, T2 }, { E, T2, T3 }, { E, T3, R }, { S0, E, R } } do
 			Pixel.tiles(rig, w, tri[1], tri[2], tri[3], 0.3, 0.05, tile, "WingTile")
 		end
@@ -295,9 +346,14 @@ local function build(opts: Kit.BuildOptions?): Model
 		rig:block(bone, "TailCube", c, v3(s, s * 0.9, s * 1.05), P.tail[math.clamp(math.ceil(t * 4), 1, 4)])
 		rig:block(bone, "TailBelly", c * cf(0, -s * 0.45 - 0.02, 0), v3(s * 0.7, 0.04, s * 0.8), P.pearlShade)
 		rig:block(bone, "TailSpike", c * cf(0, s * 0.45 + s * 0.12, 0) * ang(rad(45), 0, 0), v3(s * 0.26, s * 0.4, s * 0.4), P.neon[au(0.3 + t * 0.7)])
+		local base = TAIL_RGB[math.clamp(math.ceil(t * 4), 1, 4)]
+		local dark, light = S(base:Lerp(WHITE, 0.14)), S(base:Lerp(WHITE, 0.36))
 		for _, sd in { 1, -1 } do
-			rig:block(bone, "TailStripe", c * cf(sd * (s / 2 + 0.01), s * 0.1, 0), v3(0.02, s * 0.16, s * 0.8), P.pastel[au(0.3 + t * 0.7)])
+			scaleFace(bone, Pixel.face((c * cf(sd * s / 2, 0, 0)).Position, c.RightVector * sd, c.UpVector), s * 1.0, s * 0.82, s / 7, 400 + j * 3 + sd, dark, light, 6)
 		end
+		scaleFace(bone, Pixel.face((c * cf(0, s * 0.45, 0)).Position, c.UpVector, c.LookVector), s * 0.92, s * 1.0, s / 7, 450 + j, dark, light, 0)
+		Pixel.chips(rig, bone, (c * cf(s / 2, s * 0.45, -s * 0.4)).Position, (c * cf(s / 2, s * 0.45, s * 0.4)).Position, 2, s * 0.16, { dark, light }, 470 + j)
+		Pixel.chips(rig, bone, (c * cf(-s / 2, s * 0.45, -s * 0.4)).Position, (c * cf(-s / 2, s * 0.45, s * 0.4)).Position, 2, s * 0.16, { dark, light }, 480 + j)
 	end
 	do
 		local tipP = TAIL_PTS[#TAIL_PTS]

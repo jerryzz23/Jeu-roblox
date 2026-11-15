@@ -153,22 +153,30 @@ ADN) tant que le créateur ne l'a pas validé.
 ### Test de style n° 2 : le Dragon d'aurore en cubes
 
 ![Le Dragon d'aurore en cubes](docs/previews/dragon-aurore-cubes.png)
+![Gros plan sur la texture](docs/previews/dragon-aurore-cubes-detail.png)
 
 Le Dragon d'aurore du jeu, refait dans le même style pour voir s'il marche aussi sur les
-personnages existants. On y retrouve :
+personnages existants.
 
-- des cubes bleu nuit gravés de **rubans d'aurore en pixels** ;
-- des **ailes en carreaux de verre** en dégradé d'aurore, aux bords lumineux ;
-- une gueule qui s'ouvre, des yeux blancs lumineux et des cornes d'argent en cubes ;
-- des pointes en losange lumineuses, une queue de cubes avec un cristal au bout, et des cristaux
-  en orbite.
+**Toutes ses faces sont texturées**, comme la « texture de lune » de la référence :
+- des écailles gravées en pixels, dont certaines brillent aux couleurs de l'aurore ;
+- des rubans d'aurore et des étoiles sur les flancs ;
+- des éclats sur les arêtes, et des plaques de ventre striées ;
+- des cornes d'argent annelées ;
+- des ailes en carreaux de verre de deux teintes, avec des étincelles.
 
-Le modèle fait 629 pièces (`src/shared/Creatures/DragonDAuroreCubes.luau`). Comme le Gardien, il
-a `Source = "Test"` : il n'est jamais tiré au sort. L'ancien Dragon d'aurore reste en place tant
-que le créateur n'a pas choisi.
+On y retrouve aussi une gueule qui s'ouvre, des yeux blancs lumineux, des pointes en losange, une
+queue de cubes écaillés avec un cristal au bout, et des cristaux en orbite.
 
-Les outils du style « cubes + pixels » sont dans `src/shared/Pixel.luau` : motifs en pixels,
-croissants, rubans ondulés et carreaux d'ailes.
+Le modèle fait environ 2 000 pièces (`src/shared/Creatures/DragonDAuroreCubes.luau`). Comme le
+Gardien, il a `Source = "Test"` : il n'est jamais tiré au sort. L'ancien Dragon d'aurore reste en
+place tant que le créateur n'a pas choisi.
+
+Les outils du style « cubes + pixels » sont dans `src/shared/Pixel.luau` :
+- motifs en pixels, croissants et rubans ondulés ;
+- textures d'écailles et de cratères de lune pour couvrir une face entière ;
+- éclats d'arêtes ;
+- carreaux d'ailes.
 
 ## Mutations
 

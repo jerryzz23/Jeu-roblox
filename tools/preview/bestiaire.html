@@ -153,6 +153,9 @@ body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 var(-
 <script type="module">
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+// Détails en pixels plaqués sur les faces : pas de contour (comme dans Roblox, où seul le
+// contour de la silhouette est dessiné)
+const FLAT_DETAIL = new Set(["Pixel", "Speck", "Chip"]);
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
 const RARITY = {
@@ -750,7 +753,7 @@ function buildCreature(data, mutationIds = [], opts = {}) {
     const pos = V().setFromMatrixPosition(world);
     box.expandByPoint(pos);
     if (!p.b.startsWith("Aura")) body.expandByPoint(pos);
-    if (p.t < 0.5 && !opts.ghost) {
+    if (p.t < 0.5 && !opts.ghost && !FLAT_DETAIL.has(p.n)) {
       const w = Math.min(0.03, 0.2 * Math.min(...p.s));
       const hull = g.clone().applyMatrix4(bone.restInv.clone().multiply(partMatrix(p, w)));
       const hk = p.b + "|outline";

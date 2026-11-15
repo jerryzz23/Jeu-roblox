@@ -179,3 +179,12 @@ Dans l'ordre, les plus récentes en bas.
     (rubans d'aurore en pixels, ailes en carreaux de verre, cornes en cubes, gueule qui s'ouvre).
     Outils du style regroupés dans `src/shared/Pixel.luau`. **En attente de son avis** : s'il
     valide, proposer de refaire tous les personnages dans ce style (en gardant leur identité).
+19. Retour sur le dragon : « il est stylé, mais le Gardien a des petits détails qui font son
+    charme, la texture de lune etc., et le dragon est tout lisse et carré ». → **Règle du style :
+    chaque face doit être couverte de texture**, pas seulement quelques motifs. Le dragon a
+    maintenant ~2 000 pièces de détails :
+    - des écailles en pixels (`Pixel.grid` + `Pixel.scales`), dont certaines brillent en aurore ;
+    - des étoiles, des éclats d'arêtes (`Pixel.chips`) et des plaques de ventre striées ;
+    - des cornes annelées et des carreaux d'ailes de deux teintes.
+    Ajout de `Pixel.craters` (texture de lune) pour les prochains. Dans le bestiaire, les pixels
+    plaqués n'ont plus de contour (comme dans Roblox).
