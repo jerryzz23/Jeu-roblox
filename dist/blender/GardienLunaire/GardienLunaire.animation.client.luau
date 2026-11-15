@@ -9,7 +9,8 @@
 	• repos : respiration, tête qui regarde autour, oreilles qui frémissent ;
 	• marche (quand le Gardien se déplace, ou si l'attribut « Marche » vaut 1) : trot en diagonale,
 	  genoux qui plient, corps qui rebondit, tête qui hoche ;
-	• queue de cubes de lune qui ondule, couronne qui flotte, lunes en orbite qui tournent ;
+	• queue de dalles de lune qui ondule, couronne qui flotte, lunes qui flottent autour de la
+	  queue et tournent autour de la tête ;
 	• halos de la queue et lumières qui « respirent ».
 
 	Attribut « Marche » du modèle : -1 = automatique (selon la vitesse), 0 = repos, 1 = marche sur
@@ -106,7 +107,8 @@ RunService.PreSimulation:Connect(function(dt: number)
 			local cote = sin(t * 1.4 - i * 0.45) * 4.5 * (1 + marche * 0.6)
 			tr = CFrame.Angles(rad(monte), rad(cote), 0)
 		elseif s == "orbite_queue" then
-			tr = CFrame.Angles(0, 0, -rad(t * 22))
+			-- le nuage de lunes autour de la queue se balance doucement et monte/descend
+			tr = CFrame.new(0, sin(t * 0.9) * 0.25 * echelle, 0) * CFrame.Angles(0, 0, -rad(sin(t * 0.4) * 8))
 		elseif s == "orbite_tete" then
 			tr = CFrame.Angles(0, rad(t * 16), 0)
 		else

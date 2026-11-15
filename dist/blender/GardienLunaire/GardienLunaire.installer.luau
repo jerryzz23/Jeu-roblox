@@ -9,7 +9,8 @@
 
 	Ce script :
 	• remet le Gardien debout et à la bonne taille (TAILLE, en studs) ;
-	• donne les matériaux : Neon (yeux, anneaux de la queue, lunes), Glass (cristaux) ;
+	• donne les matériaux : Neon (yeux, anneaux de la queue, petits croissants), pierre de lune
+	  texturée (cristaux, couronne, queue, lunes) ;
 	• articule les pièces (Motor6D) : 4 pattes avec genoux, tête, oreilles, couronne qui flotte,
 	  10 cubes de queue, deux ronds de lunes en orbite ;
 	• ajoute les VFX : poussière de lune, paillettes au sol, étoiles de la couronne, éclats des
@@ -20,7 +21,7 @@
 ]]
 
 -- Taille voulue (hauteur en studs, de la patte au haut de la couronne)
-local TAILLE = 22.7
+local TAILLE = 21.37
 -- Si la texture n'est pas arrivée avec l'import : téléverse GardienLunaire_texture.png
 -- (Gestionnaire de ressources > Importer), puis colle ici son ID (ex. "rbxassetid://123456").
 local TEXTURE_ID = ""
@@ -30,40 +31,40 @@ type Art = { nom: string, parent: string, sorte: string, pivot: Vector3, centre:
 -- Données du squelette, écrites par blender/gardien_lunaire.py (repère Roblox, en studs,
 -- par rapport au centre de la pièce « Corps », Gardien regardant vers -Z).
 local ARTICULATIONS: { Art } = {
-	{ nom = "Corps", parent = "Racine", sorte = "corps", pivot = Vector3.new(0.0, -1.52, 0.0), centre = Vector3.new(0.0, 0.0, -0.0) },
-	{ nom = "PatteAvGHaut", parent = "Corps", sorte = "hanche", pivot = Vector3.new(-1.85, -1.42, -2.8), centre = Vector3.new(-2.005, -2.885, -2.8) },
-	{ nom = "PatteAvGBas", parent = "PatteAvGHaut", sorte = "genou", pivot = Vector3.new(-1.85, -4.72, -2.8), centre = Vector3.new(-1.85, -6.77, -3.215) },
-	{ nom = "PatteAvDHaut", parent = "Corps", sorte = "hanche", pivot = Vector3.new(1.85, -1.42, -2.8), centre = Vector3.new(2.005, -2.885, -2.8) },
-	{ nom = "PatteAvDBas", parent = "PatteAvDHaut", sorte = "genou", pivot = Vector3.new(1.85, -4.72, -2.8), centre = Vector3.new(1.85, -6.77, -3.215) },
-	{ nom = "PatteArGHaut", parent = "Corps", sorte = "hanche", pivot = Vector3.new(-1.85, -1.42, 3.2), centre = Vector3.new(-2.005, -2.885, 3.2) },
-	{ nom = "PatteArGBas", parent = "PatteArGHaut", sorte = "genou", pivot = Vector3.new(-1.85, -4.72, 3.2), centre = Vector3.new(-1.85, -6.77, 2.785) },
-	{ nom = "PatteArDHaut", parent = "Corps", sorte = "hanche", pivot = Vector3.new(1.85, -1.42, 3.2), centre = Vector3.new(2.005, -2.885, 3.2) },
-	{ nom = "PatteArDBas", parent = "PatteArDHaut", sorte = "genou", pivot = Vector3.new(1.85, -4.72, 3.2), centre = Vector3.new(1.85, -6.77, 2.785) },
-	{ nom = "Tete", parent = "Corps", sorte = "cou", pivot = Vector3.new(0.0, 1.48, -4.2), centre = Vector3.new(0.0, 2.95, -6.605) },
-	{ nom = "OreilleG", parent = "Tete", sorte = "oreille", pivot = Vector3.new(-2.2, 5.78, -7.1), centre = Vector3.new(-2.4049, 7.78, -7.25) },
-	{ nom = "OreilleD", parent = "Tete", sorte = "oreille", pivot = Vector3.new(2.2, 5.78, -7.1), centre = Vector3.new(2.4049, 7.78, -7.25) },
-	{ nom = "Couronne", parent = "Tete", sorte = "flotte", pivot = Vector3.new(0.0, 8.38, -5.6), centre = Vector3.new(0.0, 9.38, -5.6) },
-	{ nom = "Queue01", parent = "Corps", sorte = "queue", pivot = Vector3.new(0.0, 1.18, 5.0), centre = Vector3.new(0.0, 1.18, 6.28) },
-	{ nom = "Queue02", parent = "Queue01", sorte = "queue", pivot = Vector3.new(0.0, 1.18, 7.56), centre = Vector3.new(0.0, 1.1362, 8.8107) },
-	{ nom = "Queue03", parent = "Queue02", sorte = "queue", pivot = Vector3.new(0.0, 1.0924, 10.0685), centre = Vector3.new(0.0, 1.0495, 11.2977) },
-	{ nom = "Queue04", parent = "Queue03", sorte = "queue", pivot = Vector3.new(0.0, 1.0065, 12.527), centre = Vector3.new(0.0, 1.0065, 13.732) },
-	{ nom = "Queue05", parent = "Queue04", sorte = "queue", pivot = Vector3.new(0.0, 1.0065, 14.937), centre = Vector3.new(0.0, 1.0683, 16.1141) },
-	{ nom = "Queue06", parent = "Queue05", sorte = "queue", pivot = Vector3.new(0.0, 1.1301, 17.2937), centre = Vector3.new(0.0, 1.2708, 18.4401) },
-	{ nom = "Queue07", parent = "Queue06", sorte = "queue", pivot = Vector3.new(0.0, 1.4116, 19.5865), centre = Vector3.new(0.0, 1.6658, 20.6876) },
-	{ nom = "Queue08", parent = "Queue07", sorte = "queue", pivot = Vector3.new(0.0, 1.92, 21.7886), centre = Vector3.new(0.0, 2.3473, 22.8131) },
-	{ nom = "Queue09", parent = "Queue08", sorte = "queue", pivot = Vector3.new(0.0, 2.7479, 23.8377), centre = Vector3.new(0.0, 3.3518, 24.733) },
-	{ nom = "Queue10", parent = "Queue09", sorte = "queue", pivot = Vector3.new(0.0, 3.9557, 25.6284), centre = Vector3.new(0.0, 4.8941, 26.4514) },
-	{ nom = "OrbiteQueue", parent = "Corps", sorte = "orbite_queue", pivot = Vector3.new(0.0, 3.28, 15.3), centre = Vector3.new(0.0742, 3.351, 15.9643) },
-	{ nom = "OrbiteTete", parent = "Corps", sorte = "orbite_tete", pivot = Vector3.new(0.0, 4.28, -6.2), centre = Vector3.new(0.0017, 4.9895, -7.3545) },
+	{ nom = "Corps", parent = "Racine", sorte = "corps", pivot = Vector3.new(0.0, -2.1544, 0.015), centre = Vector3.new(0.0, 0.0, -0.0) },
+	{ nom = "PatteAvGHaut", parent = "Corps", sorte = "hanche", pivot = Vector3.new(-1.95, -2.4509, -3.585), centre = Vector3.new(-2.02, -3.9527, -3.46) },
+	{ nom = "PatteAvGBas", parent = "PatteAvGHaut", sorte = "genou", pivot = Vector3.new(-1.95, -5.6544, -3.235), centre = Vector3.new(-1.95, -7.4294, -3.585) },
+	{ nom = "PatteAvDHaut", parent = "Corps", sorte = "hanche", pivot = Vector3.new(1.95, -2.4509, -3.585), centre = Vector3.new(2.02, -3.9527, -3.4806) },
+	{ nom = "PatteAvDBas", parent = "PatteAvDHaut", sorte = "genou", pivot = Vector3.new(1.95, -5.6544, -3.235), centre = Vector3.new(1.95, -7.4294, -3.585) },
+	{ nom = "PatteArGHaut", parent = "Corps", sorte = "hanche", pivot = Vector3.new(-1.75, -1.4027, 4.015), centre = Vector3.new(-2.02, -2.5901, 3.7843) },
+	{ nom = "PatteArGBas", parent = "PatteArGHaut", sorte = "genou", pivot = Vector3.new(-1.75, -4.4544, 3.015), centre = Vector3.new(-1.75, -6.7409, 3.825) },
+	{ nom = "PatteArDHaut", parent = "Corps", sorte = "hanche", pivot = Vector3.new(1.75, -1.4027, 4.015), centre = Vector3.new(2.02, -2.5901, 3.7843) },
+	{ nom = "PatteArDBas", parent = "PatteArDHaut", sorte = "genou", pivot = Vector3.new(1.75, -4.4544, 3.015), centre = Vector3.new(1.75, -6.7409, 3.825) },
+	{ nom = "Tete", parent = "Corps", sorte = "cou", pivot = Vector3.new(0.0, 2.8456, -4.185), centre = Vector3.new(0.0, 4.9106, -6.71) },
+	{ nom = "OreilleG", parent = "Tete", sorte = "oreille", pivot = Vector3.new(-2.3, 6.9456, -6.785), centre = Vector3.new(-3.0, 7.7206, -6.935) },
+	{ nom = "OreilleD", parent = "Tete", sorte = "oreille", pivot = Vector3.new(2.3, 6.9456, -6.785), centre = Vector3.new(3.0, 7.7206, -6.935) },
+	{ nom = "Couronne", parent = "Tete", sorte = "flotte", pivot = Vector3.new(0.0, 7.3456, -5.785), centre = Vector3.new(0.0, 9.0956, -5.785) },
+	{ nom = "Queue01", parent = "Corps", sorte = "queue", pivot = Vector3.new(0.0, 0.6456, 5.915), centre = Vector3.new(0.0, 0.3102, 7.7073) },
+	{ nom = "Queue02", parent = "Queue01", sorte = "queue", pivot = Vector3.new(0.0, 0.0135, 9.4997), centre = Vector3.new(0.0, -0.2673, 11.2726) },
+	{ nom = "Queue03", parent = "Queue02", sorte = "queue", pivot = Vector3.new(0.0, -0.5481, 13.0455), centre = Vector3.new(0.0, -0.7638, 14.8023) },
+	{ nom = "Queue04", parent = "Queue03", sorte = "queue", pivot = Vector3.new(0.0, -0.9795, 16.5591), centre = Vector3.new(0.0, -1.1049, 18.2999) },
+	{ nom = "Queue05", parent = "Queue04", sorte = "queue", pivot = Vector3.new(0.0, -1.2229, 20.0406), centre = Vector3.new(0.0, -1.2229, 21.7606) },
+	{ nom = "Queue06", parent = "Queue05", sorte = "queue", pivot = Vector3.new(0.0, -1.2229, 23.4806), centre = Vector3.new(0.0, -1.0653, 25.1692) },
+	{ nom = "Queue07", parent = "Queue06", sorte = "queue", pivot = Vector3.new(0.0, -0.9275, 26.8577), centre = Vector3.new(0.0, -0.5748, 28.4912) },
+	{ nom = "Queue08", parent = "Queue07", sorte = "queue", pivot = Vector3.new(0.0, -0.233, 30.1247), centre = Vector3.new(0.0, 0.3832, 31.6499) },
+	{ nom = "Queue09", parent = "Queue08", sorte = "queue", pivot = Vector3.new(0.0, 0.9994, 33.1752), centre = Vector3.new(0.0, 1.9053, 34.5182) },
+	{ nom = "Queue10", parent = "Queue09", sorte = "queue", pivot = Vector3.new(0.0, 2.8112, 35.8612), centre = Vector3.new(0.0046, 4.0894, 37.0121) },
+	{ nom = "OrbiteQueue", parent = "Corps", sorte = "orbite_queue", pivot = Vector3.new(0.0, -0.2658, 21.519), centre = Vector3.new(-3.1268, 0.0864, 20.8212) },
+	{ nom = "OrbiteTete", parent = "Corps", sorte = "orbite_tete", pivot = Vector3.new(0.0, 5.4456, -5.985), centre = Vector3.new(-2.0641, 6.6956, -7.8439) },
 }
 local POINTS: { [string]: Vector3 } = {
-	CristalG = Vector3.new(-5.4, 8.08, -4.1),
-	CristalD = Vector3.new(5.4, 8.08, -4.1),
-	Yeux = Vector3.new(0.0, 3.23, -9.4),
-	QueueBout = Vector3.new(0.0, 4.8698, 26.4514),
+	CristalG = Vector3.new(-4.4, 9.7456, -3.385),
+	CristalD = Vector3.new(4.4, 9.7456, -3.385),
+	Yeux = Vector3.new(0.0, 4.9956, -8.885),
+	QueueBout = Vector3.new(0.0, 4.0894, 37.0121),
 }
-local SOL = -8.72
-local REF_HAUTEUR = 22.7
+local SOL = -9.5544
+local REF_HAUTEUR = 21.37
 local ANIMATION = [==[
 --!strict
 --[[
@@ -76,7 +77,8 @@ local ANIMATION = [==[
 	• repos : respiration, tête qui regarde autour, oreilles qui frémissent ;
 	• marche (quand le Gardien se déplace, ou si l'attribut « Marche » vaut 1) : trot en diagonale,
 	  genoux qui plient, corps qui rebondit, tête qui hoche ;
-	• queue de cubes de lune qui ondule, couronne qui flotte, lunes en orbite qui tournent ;
+	• queue de dalles de lune qui ondule, couronne qui flotte, lunes qui flottent autour de la
+	  queue et tournent autour de la tête ;
 	• halos de la queue et lumières qui « respirent ».
 
 	Attribut « Marche » du modèle : -1 = automatique (selon la vitesse), 0 = repos, 1 = marche sur
@@ -173,7 +175,8 @@ RunService.PreSimulation:Connect(function(dt: number)
 			local cote = sin(t * 1.4 - i * 0.45) * 4.5 * (1 + marche * 0.6)
 			tr = CFrame.Angles(rad(monte), rad(cote), 0)
 		elseif s == "orbite_queue" then
-			tr = CFrame.Angles(0, 0, -rad(t * 22))
+			-- le nuage de lunes autour de la queue se balance doucement et monte/descend
+			tr = CFrame.new(0, sin(t * 0.9) * 0.25 * echelle, 0) * CFrame.Angles(0, 0, -rad(sin(t * 0.4) * 8))
 		elseif s == "orbite_tete" then
 			tr = CFrame.Angles(0, rad(t * 16), 0)
 		else
@@ -514,10 +517,12 @@ particules(couronne, "EtoilesCouronne", {
 
 -- Éclats des cristaux
 for _, nom in { "CristalG", "CristalD" } do
-	particules(attache(parts.Tete, "FX_" .. nom, POINTS[nom]), "EclatsCristal", {
+	local a = attache(parts.Tete, "FX_" .. nom, POINTS[nom])
+	particules(a, "EclatsCristal", {
 		couleurs = { BLANC, CYAN }, taille = 0.4, duree = NumberRange.new(0.8, 1.6), debit = 4,
 		vitesse = NumberRange.new(0.5, 1.5), monte = 0.8, scintille = true,
 	})
+	lumiere(a, Color3.fromRGB(200, 240, 255), 10, 0.8)
 end
 
 -- Paillettes au sol, sous le Gardien et sa queue

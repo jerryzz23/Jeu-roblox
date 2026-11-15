@@ -9,7 +9,8 @@
 
 	Ce script :
 	• remet le Gardien debout et à la bonne taille (TAILLE, en studs) ;
-	• donne les matériaux : Neon (yeux, anneaux de la queue, lunes), Glass (cristaux) ;
+	• donne les matériaux : Neon (yeux, anneaux de la queue, petits croissants), pierre de lune
+	  texturée (cristaux, couronne, queue, lunes) ;
 	• articule les pièces (Motor6D) : 4 pattes avec genoux, tête, oreilles, couronne qui flotte,
 	  10 cubes de queue, deux ronds de lunes en orbite ;
 	• ajoute les VFX : poussière de lune, paillettes au sol, étoiles de la couronne, éclats des
@@ -356,10 +357,12 @@ particules(couronne, "EtoilesCouronne", {
 
 -- Éclats des cristaux
 for _, nom in { "CristalG", "CristalD" } do
-	particules(attache(parts.Tete, "FX_" .. nom, POINTS[nom]), "EclatsCristal", {
+	local a = attache(parts.Tete, "FX_" .. nom, POINTS[nom])
+	particules(a, "EclatsCristal", {
 		couleurs = { BLANC, CYAN }, taille = 0.4, duree = NumberRange.new(0.8, 1.6), debit = 4,
 		vitesse = NumberRange.new(0.5, 1.5), monte = 0.8, scintille = true,
 	})
+	lumiere(a, Color3.fromRGB(200, 240, 255), 10, 0.8)
 end
 
 -- Paillettes au sol, sous le Gardien et sa queue

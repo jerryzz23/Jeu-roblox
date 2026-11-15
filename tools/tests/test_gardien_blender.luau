@@ -131,7 +131,7 @@ local function essai(nomEssai: string, decalage: CFrame)
 		end
 	end
 	verifier(modele:FindFirstChild("Tete_NeonCyan").Material == roblox.Enum.Material.Neon, "yeux en Neon")
-	verifier(modele:FindFirstChild("Tete_Cristal").Material == roblox.Enum.Material.Glass, "cristaux en Glass")
+	verifier(modele:FindFirstChild("Tete_Lune").TextureID == "rbxassetid://1", "cristaux en pierre de lune texturée")
 	verifier(modele:FindFirstChild("Corps").TextureID == "rbxassetid://1", "texture gardée")
 	local racine = modele:FindFirstChild("Racine")
 	verifier(math.abs(racine.CFrame.UpVector.Y - 1) < 1e-4, "racine debout")

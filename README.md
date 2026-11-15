@@ -296,18 +296,29 @@ centaines de Parts, à importer dans Studio. Tout est dans `dist/blender/Gardien
 | `GardienLunaire.glb` | le même modèle en glTF (aperçu web, autres logiciels) |
 | `GardienLunaire.blend` | le fichier Blender, pièces rangées et articulées |
 | `GardienLunaire.animation.client.luau` | le script d'animation (déjà inclus dans l'installateur) |
-| `rendus/` | les images (face, profil, dos, tête, queue) et l'animation de marche (`marche.gif`) |
+| `rendus/` | les images (face, profil, dos, tête, queue), `comparaison.png` (l'image de référence au-dessus du rendu) et l'animation de marche (`marche.gif`) |
 
-**Le modèle** (22,7 studs de haut, comme l'image de référence) : 58 pièces, environ
-32 000 triangles. Les grandes faces ont une texture de pierre bleu nuit ou de lune, et **chaque
-face** porte des motifs gravés en pixels, en relief : engrenages, spirales carrées, croissants,
-phases de lune, cratères. On y trouve aussi :
-- les yeux ronds cyan, avec un reflet ;
-- les oreilles magenta en marches ;
-- 2 × 4 grands cristaux à facettes, comme des ailes, et des éclats sur les joues ;
-- la couronne en croissant de lune en pixels, avec un petit croissant lumineux au centre ;
-- la queue de 9 cubes de lune, chacun avec un anneau néon et un disque cratérisé, plus un cube violet au bout ;
-- deux ronds de lunes en orbite.
+**Le modèle** suit l'image de référence au plus près : 21,4 studs de haut, 50 pièces, environ
+56 000 triangles (la plus grosse pièce en fait 7 400, sous la limite de 20 000 de Roblox). Les
+grandes faces ont une texture de pierre bleu nuit ou de pierre de lune, et **chaque face** est
+couverte de détails en relief.
+- **Le corps** : un gros torse, plus haut et plus large à l'avant (le poitrail) que derrière,
+  couvert d'un « sol lunaire » de plaques claires et de cratères, avec des épaulières claires.
+- **Les pattes articulées** : à l'avant, épaule, coude et poignet ; à l'arrière, une grosse
+  cuisse à spirale carrée, un genou, un tibia qui recule et un jarret, comme un chat. Chaque
+  articulation est un cube plus clair, et les pattes ont deux doigts.
+- **La tête** : plus petite que le corps, avec un museau en cube (nez noir, bouche en « w ») et
+  des yeux à deux anneaux cyan, avec une pupille ovale lumineuse tournée vers le museau.
+- **Les oreilles et les joues** : de grandes oreilles magenta bordées de rose, des ailerons
+  magenta sur les joues et des éclats blancs qui flottent.
+- **Les cristaux** : 2 × 2 grandes dalles de cristal de lune, avec des cratères, derrière les
+  oreilles.
+- **La couronne** : un croissant de lune en pixels, avec une bande lavande, des cratères et un
+  petit croissant lumineux au centre.
+- **La queue** : 9 grosses dalles de lune lumineuses (anneau ovale cyan et disque cratérisé),
+  un peu tournées l'une par rapport à l'autre, et un cube violet au bout.
+- **Les lunes** : 18 lunes et croissants flottent autour de la queue, et 4 tournent autour de la
+  tête.
 
 **Dans Roblox Studio** :
 1. *Avatar* (ou *Accueil*) › **Importer 3D** › `GardienLunaire.fbx` › **Importer**.
@@ -316,17 +327,19 @@ phases de lune, cratères. On y trouve aussi :
 
 L'installateur remet le Gardien debout, à la bonne taille et dans le bon sens, quel que soit
 l'import. Il ajoute ensuite :
-- les matériaux : Neon pour les yeux, les anneaux et les lunes, Glass pour les cristaux ;
+- les matériaux : Neon pour les yeux, les anneaux et les petits croissants ; la pierre de lune
+  (cristaux, couronne, queue, lunes) garde sa texture ;
 - 25 articulations (Motor6D) : pattes avec genoux, tête, oreilles, couronne, 10 cubes de queue,
   lunes en orbite ;
 - les VFX : 7 émetteurs de particules (poussière de lune, paillettes au sol, étoiles de la
-  couronne, éclats des cristaux), 4 lumières cyan et une traînée au bout de la queue ;
+  couronne, éclats des cristaux), 6 lumières et une traînée au bout de la queue ;
 - le script `AnimationGardien` (*RunContext* Client).
 
 En **Play**, le Gardien respire, regarde autour de lui et frémit des oreilles. Sa queue ondule,
-la couronne flotte et les lunes tournent. Il trotte quand il se déplace. Pour le voir marcher sur
-place, mettre son attribut `Marche` à 1. Si la texture n'arrive pas avec l'import, il suffit de
-téléverser `GardienLunaire_texture.png` et de coller son ID dans `TEXTURE_ID`, en haut du script.
+la couronne flotte, les lunes de la queue se balancent et celles de la tête tournent. Il trotte
+quand il se déplace. Pour le voir marcher sur place, mettre son attribut `Marche` à 1. Si la
+texture n'arrive pas avec l'import, il suffit de téléverser `GardienLunaire_texture.png` et de
+coller son ID dans `TEXTURE_ID`, en haut du script.
 
 Tout est refait par `blender/gardien_lunaire.py` (Python 3.11 avec le module `bpy` de Blender 5
 et Pillow ; voir « Régénérer »). Le test `tools/tests/test_gardien_blender.luau` simule l'import

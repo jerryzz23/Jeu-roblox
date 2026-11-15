@@ -12,7 +12,9 @@ jour à la fin de chaque demande** (section « Journal » + « Ce qui est fait /
 - Il ne code pas : lui donner des choses **prêtes à ouvrir** (le fichier
   `dist/CreatureForge.rbxl` pour Roblox Studio, le bestiaire en ligne).
 - Il envoie souvent des **images de référence** (captures d'autres jeux, illustrations, vidéos) :
-  suivre la référence de près.
+  suivre la référence de près. Il veut le personnage **exactement comme sur l'image** : avant de
+  livrer, comparer le rendu et l'image côte à côte (même cadrage), puis corriger chaque écart
+  (proportions, yeux, couleurs, taille des pièces, éclairage).
 - Style voulu : **Roblox cartoon**, couleurs vives, modèles détaillés (pas de simples blocs),
   avec des **effets visuels** (VFX).
 - Quand il propose un choix (ex. « fais-en 10 et je choisis »), il peut tout garder s'il aime tout.
@@ -118,7 +120,8 @@ Les détails (bonus de vitesse, selle passager, démarche, capacité) sont dans 
   Studio, avec la Vitrine (personnages dans leur zone, tapis et présentoirs).
 - Le **bestiaire web** (artefact privé) : https://claude.ai/artifact/6wLxEoofvni4XYqjNBFNaM
 - Le **Gardien lunaire version Blender** (vrai modèle 3D, `dist/blender/GardienLunaire/`) :
-  - FBX à importer dans Studio (58 MeshParts, environ 32 000 triangles, 22,7 studs de haut) ;
+  - FBX à importer dans Studio (50 MeshParts, environ 56 000 triangles, 21,4 studs de haut),
+    refait au plus près de son image (journal n° 21) ;
   - installateur à coller dans la Command Bar : articulations, Neon/Glass, VFX, animation ;
   - rendus Cycles et animation de marche ;
   - fabriqué par `blender/gardien_lunaire.py`, testé par `tools/tests/test_gardien_blender.luau` ;
@@ -208,3 +211,18 @@ Dans l'ordre, les plus récentes en bas.
     - Rendus Cycles (avec lueur, poussière d'étoiles et éclats de lune au sol), présentés sur un
       canevas Design privé : https://claude.ai/artifact/DvasXo32Bsmm8NzQFPu3CD
     - **En attente de son avis.**
+21. « Je t'avais dit d'utiliser Blender pour avoir exactement le même que sur la photo » → le
+    Gardien Blender était trop éloigné de l'image. Il a été refait en comparant les deux images
+    côte à côte, avec le même cadrage :
+    - une tête plus grosse, un museau en cube, des yeux à deux anneaux et une pupille ovale ;
+    - de grandes oreilles magenta, des ailerons sur les joues, de grandes dalles de cristal de lune ;
+    - un corps en « sol lunaire » avec des épaulières, et une queue de 9 grosses dalles lumineuses ;
+    - 18 lunes autour de la queue et un studio gris clair.
+    Une image de comparaison est ajoutée (`rendus/comparaison.png`).
+22. Pendant ce travail : « son torse est plus grand à l'avant et plus petit à la fin, il a des
+    articulations aux jambes » et « il a une plus petite tête et un plus gros corps ». Corrigé :
+    - un torse en tronc de pyramide (poitrail haut et large, arrière plus petit) ;
+    - une tête plus petite (6 × 5 × 5 studs) ;
+    - des pattes plus longues et articulées, avec un cube clair à chaque articulation : épaule,
+      coude et poignet à l'avant ; cuisse, genou, tibia qui recule et jarret à l'arrière.
+    **En attente de son avis.**
