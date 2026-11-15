@@ -1,20 +1,22 @@
 --!strict
 --[[
-	PHÉNIX D'ARGENT — Légendaire · Moyen
-	====================================
-	Oiseau de flammes argentées.
-	
-	• Plumage argent -> blanc nacré, collerette argentée, couvertures gris perle.
-	• Immenses ailes à 3 rangées aux pointes Neon blanc bleuté ; flammes argentées le long des ailes.
-	• Longue traîne de plumes enflammées d'argent ; huppe de flammes blanches, yeux Neon glacier.
-	• Plumes d'argent et boules de feu blanc en orbite ; effets : traînée de feu argenté, forte lueur froide.
+	PHÉNIX D'ARGENT — Légendaire · Moyen (style cubes + pixels)
+	==========================================================
+	Oiseau de flammes argentées, en cubes.
+
+	• Plumage argent -> blanc nacré en pixels de plumes, collerette argentée.
+	• Immenses ailes en plumes-planches sur deux rangées, pointes blanc bleuté lumineuses,
+	  flammes d'argent (cubes lumineux) le long des ailes.
+	• Longue traîne de plumes enflammées ; huppe de flammes blanches ; yeux glacier.
+	• Plumes d'argent et boules de feu blanc en orbite ; effets : feu argenté, forte lueur froide.
 ]]
 
 local Kit = require(script.Parent.Parent.Kit)
-local A = require(script.Parent.Parent.Anatomy)
 local Fx = require(script.Parent.Parent.Fx)
 local Vfx = require(script.Parent.Parent.Vfx)
 local Types = require(script.Parent.Parent.Types)
+local Cube = require(script.Parent.Parent.Cube)
+local A = require(script.Parent.Parent.Anatomy)
 
 local S = Kit.style
 local M = Enum.Material
@@ -26,38 +28,19 @@ local ang = CFrame.Angles
 
 local ID = "PhenixDArgent"
 
+local FLAME = rgb(170, 210, 255)
 local P = {
-	core = S(rgb(120, 128, 148)),
-	plume = { S(rgb(252, 252, 255)), S(rgb(222, 228, 240)), S(rgb(188, 196, 214)), S(rgb(150, 158, 180)) },
-	primary = { S(rgb(214, 222, 238)), S(rgb(176, 186, 208)) },
-	covert = { S(rgb(242, 246, 252)), S(rgb(216, 222, 236)) },
-	ash = { S(rgb(112, 116, 130)), S(rgb(86, 90, 104)) },
-	tip = S(rgb(220, 240, 255), M.Neon),
-	flameOut = S(rgb(140, 180, 255), M.Neon),
-	flameMid = S(rgb(205, 225, 255), M.Neon),
-	flameCore = S(rgb(255, 255, 255), M.Neon),
-	gold = S(rgb(226, 232, 244)),
-	goldDark = S(rgb(168, 176, 194)),
-	eye = S(rgb(190, 240, 255), M.Neon),
-	socket = S(rgb(40, 50, 84)),
+	silver = Cube.skin(rgb(196, 204, 220), Cube.feathers(17), { material = M.Metal, glow = { FLAME }, px = 0.055 }),
+	pearl = Cube.skin(rgb(242, 244, 252), Cube.feathers(), { px = 0.05 }),
+	grey = S(rgb(150, 156, 172), M.Metal),
+	beak = S(rgb(230, 236, 248), M.Metal),
+	talon = S(rgb(70, 76, 96)),
+	flame = S(FLAME, M.Neon),
+	flameHot = S(rgb(240, 248, 255), M.Neon),
+	flameDeep = S(rgb(110, 150, 255), M.Neon),
+	eye = { S(rgb(20, 26, 44)), S(rgb(230, 245, 255), M.Neon), S(rgb(140, 210, 255), M.Neon), S(rgb(20, 30, 60)) },
 }
 
-local BODY = Kit.spine({
-	{ pos = v3(0, 2.25, -1.1), rx = 0.3, ry = 0.3 },
-	{ pos = v3(0, 2.15, -0.6), rx = 0.56, ry = 0.54 },
-	{ pos = v3(0, 2.05, 0.05), rx = 0.6, ry = 0.56 },
-	{ pos = v3(0, 1.95, 0.7), rx = 0.4, ry = 0.36 },
-	{ pos = v3(0, 1.9, 1.1), rx = 0.18, ry = 0.16 },
-})
-
-local HEAD = Kit.spine({
-	{ pos = v3(0, 2.62, -1.62), rx = 0.2, ry = 0.2 },
-	{ pos = v3(0, 2.65, -1.4), rx = 0.32, ry = 0.31 },
-	{ pos = v3(0, 2.58, -1.15), rx = 0.3, ry = 0.3 },
-	{ pos = v3(0, 2.4, -0.95), rx = 0.27, ry = 0.27 },
-})
-
--- Capacité spéciale (CreatureForge.playAbility)
 local ABILITY: Types.Ability = {
 	name = "Flamme d'argent",
 	kind = "Nova",
@@ -67,129 +50,87 @@ local ABILITY: Types.Ability = {
 	duration = 2,
 }
 
+local TAIL = { v3(0, 1.88, 0.6), v3(0, 1.75, 1.1), v3(0, 1.55, 1.6), v3(0, 1.35, 2.1), v3(0, 1.2, 2.55) }
+
 local function build(opts: Kit.BuildOptions?): Model
 	local rig = Kit.newRig(ID, opts)
-	local function const(name: string): (number) -> string
-		return function()
-			return name
-		end
-	end
-
-	rig:bone("Body", "Root", cf(0, 2.05, 0))
-	rig:bone("Head", "Body", cf(0, 2.35, -1.0))
-	rig:bone("Tail1", "Body", cf(0, 1.92, 1.0))
+	rig:bone("Body", "Root", cf(0, 2.0, 0))
+	rig:bone("Head", "Body", cf(0, 2.3, -0.55))
 	rig:mirrored(function(side, sfx)
-		rig:bone("Wing" .. sfx, "Body", cf(side * 0.42, 2.25, -0.45))
-		rig:bone("Leg" .. sfx, "Body", cf(side * 0.2, 1.65, 0.05))
+		rig:bone("Wing" .. sfx, "Body", cf(side * 0.38, 2.2, -0.25))
+		rig:bone("Leg" .. sfx, "Body", cf(side * 0.18, 1.65, 0.05))
 	end)
-
-	rig:tube(BODY, {
-		name = "Body",
-		bone = const("Body"),
-		core = P.core,
-		coreStep = 0.28,
-		cover = { A.scales(P.plume, v3(0.3, 0.08, 0.42), 0.22, { arc = 180, tilt = 30, refRadius = 0.55, seed = 1 }) },
-	})
-	A.tuftBurst(rig, "Body", cf(0, 2.25, -1.0) * ang(rad(-35), 0, 0), 14, 0.55, 0.18, P.covert, P.tip, 70, 2)
-
-	rig:tube(HEAD, {
-		name = "Head",
-		bone = const("Head"),
-		core = P.core,
-		coreStep = 0.16,
-		cover = { A.scales(P.plume, v3(0.18, 0.06, 0.22), 0.13, { arc = 180, from = 1.5, tilt = 24, refRadius = 0.3, seed = 2 }) },
-	})
-	A.horn(rig, "Head", { v3(0, 2.66, -1.6), v3(0, 2.6, -1.85), v3(0, 2.48, -1.98), v3(0, 2.34, -1.95) }, 0.13, 0.025, P.gold)
-	-- Huppe de flammes
-	for k = 0, 4 do
-		local base = cf(0, 2.85 - k * 0.04, -1.32 + k * 0.12) * ang(rad(40 + k * 10), 0, 0)
-		A.flame(rig, "Head", base, 0.7 - k * 0.06, 0.2, P.flameOut, P.flameMid, P.flameCore)
+	local tail = rig:boneChain("Tail", "Body", TAIL)
+	-- Corps, collerette, plastron nacré
+	Cube.box(rig, "Body", "Body", cf(0, 2.0, 0), v3(0.78, 0.76, 1.25), P.silver)
+	Cube.box(rig, "Body", "Chest", cf(0, 1.9, -0.64), v3(0.62, 0.58, 0.06), P.pearl, { faces = { "front" }, chips = false })
+	Cube.box(rig, "Head", "Ruff", cf(0, 2.25, -0.62), v3(0.86, 0.32, 0.36), P.silver)
+	-- Tête : bec d'argent, yeux glacier, huppe de flammes blanches
+	local hc = v3(0, 2.55, -0.82)
+	Cube.box(rig, "Head", "Head", cf(hc), v3(0.6, 0.56, 0.6), P.pearl)
+	rig:block("Head", "Beak", cf(hc + v3(0, -0.06, -0.4)), v3(0.2, 0.18, 0.22), P.beak)
+	rig:block("Head", "BeakTip", cf(hc + v3(0, -0.16, -0.5)), v3(0.13, 0.13, 0.1), P.grey)
+	rig:mirrored(function(side)
+		Cube.eye(rig, "Head", v3(side * 0.3, hc.Y + 0.06, hc.Z - 0.1), v3(side, 0, 0), 0.13, "square", P.eye)
+	end)
+	for k, st in { P.flame, P.flameHot, P.flameDeep, P.flameHot } do
+		rig:block("Head", "CrestFlame", cf(hc + v3((k - 2.5) * 0.08, 0.36 + (k % 2) * 0.1, 0.12 + k * 0.05)) * ang(rad(-25), rad(k * 20), 0), v3(0.12, 0.26, 0.12), st)
 	end
+	-- Ailes : deux rangées de plumes-planches, flammes d'argent sur le bord
 	rig:mirrored(function(side, sfx)
-		A.eye(rig, "Head", A.mx(v3(0.24, 2.74, -1.45), side), v3(side, 0.2, -0.5), 0.14, "Glow", P.socket, P.eye)
-		A.brow(rig, "Head", side, v3(0.2, 2.86, -1.46), 0.26, 24, P.plume[4])
-		for k = 0, 1 do
-			A.flame(rig, "Head", cf(A.mx(v3(0.28, 2.62, -1.2 + k * 0.15), side)) * ang(rad(60), 0, -side * rad(70)), 0.42 - k * 0.08, 0.16, P.flameOut, P.flameMid, P.flameCore)
-		end
-
-		-- Ailes immenses
-		local wing = "Wing" .. sfx
-		local arm = { v3(0.42, 2.25, -0.48), v3(1.25, 2.55, -0.44), v3(2.15, 2.78, -0.3), v3(3.05, 2.9, -0.05) }
-		A.wing(rig, wing, side, {
-			arm = arm,
-			armRadius = 0.18,
-			feathers = 15,
-			length = { 1.4, 2.1 },
-			width = 0.46,
-			sweep = 42,
-			rows = { P.primary, P.covert, P.ash },
-			tip = P.tip,
-			armStyle = P.plume[2],
-		})
+		local w = "Wing" .. sfx
+		local root = v3(side * 0.38, 2.2, -0.3)
+		local out = v3(side, 0.2, 0).Unit
+		Cube.featherWing(rig, w, root, out, v3(0, 0, 1), 2.2, 1.05, 7, { P.silver.base, P.pearl.base, P.grey }, P.flameHot)
+		Cube.featherWing(rig, w, root + v3(0, 0.07, -0.02), out, v3(0, 0, 1), 1.6, 0.6, 5, { P.pearl.base, P.silver.base }, nil)
 		for k = 1, 5 do
-			local t = k / 6
-			local p = A.mx(arm[1]:Lerp(arm[4], t), side) + v3(0, -0.02, 1.4 + t * 0.4)
-			local dir = v3(side * math.sin(rad(42) * t), 0.25, math.cos(rad(42) * t)).Unit
-			A.flame(rig, wing, A.alongUp(p, dir), 0.6, 0.2, P.flameOut, P.flameMid, P.flameCore)
+			local p = root + out * (0.35 + k * 0.36) + v3(0, 0.1 + (k % 2) * 0.05, -0.05)
+			rig:block(w, "WingFlame", cf(p) * ang(rad(k * 20), rad(45), 0), v3(0.12, 0.12, 0.12), if k % 2 == 0 then P.flame else P.flameHot)
 		end
-
-		local leg = "Leg" .. sfx
-		A.limb(rig, leg, side, { { v3(0.2, 1.65, 0.05), 0.12, 0.12 }, { v3(0.22, 1.32, 0.14), 0.08, 0.08 }, { v3(0.23, 1.08, 0.02), 0.065, 0.065 } }, P.gold)
-		local foot = A.mx(v3(0.23, 1.05, 0.0), side)
+	end)
+	-- Traîne de plumes enflammées
+	for j = 1, #tail do
+		local a, b = TAIL[j], TAIL[j + 1]
+		local c = Kit.lookAlong((a + b) / 2, b - a)
+		local len = (b - a).Magnitude
 		for k = -1, 1 do
-			local dir = v3(side * k * 0.4, -0.3, -1).Unit
-			local tipP = foot + dir * 0.26
-			rig:strut(leg, "Toe", foot, tipP, 0.06, 0.06, P.gold)
-			rig:wedge(leg, "Talon", Kit.lookAlong(tipP + dir * 0.06, dir), v3(0.05, 0.07, 0.13), P.goldDark)
+			rig:block(tail[j], "TailFeather", c * cf(k * 0.17, 0, 0) * ang(0, rad(k * 6), 0), v3(0.15, 0.05, len * 1.1), if k == 0 then P.silver.base else P.pearl.base)
+		end
+		rig:block(tail[j], "TailFlame", cf(b + v3(0, 0.06, 0)) * ang(rad(j * 30), rad(45), 0), v3(0.14, 0.14, 0.14), if j % 2 == 0 then P.flame else P.flameDeep)
+	end
+	-- Pattes et serres
+	rig:mirrored(function(side, sfx)
+		local leg = "Leg" .. sfx
+		local x = side * 0.18
+		rig:joint(leg, v3(x, 1.65, 0.05), v3(x, 1.35, 0.05))
+		Cube.box(rig, leg, "Thigh", cf(x, 1.5, 0.05), v3(0.2, 0.3, 0.2), P.silver, { chips = false })
+		rig:block(leg, "Shin", cf(x, 1.2, 0.05), v3(0.09, 0.3, 0.09), P.grey)
+		for t = -1, 1 do
+			rig:block(leg, "Talon", cf(x + t * 0.06, 1.04, -0.03), v3(0.05, 0.05, 0.14), P.talon)
 		end
 	end)
-
-	-- Traîne de plumes enflammées + rubans de feu
-	A.featherFan(rig, "Tail1", cf(0, 1.94, 1.0) * ang(rad(-12), 0, 0), 9, 2.6, 0.4, 48, { P.primary[1], P.covert[1], P.primary[2] }, P.tip)
-	for k = -1, 1, 2 do
-		local pts = { v3(k * 0.1, 1.95, 1.05), v3(k * 0.35, 1.6, 2.2), v3(k * 0.7, 1.35, 3.3), v3(k * 0.9, 1.5, 4.2) }
-		A.horn(rig, "Tail1", pts, 0.09, 0.02, P.covert[1])
-		A.flame(rig, "Tail1", A.alongUp(pts[4], pts[4] - pts[3]), 0.7, 0.26, P.flameOut, P.flameMid, P.flameCore)
-	end
-	for k = 0, 4 do
-		local a = rad((k - 2) * 12)
-		local p = v3(math.sin(a) * 2.4, 1.6, 1.0 + math.cos(a) * 2.4)
-		A.flame(rig, "Tail1", A.alongUp(p, v3(math.sin(a), 0.3, math.cos(a))), 0.55, 0.2, P.flameOut, P.flameMid, P.flameCore)
-	end
-
-	-- Plumes d'or et boules de feu en orbite
-	A.orbit(rig, "Aura1", v3(0, 2.3, 0), 3.0, 6, 0.5, function(bone, c)
-		A.feather(rig, bone, c * ang(0, 0, rad(25)) * ang(0, math.pi / 2, 0), 0.7, 0.24, P.gold, P.tip)
+	-- Plumes d'argent et boules de feu blanc en orbite
+	A.orbit(rig, "Aura1", v3(0, 2.2, 0.2), 2.6, 6, 0.4, function(bone, c, i)
+		rig:block(bone, "OrbitFeather", c * ang(0, 0, rad(i * 40)), v3(0.08, 0.04, 0.5), P.silver.base)
+		rig:block(bone, "OrbitFeatherTip", c * ang(0, 0, rad(i * 40)) * cf(0, 0, 0.27), v3(0.09, 0.05, 0.08), P.flame)
 	end)
-	A.orbit(rig, "Aura2", v3(0, 2.6, 0), 2.0, 4, 0.3, function(bone, c)
-		A.flame(rig, bone, c, 0.45, 0.22, P.flameOut, P.flameMid, P.flameCore)
-		rig:ball(bone, "FireCore", (c * cf(0, 0.1, 0)).Position, 0.18, P.flameCore)
-	end)
+	Cube.orbitGems(rig, "Aura2", v3(0, 2.0, 0.2), 1.6, 4, 0.3, { P.flameHot }, { S(FLAME, M.Glass, { transparency = 0.5 }) }, 0.16)
 
-	rig:hitbox(cf(0, 2.2, 0.2), v3(6.4, 2.4, 5))
-
+	rig:hitbox(cf(0, 2.0, 0.6), v3(4.6, 1.6, 3.2))
 	if rig.effects then
 		local sc = rig.scale
-		local trail = rig:anchor("Tail1", "FX_Trail", cf(0, 1.7, 2.6), v3(1.6, 0.4, 2.4))
-		Fx.particles(trail, Fx.fire("FireTrail", { rgb(218, 233, 255), rgb(176, 208, 255), rgb(86, 102, 126) }, 30, 0.7), sc)
-		local wings = rig:anchor("Body", "FX_Wings", cf(0, 2.6, 0.6), v3(5.6, 0.4, 1.6))
-		Fx.particles(wings, Fx.embers("Embers", { rgb(208, 227, 255), rgb(176, 208, 255) }, 20, 0.2), sc)
-		Fx.particles(wings, Fx.sparkles("GoldDust", { rgb(215, 231, 255) }, 8, 0.24, 0.1), sc)
-		Fx.light(rig.bones.Body, { color = rgb(183, 212, 255), range = 14, brightness = 2 }, sc)
-	end
-
-
-	-- Effets avancés : signature, origine de la capacité, aura de rareté
-	if rig.effects then
-		Vfx.wingTrails(rig, v3(3.05, 2.9, -0.05), v3(0.12, 0, 0.4), { colors = { rgb(208, 227, 255), rgb(173, 206, 255) }, transparency = { 0.15, 1 }, lifetime = 0.6 })
-		for _, k in { -1, 1 } do
-			local p = v3(k * 0.9, 1.5, 4.2)
-			Vfx.trail(rig, "Tail1", p + v3(0, 0.07, 0), p - v3(0, 0.07, 0), { colors = { rgb(204, 225, 255), rgb(173, 206, 255) }, lifetime = 0.6 })
-		end
+		local glow = rig:anchor("Body", "FX_SilverFire", cf(0, 2.1, 0.2), v3(1.0, 0.6, 1.2))
+		Fx.particles(glow, Fx.fire("SilverFire", { rgb(255, 255, 255), FLAME, rgb(90, 120, 220) }, 12, 0.35), sc)
+		Fx.light(glow, { color = FLAME, range = 14, brightness = 2 }, sc)
+		local tipP = TAIL[#TAIL]
+		Vfx.trail(rig, tail[#tail], tipP + v3(0, 0.1, 0), tipP - v3(0, 0.1, 0), { colors = { rgb(240, 248, 255), FLAME }, lifetime = 0.6 })
+		rig:mirrored(function(side, sfx)
+			local tip = v3(side * 2.5, 2.65, 0.1)
+			Vfx.trail(rig, "Wing" .. sfx, tip + v3(0, 0, -0.25), tip + v3(0, 0, 0.35), { colors = { rgb(240, 248, 255), FLAME }, lifetime = 0.5 })
+		end)
 		Vfx.abilityOrigin(rig, ABILITY)
 		Vfx.rarityAura(rig, "Legendary")
 	end
-
 	return rig:finish({ Rarity = "Legendary" })
 end
 

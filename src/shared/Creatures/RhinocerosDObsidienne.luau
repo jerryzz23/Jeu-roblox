@@ -1,21 +1,21 @@
 --!strict
 --[[
-	LE RHINOCÉROS D'OBSIDIENNE — Légendaire · Géant
-	===============================================
-	Rhinocéros en pierre volcanique noire et brillante.
+	RHINOCÉROS D'OBSIDIENNE — Légendaire · Géant (style cubes + pixels)
+	==================================================================
+	Rhinocéros en cubes de pierre volcanique noire et brillante.
 
-	• Corps massif en plaques d'obsidienne polie (reflets violets), fissures de lave orange.
-	• Énorme corne principale en obsidienne vitreuse cerclée de lave, seconde corne plus petite.
+	• Corps massif en plaques d'obsidienne (reflets violets) fendues de lave orange lumineuse.
+	• Énorme corne d'obsidienne en cubes cerclée de lave, seconde corne plus petite.
 	• Épaulières en lames d'obsidienne, pattes-colonnes aux sabots de basalte.
-	• Petites oreilles, yeux Neon orange ; selle de basalte pour deux cavaliers.
+	• Petites oreilles, yeux orange ; selle de basalte pour deux cavaliers.
 	• Éclats d'obsidienne et braises en orbite ; effets : fumée, braises, lueur de lave.
 ]]
 
 local Kit = require(script.Parent.Parent.Kit)
-local A = require(script.Parent.Parent.Anatomy)
 local Fx = require(script.Parent.Parent.Fx)
 local Vfx = require(script.Parent.Parent.Vfx)
 local Types = require(script.Parent.Parent.Types)
+local Cube = require(script.Parent.Parent.Cube)
 
 local S = Kit.style
 local M = Enum.Material
@@ -27,39 +27,15 @@ local ang = CFrame.Angles
 
 local ID = "RhinocerosDObsidienne"
 
+local LAVA = { rgb(255, 120, 20), rgb(255, 210, 90) }
 local P = {
-	core = S(rgb(24, 18, 22)),
-	plates = {
-		S(rgb(78, 70, 96), M.SmoothPlastic, { reflectance = 0.2 }),
-		S(rgb(52, 46, 66), M.SmoothPlastic, { reflectance = 0.2 }),
-		S(rgb(34, 30, 44), M.SmoothPlastic, { reflectance = 0.15 }),
-		S(rgb(20, 18, 28), M.SmoothPlastic, { reflectance = 0.15 }),
-	},
-	glass = S(rgb(40, 30, 60), M.Glass, { transparency = 0.05, reflectance = 0.3 }),
-	basalt = S(rgb(46, 42, 46), M.Basalt),
-	basaltDark = S(rgb(30, 28, 32), M.Basalt),
-	lava = S(rgb(255, 120, 20), M.Neon),
-	lavaHot = S(rgb(255, 210, 90), M.Neon),
-	eye = S(rgb(255, 150, 30), M.Neon),
-	socket = S(rgb(20, 10, 6)),
-	inner = S(rgb(90, 60, 70)),
+	obsidian = Cube.skin(rgb(36, 30, 48), Cube.mix(Cube.lava(), Cube.plates(8, 5)), { glow = LAVA, px = 0.08, light = rgb(96, 70, 130) }),
+	basalt = Cube.skin(rgb(60, 56, 62), Cube.stone(), { material = M.Basalt, glow = LAVA, px = 0.075 }),
+	glass = S(rgb(50, 36, 70), M.Glass, { transparency = 0.1 }),
+	lava = S(LAVA[1], M.Neon),
+	lavaHot = S(LAVA[2], M.Neon),
+	eye = { S(rgb(10, 6, 4)), S(rgb(255, 200, 120), M.Neon), S(LAVA[1], M.Neon), S(rgb(40, 10, 2)) },
 }
-
-local BODY = Kit.spine({
-	{ pos = v3(0, 2.25, -1.75), rx = 0.5, ry = 0.55 },
-	{ pos = v3(0, 2.3, -1.2), rx = 0.85, ry = 0.95 },
-	{ pos = v3(0, 2.25, -0.4), rx = 0.98, ry = 1.02 },
-	{ pos = v3(0, 2.3, 0.45), rx = 0.98, ry = 1.0 },
-	{ pos = v3(0, 2.2, 1.15), rx = 0.78, ry = 0.82 },
-	{ pos = v3(0, 2.0, 1.6), rx = 0.3, ry = 0.32 },
-})
-
-local HEAD = Kit.spine({
-	{ pos = v3(0, 1.75, -3.05), rx = 0.24, ry = 0.22 },
-	{ pos = v3(0, 1.88, -2.75), rx = 0.38, ry = 0.34 },
-	{ pos = v3(0, 2.05, -2.35), rx = 0.48, ry = 0.46 },
-	{ pos = v3(0, 2.2, -1.95), rx = 0.5, ry = 0.52 },
-})
 
 local ABILITY: Types.Ability = {
 	name = "Charge volcanique",
@@ -71,109 +47,41 @@ local ABILITY: Types.Ability = {
 
 local function build(opts: Kit.BuildOptions?): Model
 	local rig = Kit.newRig(ID, opts)
-	local function const(name: string): (number) -> string
-		return function()
-			return name
-		end
-	end
-
-	rig:bone("Body", "Root", cf(0, 2.25, 0))
-	rig:bone("Head", "Body", cf(0, 2.2, -1.85))
-	rig:bone("Tail1", "Body", cf(0, 2.1, 1.6))
-	rig:mirrored(function(side, sfx)
-		local s = string.sub(sfx, 2)
-		rig:bone("Leg_F" .. s, "Body", cf(side * 0.62, 1.8, -0.95))
-		rig:bone("Leg_B" .. s, "Body", cf(side * 0.62, 1.8, 0.85))
-		rig:bone("Ear" .. sfx, "Head", cf(side * 0.32, 2.62, -1.95))
-	end)
-
-	-- Plaques d'obsidienne polie
-	rig:tube(BODY, {
-		name = "Body",
-		bone = const("Body"),
-		core = P.core,
-		coreStep = 0.45,
-		cover = { A.scales(P.plates, v3(0.62, 0.2, 0.56), 0.5, { arc = 180, tilt = 8, jitter = 0.45, refRadius = 0.9, seed = 1 }) },
+	local q = Cube.quadruped(rig, {
+		body = { c = v3(0, 2.3, 0), size = v3(1.9, 1.6, 3.0), skin = P.obsidian },
+		neck = v3(0, 2.3, -1.5),
+		head = { c = v3(0, 2.15, -2.05), size = v3(1.15, 1.0, 1.2), skin = P.obsidian },
+		snout = { size = v3(0.9, 0.62, 0.5), y = -0.18, skin = P.obsidian },
+		eyes = { kind = "square", size = 0.15, colors = P.eye, side = true, x = 0, y = 2.3, z = -2.25 },
+		ears = { w = 0.24, h = 0.24, outer = P.obsidian.base, inner = P.lava, x = 0.4, z = -1.62, tilt = 25 },
+		legs = { x = 0.66, zf = -1.0, zb = 1.0, hipY = 1.6, w = 0.6, skin = P.obsidian, foot = "hoof", footSkin = P.basalt, toe = P.basalt.base, footH = 0.24 },
+		tail = { pts = { v3(0, 2.6, 1.5), v3(0, 2.35, 1.62), v3(0, 2.1, 1.7) }, sizes = { 0.18, 0.16 }, skin = P.obsidian },
 	})
-	-- Fissures de lave sur les flancs
-	rig:mirrored(function(side)
-		for k, u in { 1.8, 2.6, 3.4, 4.2 } do
-			local a = BODY:surface(u, side * 70, 0.16).Position
-			local b = BODY:surface(u + 0.25, side * 100, 0.16).Position
-			local c = BODY:surface(u + 0.1, side * 128, 0.12).Position
-			rig:strut("Body", "LavaCrack", a, b, 0.07, 0.04, P.lava)
-			rig:strut("Body", "LavaCrack", b, c, 0.05, 0.04, if k % 2 == 0 then P.lavaHot else P.lava)
-		end
-	end)
-	-- Lames d'obsidienne sur les épaules et l'échine
+	-- Corne principale d'obsidienne cerclée de lave, seconde corne
+	local front = q.snoutFront or v3(0, 2.0, -2.9)
+	Cube.horn(rig, "Head", v3(0, 2.2, front.Z + 0.25), v3(0, 0.9, -0.35), { 0.42, 0.34, 0.26, 0.18 }, P.glass, P.lava, P.lavaHot)
+	Cube.horn(rig, "Head", v3(0, 2.62, -2.2), v3(0, 0.95, -0.2), { 0.26, 0.2, 0.14 }, P.glass, P.lava, nil)
+	-- Épaulières en lames d'obsidienne
 	rig:mirrored(function(side)
 		for k = 0, 2 do
-			local sh = BODY:surface(1.9 + k * 0.22, side * (48 + k * 6), 0.12)
-			rig:spike("Body", "ShoulderBlade", sh * ang(rad(-40), 0, -side * rad(20)), 0.36 - k * 0.06, 0.7 - k * 0.12, 0.08, P.glass)
+			rig:block("Body", "Blade", cf(side * 0.98, 2.6 + k * 0.15, -0.9 + k * 0.28) * ang(rad(-30), side * rad(20), side * rad(-35)), v3(0.12, 0.6 - k * 0.12, 0.36), P.glass)
 		end
 	end)
-	A.crest(rig, BODY, const("Body"), 1.6, 5.4, 0.42, 0.36, 0.26, P.plates[4], P.lava, 0, 30)
-
-	-- Selle de basalte (deux places)
-	local saddle = BODY:surface(3.2, 0, 0.18)
-	rig:prism("Body", "Saddle", saddle, v3(1.2, 0.16, 1.5), 0.1, P.basalt)
-	rig:prism("Body", "SaddleBack", saddle * cf(0, 0.22, 0.72) * ang(rad(-12), 0, 0), v3(1.0, 0.36, 0.14), 0.06, P.basaltDark)
-	rig:block("Body", "SaddleLava", saddle * cf(0, 0.09, 0), v3(1.22, 0.04, 0.06), P.lava)
-	rig:seat("Body", saddle * cf(0, 0.18, -0.3), v3(0.8, 0.2, 0.7))
-
-	-- Tête et cornes
-	rig:tube(HEAD, {
-		name = "Head",
-		bone = const("Head"),
-		core = P.core,
-		coreStep = 0.24,
-		cover = { A.scales(P.plates, v3(0.32, 0.12, 0.3), 0.24, { arc = 180, tilt = 10, jitter = 0.3, refRadius = 0.45, seed = 3 }) },
-	})
-	A.horn(rig, "Head", { v3(0, 2.08, -2.85), v3(0, 2.35, -3.05), v3(0, 2.75, -3.15), v3(0, 3.15, -3.05), v3(0, 3.35, -2.9) }, 0.26, 0.04, P.glass, P.lava, { 1.6, 2.8 })
-	A.horn(rig, "Head", { v3(0, 2.4, -2.45), v3(0, 2.62, -2.5), v3(0, 2.82, -2.42) }, 0.14, 0.03, P.glass)
-	rig:mirrored(function(side, sfx)
-		A.eye(rig, "Head", A.mx(v3(0.38, 2.28, -2.3), side), v3(side, 0.2, -0.4), 0.11, "Glow", P.socket, P.eye)
-		A.brow(rig, "Head", side, v3(0.34, 2.38, -2.32), 0.24, 18, P.plates[4])
-		rig:ball("Head", "Nostril", A.mx(v3(0.15, 1.78, -3.04), side), 0.08, P.lava)
-		A.ear(rig, "Ear" .. sfx, cf(A.mx(v3(0.32, 2.62, -1.95), side)) * ang(rad(-10), side * rad(-20), side * rad(-24)), 0.24, 0.36, P.plates[2], P.inner, P.lava)
-	end)
-
-	-- Pattes-colonnes
-	rig:mirrored(function(side, sfx)
-		local s = string.sub(sfx, 2)
-		for key, z in { F = -0.95, B = 0.85 } do
-			local bone = "Leg_" .. key .. s
-			local leg = A.limb(rig, bone, side, { { v3(0.62, 1.8, z), 0.42, 0.46 }, { v3(0.66, 1.0, z - 0.05), 0.32, 0.32 }, { v3(0.66, 0.28, z), 0.3, 0.3 } }, P.core, A.scales(P.plates, v3(0.32, 0.12, 0.3), 0.26, { arc = 180, tilt = 8, refRadius = 0.32, seed = 10 + side }))
-			rig:band(leg, bone, "LavaBand", 2.55, 0.08, 0.06, P.lava)
-			A.hoof(rig, bone, A.mx(v3(0.66, 0, z), side), 0.62, P.basaltDark, P.lava, P.basalt)
-		end
-	end)
-
-	-- Petite queue
-	rig:prismBetween("Tail1", "Tail", v3(0, 2.1, 1.65), v3(0, 1.5, 1.95), 0.12, 0.12, 0.04, P.plates[3])
-	A.tuftBurst(rig, "Tail1", A.alongUp(v3(0, 1.5, 1.95), v3(0, -1, 0.4)), 6, 0.3, 0.1, { P.plates[4] }, P.lava, 25, 7)
-
+	-- Selle de basalte pour deux cavaliers
+	Cube.box(rig, "Body", "Saddle", cf(0, 3.18, 0.2), v3(1.1, 0.18, 1.5), P.basalt, { chips = false })
 	-- Éclats d'obsidienne et braises en orbite
-	A.orbit(rig, "Aura1", v3(0, 2.6, 0), 3.4, 7, 0.5, function(bone, c, i)
-		rig:shard(bone, "ObsidianShard", c * ang(rad(20 * i), 0, rad(25)), 0.3, 0.7, 0.3, P.glass)
-		rig:shard(bone, "LavaCore", c * ang(rad(20 * i), 0, rad(25)), 0.14, 0.4, 0.14, P.lava)
-	end)
+	Cube.orbitGems(rig, "Aura1", v3(0, 2.5, 0), 3.0, 7, 0.5, { P.glass, P.lava, P.glass, P.lavaHot }, nil, 0.24)
 
-	rig:hitbox(cf(0, 2.0, -0.4), v3(2.6, 4, 5.8))
-
+	rig:hitbox(cf(0, 2.2, -0.3), v3(2.6, 4.4, 5.6))
 	if rig.effects then
 		local sc = rig.scale
-		local body = rig:anchor("Body", "FX_Volcano", cf(0, 2.6, 0), v3(2, 1, 3.2))
-		Fx.particles(body, Fx.embers("Embers", { rgb(255, 210, 100), rgb(255, 90, 20) }, 10, 0.16), sc)
-		Fx.particles(body, Fx.mist("Smoke", { rgb(70, 60, 60), rgb(20, 16, 16) }, 6, 1.6, 0), sc)
-		Fx.light(body, { color = rgb(255, 120, 30), range = 14, brightness = 1.6 }, sc)
-		local nose = rig:anchor("Head", "FX_Nostrils", cf(0, 1.75, -3.1), v3(0.4, 0.2, 0.2))
-		Fx.particles(nose, Fx.mist("Snort", { rgb(120, 100, 100), rgb(40, 30, 30) }, 3, 0.6, 0), sc)
-		Vfx.orbitTethers(rig, "Aura1", Vfx.orbitPoints(v3(0, 2.6, 0), 3.4, 7, 0.5), "Head", v3(0, 3.35, -2.9), { colors = { rgb(255, 160, 50), rgb(160, 40, 10) }, transparency = { 0.35, 0.85 }, width0 = 0.06, width1 = 0.02, curve0 = 0.6 })
+		local smoke = rig:anchor("Body", "FX_Smoke", cf(0, 3.2, 0), v3(1.6, 0.4, 2.6))
+		Fx.particles(smoke, Fx.mist("Smoke", { rgb(80, 70, 70), rgb(40, 34, 36) }, 4, 1.2, 0.1), sc)
+		Fx.particles(smoke, Fx.embers("Embers", { rgb(255, 210, 100), LAVA[1] }, 8, 0.18), sc)
+		Fx.light(smoke, { color = LAVA[1], range = 12, brightness = 1.5 }, sc)
 		Vfx.abilityOrigin(rig, ABILITY)
 		Vfx.rarityAura(rig, "Legendary")
 	end
-
 	return rig:finish({ Rarity = "Legendary" })
 end
 
