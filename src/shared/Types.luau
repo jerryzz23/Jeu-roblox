@@ -46,7 +46,8 @@ export type Ability = {
 export type Size = "Small" | "Medium" | "Large" | "Giant" | "Colossal"
 
 --- Où la créature s'obtient : dans le canyon ("Tapis"), dans le canyon ET la roue, ou seulement dans la roue.
-export type Source = "Tapis" | "TapisEtRoue" | "Roue"
+--- "Test" : modèle de test (nouveau style), visible mais jamais tiré au sort.
+export type Source = "Tapis" | "TapisEtRoue" | "Roue" | "Test"
 
 --- Habillage de l'icône d'inventaire.
 export type IconTheme = {

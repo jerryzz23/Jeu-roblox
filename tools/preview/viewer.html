@@ -659,7 +659,8 @@ function setView(v) {
       back: new THREE.Vector3(-0.7, 0.5, 1),
       top: new THREE.Vector3(0.0001, 1, -0.05),
     };
-    fit(dirs[v] || dirs["34"]);
+    const custom = (params.get("dir") || "").split(",").map(Number);
+    fit(custom.length === 3 && custom.every(Number.isFinite) ? new THREE.Vector3(...custom) : dirs[v] || dirs["34"]);
   }
   resize();
 }

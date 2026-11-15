@@ -167,7 +167,7 @@ const RARITY = {
 };
 const ORDER = ["Common", "Rare", "Epic", "Legendary", "Mythic", "Exotic", "Exclusive", "Chaotic"];
 const SIZE = { Small: "Petit", Medium: "Moyen", Large: "Grand", Giant: "Géant", Colossal: "Colossal" };
-const SOURCE = { Tapis: "Sur le tapis", TapisEtRoue: "Tapis + roue", Roue: "Roue uniquement" };
+const SOURCE = { Tapis: "Dans le canyon", TapisEtRoue: "Canyon + roue", Roue: "Roue uniquement", Test: "Test de style" };
 const money = n => { for (const [v, u] of [[1e12, "T"], [1e9, "B"], [1e6, "M"], [1e3, "K"]]) if (n >= v) { const x = n / v; return (x >= 100 ? Math.floor(x) : Math.round(x * 10) / 10).toString().replace(".", ",") + u; } return String(Math.round(n)); };
 const duration = sec => (sec >= 60 ? `${Math.floor(sec / 60)} min${sec % 60 ? " " + (sec % 60) + " s" : ""}` : `${sec} s`);
 const GAIT = { Quadruped: "Quadrupède", Sprawler: "Rampant", Flyer: "Vol", Serpent: "Serpent", Hover: "Lévitation", Biped: "Bipède" };

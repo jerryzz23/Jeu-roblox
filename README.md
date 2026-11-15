@@ -135,6 +135,21 @@ tirée au hasard : chaque variété est donc à 1 sur 10 000 000. Définitions :
 `src/shared/Creatures/NeantCouronne.luau` (un module, 10 créatures) ; modèles :
 `src/shared/Concepts/NeantCouronneVariantes.luau`.
 
+### Test de style : le Gardien lunaire
+
+![Le Gardien lunaire](docs/previews/gardien-lunaire.png)
+
+Fait d'après l'image de référence du créateur, pour tester un nouveau style : **gros cubes** et
+**motifs gravés en pixels** (phases de lune, croissants, spirales carrées, cratères), grands yeux
+ronds lumineux, oreilles magenta, cristaux de glace, **couronne en croissant de lune en pixels**
+qui flotte, **queue de neuf cubes de lune lumineux** et lunes en orbite. Il est animé comme les
+autres (pattes avec genoux, queue, oreilles, couronne qui flotte, lunes qui tournent).
+
+Il compte pour 660 pièces (`src/shared/Creatures/GardienLunaire.luau`, script
+`dist/GardienLunaire.commandbar.luau`). Avec `Source = "Test"`, il est visible dans le bestiaire
+et dans la place, mais il n'est **jamais tiré au sort** (ni dans le canyon, ni par la machine à
+ADN) tant que le créateur ne l'a pas validé.
+
 ## Mutations
 
 ![Le Griffon impérial avec chacune des 11 mutations](docs/previews/mutations.png)

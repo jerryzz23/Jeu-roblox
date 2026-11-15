@@ -100,6 +100,9 @@ Les détails (bonus de vitesse, selle passager, démarche, capacité) sont dans 
 
 ## Ce qui est fait
 
+- **Nouveau style « cubes + pixels »** (test) : le Gardien lunaire, d'après son image de
+  référence. Technique : `pixels()` (motifs en pixels fusionnés par lignes), `crescentRows()`
+  (croissants en pixels), cubes de queue lumineux sur une chaîne d'os.
 - Les **30 personnages** en 3D : animés (démarches, genoux, coudes), avec VFX, icône UI, selles
   et mutations visibles.
 - La **carte** : bases, stands (VENDRE, SERINGUES, TAPIS DE COURSE, GRATUIT !), roue, pente du
@@ -165,3 +168,9 @@ Dans l'ordre, les plus récentes en bas.
     (`dist/<Id>.commandbar.luau`, à coller dans la Command Bar de Studio), tous testés, regroupés
     par rareté dans `dist/scripts-creatures.zip`, avec la fiche de chaque créature dans
     `docs/scripts-des-creatures.md`.
+17. Image de référence « Lunar Guardian » : « voici PILE le style que je veux, des beaux détails
+    associés au personnage ». → **Gardien lunaire** (`src/shared/Creatures/GardienLunaire.luau`) :
+    gros cubes, motifs gravés en pixels, yeux ronds cyan, oreilles magenta, cristaux, couronne en
+    croissant de lune en pixels, queue de cubes de lune lumineux, lunes en orbite. `Source =
+    "Test"` : visible partout mais jamais tiré au sort. **En attente de son avis** : s'il valide,
+    il veut un autre personnage dans ce style pour tester (puis peut-être refaire les autres).

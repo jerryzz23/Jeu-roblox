@@ -54,6 +54,9 @@ local CreatureForge = {
 
 local registry: { [string]: Types.CreatureDef } = {}
 
+-- Sources jamais tirées au sort dans le canyon ni la machine à ADN (roue seulement, tests)
+local NOT_DRAWN = { Roue = true, Test = true }
+
 for _, m in script.Creatures:GetChildren() do
 	if m:IsA("ModuleScript") then
 		-- Un module renvoie une définition, ou une liste de définitions (ex. les 10 variétés du Néant)
@@ -206,7 +209,7 @@ function CreatureForge.rollSpawn(distance: number, rng: Random?, luck: number?):
 	local rarity = Spawning.rollRarity(distance, r, luck)
 	local pool = {}
 	for _, def in CreatureForge.ofRarity(rarity) do
-		if (def.Source or "Tapis") ~= "Roue" then
+		if not NOT_DRAWN[def.Source or "Tapis"] then
 			table.insert(pool, def)
 		end
 	end
@@ -223,7 +226,7 @@ function CreatureForge.hatch(dnaRarity: string, amount: number?, rng: Random?): 
 	local rarity = DnaMachine.rollRarity(dnaRarity, amount, r)
 	local pool = {}
 	for _, def in CreatureForge.ofRarity(rarity) do
-		if (def.Source or "Tapis") ~= "Roue" then
+		if not NOT_DRAWN[def.Source or "Tapis"] then
 			table.insert(pool, def)
 		end
 	end

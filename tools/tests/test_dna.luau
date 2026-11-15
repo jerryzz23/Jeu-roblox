@@ -32,3 +32,13 @@ for _, rarity in Forge.Rarity.Order do
 	table.insert(line, string.format("%s %d", rarity, dna:GetAttribute("PartCount")))
 end
 print("fioles d'ADN :", table.concat(line, " | "))
+-- Les modèles de test (Source = "Test") ne sont jamais tirés au sort
+local rng2 = Sandbox.Random.new(11)
+local drawnTest = 0
+for _ = 1, 5000 do
+	local a = Forge.hatch("Mythic", 100, rng2)
+	local b = Forge.rollSpawn(0.6, rng2)
+	if (a and a.Source == "Test") or (b and b.Source == "Test") then drawnTest += 1 end
+end
+print("modèles de test tirés :", drawnTest)
+assert(drawnTest == 0, "un modèle de test a été tiré au sort")
