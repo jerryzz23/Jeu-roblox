@@ -161,3 +161,7 @@ Dans l'ordre, les plus récentes en bas.
     `docs/conversation-complete.md` : toute la conversation (ses messages, dont son « Récap final
     du jeu » d'origine, et les réponses de Claude) + l'état du projet, à joindre dans une nouvelle
     conversation.
+16. « Donne-moi un script détaillé de chaque créature » → les 30 scripts autonomes
+    (`dist/<Id>.commandbar.luau`, à coller dans la Command Bar de Studio), tous testés, regroupés
+    par rareté dans `dist/scripts-creatures.zip`, avec la fiche de chaque créature dans
+    `docs/scripts-des-creatures.md`.

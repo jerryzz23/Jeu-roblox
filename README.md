@@ -272,6 +272,10 @@ secondes.
 
 ### Option 2 — Une créature dans ta propre place
 
+La fiche et le mode d'emploi du script de chaque créature sont dans
+[`docs/scripts-des-creatures.md`](docs/scripts-des-creatures.md). Les 30 scripts sont aussi
+regroupés par rareté dans `dist/scripts-creatures.zip`.
+
 - **Command Bar** : copie tout `dist/<Créature>.commandbar.luau`, colle-le dans *View › Command Bar*,
   Entrée. Pour des mutations, change `local MUTATIONS = nil` en par exemple
   `local MUTATIONS = { "Kintsugi", "Vitrail" }` en haut de la partie « Entrée ».
